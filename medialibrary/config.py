@@ -24,5 +24,8 @@ class Settings(BaseSettings):
     # UPCitemdb
     upcitemdb_base_url: str = "https://api.upcitemdb.com/prod/trial/lookup"
 
+    # Letterboxd (no API key required — public profile scraping)
+    letterboxd_username: str = ""
+
 
 settings = Settings()

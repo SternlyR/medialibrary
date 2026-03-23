@@ -31,6 +31,7 @@ from sqlalchemy.orm import joinedload
 
 from medialibrary.database import init_db, get_session, Movie, PhysicalRelease
 from medialibrary.metadata import enrich
+from medialibrary.config import settings
 
 app = FastAPI(
     title="Media Library API",
@@ -97,6 +98,7 @@ class ReleaseResponse(BaseModel):
     cover_url: Optional[str]
     cover_url_back: Optional[str]
     notes: Optional[str]
+    letterboxd_rating: Optional[float]
 
     model_config = {"from_attributes": True}
 
@@ -126,6 +128,7 @@ def _release_to_response(r: PhysicalRelease) -> dict:
         "cover_url": r.cover_url,
         "cover_url_back": r.cover_url_back,
         "notes": r.notes,
+        "letterboxd_rating": m.letterboxd_rating if m else None,
     }
 
 
@@ -184,6 +187,7 @@ async def add_release(req: AddReleaseRequest):
                 imdb_id=result.imdb_id,
                 overview=result.overview,
                 genres=result.genres,
+                letterboxd_rating=result.letterboxd_rating,
             )
             session.add(movie)
             await session.flush()
@@ -191,6 +195,8 @@ async def add_release(req: AddReleaseRequest):
             movie.director = result.director or movie.director
             movie.runtime_minutes = result.runtime_minutes or movie.runtime_minutes
             movie.mpaa_rating = result.mpaa_rating or movie.mpaa_rating
+            if result.letterboxd_rating is not None:
+                movie.letterboxd_rating = result.letterboxd_rating
 
         # Upsert PhysicalRelease
         release = None
@@ -294,7 +300,7 @@ async def export_csv():
         "Film", "Box Art", "Year", "Director", "Format", "Label",
         "Region", "Set", "MPAA Rating", "Runtime (min)",
         "Physical Release Date", "Aspect Ratio", "UPC",
-        "TMDB ID", "IMDb ID",
+        "TMDB ID", "IMDb ID", "Letterboxd Rating",
     ])
     for r in sorted(releases, key=lambda x: x.movie.title if x.movie else ""):
         m = r.movie
@@ -315,6 +321,7 @@ async def export_csv():
             r.upc or "",
             m.tmdb_id if m else "",
             m.imdb_id if m else "",
+            m.letterboxd_rating if m else "",
         ])
 
     output.seek(0)
@@ -323,6 +330,48 @@ async def export_csv():
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=medialibrary.csv"},
     )
+
+
+@app.post("/sync/letterboxd", summary="Sync Letterboxd ratings for all library movies")
+async def sync_letterboxd(username: Optional[str] = Query(None)):
+    """Fetch all ratings from a public Letterboxd profile and update matching movies.
+
+    Uses LETTERBOXD_USERNAME from config if username query param is not provided.
+    """
+    from medialibrary.api.letterboxd import LetterboxdClient, _normalize
+    from datetime import datetime
+
+    lb_user = username or settings.letterboxd_username
+    if not lb_user:
+        raise HTTPException(400, "Provide ?username= or set LETTERBOXD_USERNAME in .env")
+
+    lb_client = LetterboxdClient()
+    try:
+        ratings = await lb_client.get_all_ratings(lb_user)
+    except Exception as e:
+        raise HTTPException(502, f"Letterboxd fetch failed: {e}")
+
+    index = lb_client.build_index(ratings)
+
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        movies = (await session.execute(select(Movie))).scalars().all()
+        matched = 0
+        now = datetime.utcnow()
+        for movie in movies:
+            key = (_normalize(movie.title), movie.year)
+            if key in index:
+                movie.letterboxd_rating = index[key]
+                movie.letterboxd_synced_at = now
+                matched += 1
+        await session.commit()
+
+    return {
+        "letterboxd_username": lb_user,
+        "ratings_fetched": len(ratings),
+        "library_titles": len(movies),
+        "matched": matched,
+    }
 
 
 @app.get("/health")

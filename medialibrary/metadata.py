@@ -17,6 +17,8 @@ from typing import Any
 from medialibrary.api.tmdb import TMDBClient
 from medialibrary.api.upc import UPCClient
 from medialibrary.api.bluray import BlurayClient
+from medialibrary.api.letterboxd import LetterboxdClient
+from medialibrary.config import settings
 
 
 @dataclass
@@ -49,6 +51,9 @@ class EnrichedRelease:
     cover_url: str = ""           # Blu-ray.com front cover
     cover_url_back: str = ""
 
+    # Personal rating (from Letterboxd)
+    letterboxd_rating: float | None = None  # 0.5 – 5.0, None if not rated / not fetched
+
     # Source tracking
     sources: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -63,12 +68,22 @@ class EnrichedRelease:
             return f'=IMAGE("{url}")'
         return ""
 
+    def letterboxd_stars(self) -> str:
+        """Convert numeric rating to half-star display (e.g. 4.5 → '★★★★½')."""
+        if self.letterboxd_rating is None:
+            return ""
+        full = int(self.letterboxd_rating)
+        half = (self.letterboxd_rating - full) >= 0.5
+        return "★" * full + ("½" if half else "")
+
     def summary(self) -> str:
+        lb = f" ({self.letterboxd_stars()})" if self.letterboxd_rating else ""
         lines = [
             f"  Title:    {self.title} ({self.year})",
             f"  Director: {self.director}",
             f"  Runtime:  {self.runtime_minutes} min" if self.runtime_minutes else "",
             f"  Rating:   {self.mpaa_rating}" if self.mpaa_rating else "",
+            f"  Letterboxd: {self.letterboxd_rating}{lb}" if self.letterboxd_rating else "",
             f"  Format:   {self.format}" if self.format else "",
             f"  Label:    {self.label}" if self.label else "",
             f"  Region:   {self.region}" if self.region else "",
@@ -189,5 +204,20 @@ async def enrich(
         # Override format from Blu-ray.com (more reliable than UPC description)
         if bluray_data.get("format"):
             result.format = bluray_data["format"]
+
+    # ── Step 4: Letterboxd personal rating ───────────────────────────────────
+    if settings.letterboxd_username and result.title:
+        try:
+            lb_client = LetterboxdClient()
+            rating = await lb_client.get_rating_for_film(
+                settings.letterboxd_username,
+                result.title,
+                result.year,
+            )
+            if rating is not None:
+                result.letterboxd_rating = rating
+                result.sources.append("letterboxd")
+        except Exception as e:
+            result.warnings.append(f"Letterboxd lookup failed: {e}")
 
     return result

@@ -35,6 +35,7 @@ from rich.table import Table
 from rich import print as rprint
 
 from medialibrary.metadata import enrich, EnrichedRelease
+from medialibrary.config import settings
 
 app = typer.Typer(
     name="medialibrary",
@@ -131,6 +132,7 @@ def add(
                     imdb_id=result.imdb_id,
                     overview=result.overview,
                     genres=result.genres,
+                    letterboxd_rating=result.letterboxd_rating,
                 )
                 session.add(movie)
                 await session.flush()
@@ -140,6 +142,8 @@ def add(
                 movie.runtime_minutes = result.runtime_minutes or movie.runtime_minutes
                 movie.mpaa_rating = result.mpaa_rating or movie.mpaa_rating
                 movie.genres = result.genres or movie.genres
+                if result.letterboxd_rating is not None:
+                    movie.letterboxd_rating = result.letterboxd_rating
 
             # Upsert PhysicalRelease
             release = None
@@ -204,11 +208,17 @@ def list_library(
         table.add_column("Format", width=10)
         table.add_column("Label")
         table.add_column("Region", width=8)
-        table.add_column("Rating", width=7)
+        table.add_column("MPAA", width=6)
         table.add_column("Runtime", width=9)
+        table.add_column("Letterboxd", width=12)
 
         for r in sorted(releases, key=lambda x: x.movie.title if x.movie else ""):
             m = r.movie
+            lb_rating = ""
+            if m and m.letterboxd_rating is not None:
+                full = int(m.letterboxd_rating)
+                half = (m.letterboxd_rating - full) >= 0.5
+                lb_rating = "★" * full + ("½" if half else "")
             table.add_row(
                 m.title if m else "?",
                 str(m.year) if m and m.year else "",
@@ -218,6 +228,7 @@ def list_library(
                 r.region or "",
                 m.mpaa_rating if m else "",
                 f"{m.runtime_minutes}m" if m and m.runtime_minutes else "",
+                lb_rating,
             )
         console.print(table)
 
@@ -248,6 +259,7 @@ def export(
             "Region", "Set", "MPAA Rating", "Runtime (min)",
             "Physical Release Date", "Aspect Ratio", "UPC",
             "TMDB ID", "IMDb ID", "Blu-ray.com ID", "Cover URL",
+            "Letterboxd Rating",
         ]
 
         with open(output, "w", newline="", encoding="utf-8") as f:
@@ -275,11 +287,78 @@ def export(
                     "IMDb ID": m.imdb_id if m else "",
                     "Blu-ray.com ID": r.bluray_com_id or "",
                     "Cover URL": cover,
+                    "Letterboxd Rating": m.letterboxd_rating if m else "",
                 })
 
         console.print(f"[green]✓ Exported {len(releases)} releases to {output}[/green]")
 
     asyncio.run(_export())
+
+
+# ── sync-ratings ──────────────────────────────────────────────────────────────
+
+@app.command(name="sync-ratings")
+def sync_ratings(
+    username: Optional[str] = typer.Option(
+        None, "--username", "-u",
+        help="Letterboxd username (overrides LETTERBOXD_USERNAME env var)",
+    ),
+):
+    """Pull your Letterboxd ratings and update matching movies in the library."""
+    from medialibrary.database import init_db, get_session, Movie
+    from medialibrary.api.letterboxd import LetterboxdClient, _normalize
+    from sqlalchemy import select
+    from datetime import datetime
+
+    lb_user = username or settings.letterboxd_username
+    if not lb_user:
+        console.print(
+            "[red]Error:[/red] Set LETTERBOXD_USERNAME in .env or pass --username"
+        )
+        raise typer.Exit(1)
+
+    async def _sync():
+        console.print(f"Fetching ratings for [bold]{lb_user}[/bold] from Letterboxd…")
+        lb_client = LetterboxdClient()
+        try:
+            ratings = await lb_client.get_all_ratings(lb_user)
+        except Exception as e:
+            console.print(f"[red]Error fetching Letterboxd ratings:[/red] {e}")
+            raise typer.Exit(1)
+
+        if not ratings:
+            console.print("[yellow]No ratings found. Check that the profile is public.[/yellow]")
+            return
+
+        console.print(f"  Found [cyan]{len(ratings)}[/cyan] rated films on Letterboxd.")
+        index = lb_client.build_index(ratings)
+
+        engine = await init_db()
+        async with await get_session(engine) as session:
+            movies = (await session.execute(select(Movie))).scalars().all()
+
+            matched = 0
+            now = datetime.utcnow()
+            for movie in movies:
+                key = (_normalize(movie.title), movie.year)
+                if key in index:
+                    movie.letterboxd_rating = index[key]
+                    movie.letterboxd_synced_at = now
+                    matched += 1
+
+            await session.commit()
+
+        console.print(
+            f"  Matched and updated [green]{matched}[/green] / {len(movies)} library titles."
+        )
+        if matched < len(movies):
+            unmatched = len(movies) - matched
+            console.print(
+                f"  [dim]{unmatched} titles had no Letterboxd rating "
+                f"(unrated or title mismatch).[/dim]"
+            )
+
+    asyncio.run(_sync())
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -293,10 +372,15 @@ def _print_result(result: EnrichedRelease) -> None:
     table.add_column("Key", style="dim", width=22)
     table.add_column("Value")
 
+    lb_display = ""
+    if result.letterboxd_rating is not None:
+        lb_display = f"{result.letterboxd_rating} {result.letterboxd_stars()}"
+
     rows = [
         ("Director", result.director),
         ("Runtime", f"{result.runtime_minutes} min" if result.runtime_minutes else ""),
         ("MPAA Rating", result.mpaa_rating),
+        ("Letterboxd", lb_display),
         ("Genres", result.genres),
         ("Format", result.format),
         ("Label", result.label),

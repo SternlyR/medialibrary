@@ -28,6 +28,8 @@ class Movie(Base):
     imdb_id = Column(String(20), index=True)
     overview = Column(Text)
     genres = Column(String(500))       # comma-separated
+    letterboxd_rating = Column(Float)  # 0.5 – 5.0, null if not yet fetched or unrated
+    letterboxd_synced_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
