@@ -1,0 +1,330 @@
+"""FastAPI server — REST API for the media library.
+
+This is the foundation for the long-term mobile/visual app.
+
+Endpoints:
+    POST /releases/lookup          Look up metadata without saving
+    POST /releases                 Add a release to the library
+    GET  /releases                 List all releases
+    GET  /releases/{id}            Get a single release
+    PATCH /releases/{id}           Update a release
+    DELETE /releases/{id}          Remove a release
+    GET  /releases/search?q=...    Search the library
+    GET  /export/csv               Download CSV for Google Sheets
+
+Run with:
+    uvicorn medialibrary.server:app --reload
+"""
+
+from __future__ import annotations
+
+import csv
+import io
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
+
+from medialibrary.database import init_db, get_session, Movie, PhysicalRelease
+from medialibrary.metadata import enrich
+
+app = FastAPI(
+    title="Media Library API",
+    description="Physical disc media library — metadata lookup and management.",
+    version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # Tighten this for production
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+_engine = None
+
+
+async def get_engine():
+    global _engine
+    if _engine is None:
+        _engine = await init_db()
+    return _engine
+
+
+# ── Pydantic schemas ──────────────────────────────────────────────────────────
+
+class LookupRequest(BaseModel):
+    upc: Optional[str] = None
+    title: Optional[str] = None
+    year: Optional[int] = None
+    label: Optional[str] = None
+    bluray_com_id: Optional[int] = None
+    tmdb_id: Optional[int] = None
+
+
+class AddReleaseRequest(LookupRequest):
+    set_name: Optional[str] = None
+    notes: Optional[str] = None
+    condition: Optional[str] = None
+
+
+class ReleaseResponse(BaseModel):
+    id: int
+    # Movie fields
+    title: str
+    year: Optional[int]
+    director: Optional[str]
+    runtime_minutes: Optional[int]
+    mpaa_rating: Optional[str]
+    genres: Optional[str]
+    tmdb_id: Optional[int]
+    imdb_id: Optional[str]
+    # Release fields
+    upc: Optional[str]
+    bluray_com_id: Optional[int]
+    format: Optional[str]
+    label: Optional[str]
+    region: Optional[str]
+    physical_release_date: Optional[str]
+    edition: Optional[str]
+    set_name: Optional[str]
+    disc_count: Optional[int]
+    aspect_ratio: Optional[str]
+    cover_url: Optional[str]
+    cover_url_back: Optional[str]
+    notes: Optional[str]
+
+    model_config = {"from_attributes": True}
+
+
+def _release_to_response(r: PhysicalRelease) -> dict:
+    m = r.movie
+    return {
+        "id": r.id,
+        "title": m.title if m else "",
+        "year": m.year if m else None,
+        "director": m.director if m else None,
+        "runtime_minutes": m.runtime_minutes if m else None,
+        "mpaa_rating": m.mpaa_rating if m else None,
+        "genres": m.genres if m else None,
+        "tmdb_id": m.tmdb_id if m else None,
+        "imdb_id": m.imdb_id if m else None,
+        "upc": r.upc,
+        "bluray_com_id": r.bluray_com_id,
+        "format": r.format,
+        "label": r.label,
+        "region": r.region,
+        "physical_release_date": r.physical_release_date,
+        "edition": r.edition,
+        "set_name": r.set_name,
+        "disc_count": r.disc_count,
+        "aspect_ratio": r.aspect_ratio,
+        "cover_url": r.cover_url,
+        "cover_url_back": r.cover_url_back,
+        "notes": r.notes,
+    }
+
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
+@app.post("/releases/lookup", summary="Look up metadata without saving")
+async def lookup_release(req: LookupRequest):
+    """Fetch enriched metadata for a disc. Useful before deciding to add it."""
+    if not any([req.upc, req.title, req.bluray_com_id, req.tmdb_id]):
+        raise HTTPException(400, "Provide at least one of: upc, title, bluray_com_id, tmdb_id")
+
+    result = await enrich(
+        upc=req.upc,
+        title=req.title,
+        year=req.year,
+        label=req.label,
+        bluray_com_id=req.bluray_com_id,
+        tmdb_id=req.tmdb_id,
+    )
+    return result.to_dict()
+
+
+@app.post("/releases", status_code=201, summary="Add a release to the library")
+async def add_release(req: AddReleaseRequest):
+    """Look up metadata and persist the release + movie to the database."""
+    if not any([req.upc, req.title, req.bluray_com_id, req.tmdb_id]):
+        raise HTTPException(400, "Provide at least one of: upc, title, bluray_com_id, tmdb_id")
+
+    result = await enrich(
+        upc=req.upc,
+        title=req.title,
+        year=req.year,
+        label=req.label,
+        bluray_com_id=req.bluray_com_id,
+        tmdb_id=req.tmdb_id,
+    )
+    if req.set_name:
+        result.set_name = req.set_name
+
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        # Upsert Movie
+        movie = None
+        if result.tmdb_id:
+            stmt = select(Movie).where(Movie.tmdb_id == result.tmdb_id)
+            movie = (await session.execute(stmt)).scalar_one_or_none()
+
+        if not movie:
+            movie = Movie(
+                title=result.title,
+                year=result.year,
+                director=result.director,
+                runtime_minutes=result.runtime_minutes,
+                mpaa_rating=result.mpaa_rating,
+                tmdb_id=result.tmdb_id,
+                imdb_id=result.imdb_id,
+                overview=result.overview,
+                genres=result.genres,
+            )
+            session.add(movie)
+            await session.flush()
+        else:
+            movie.director = result.director or movie.director
+            movie.runtime_minutes = result.runtime_minutes or movie.runtime_minutes
+            movie.mpaa_rating = result.mpaa_rating or movie.mpaa_rating
+
+        # Upsert PhysicalRelease
+        release = None
+        if result.upc:
+            stmt = select(PhysicalRelease).where(PhysicalRelease.upc == result.upc)
+            release = (await session.execute(stmt)).scalar_one_or_none()
+
+        if not release:
+            release = PhysicalRelease(
+                movie_id=movie.id,
+                upc=result.upc,
+                bluray_com_id=result.bluray_com_id,
+                format=result.format,
+                label=result.label,
+                region=result.region,
+                physical_release_date=result.physical_release_date,
+                edition=result.edition,
+                set_name=result.set_name or req.set_name,
+                disc_count=result.disc_count,
+                aspect_ratio=result.aspect_ratio,
+                cover_url=result.cover_url,
+                cover_url_back=result.cover_url_back,
+                notes=req.notes,
+            )
+            session.add(release)
+        else:
+            release.cover_url = result.cover_url or release.cover_url
+            release.label = result.label or release.label
+
+        await session.commit()
+        await session.refresh(release)
+        await session.refresh(movie)
+        release.movie = movie
+
+    return _release_to_response(release)
+
+
+@app.get("/releases", summary="List all releases")
+async def list_releases(
+    q: Optional[str] = Query(None, description="Search by title"),
+    format: Optional[str] = Query(None),
+    label: Optional[str] = Query(None),
+    region: Optional[str] = Query(None),
+):
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        stmt = select(PhysicalRelease).options(joinedload(PhysicalRelease.movie))
+        if format:
+            stmt = stmt.where(PhysicalRelease.format.ilike(f"%{format}%"))
+        if label:
+            stmt = stmt.where(PhysicalRelease.label.ilike(f"%{label}%"))
+        if region:
+            stmt = stmt.where(PhysicalRelease.region.ilike(f"%{region}%"))
+        releases = (await session.execute(stmt)).scalars().all()
+
+    results = [_release_to_response(r) for r in releases]
+
+    if q:
+        q_lower = q.lower()
+        results = [r for r in results if q_lower in r["title"].lower()]
+
+    return sorted(results, key=lambda r: r["title"])
+
+
+@app.get("/releases/{release_id}", summary="Get a single release")
+async def get_release(release_id: int):
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        stmt = select(PhysicalRelease).where(
+            PhysicalRelease.id == release_id
+        ).options(joinedload(PhysicalRelease.movie))
+        release = (await session.execute(stmt)).scalar_one_or_none()
+
+    if not release:
+        raise HTTPException(404, f"Release {release_id} not found")
+    return _release_to_response(release)
+
+
+@app.delete("/releases/{release_id}", status_code=204, summary="Remove a release")
+async def delete_release(release_id: int):
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        stmt = select(PhysicalRelease).where(PhysicalRelease.id == release_id)
+        release = (await session.execute(stmt)).scalar_one_or_none()
+        if not release:
+            raise HTTPException(404, f"Release {release_id} not found")
+        await session.delete(release)
+        await session.commit()
+
+
+@app.get("/export/csv", summary="Download CSV for Google Sheets import")
+async def export_csv():
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        stmt = select(PhysicalRelease).options(joinedload(PhysicalRelease.movie))
+        releases = (await session.execute(stmt)).scalars().all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Film", "Box Art", "Year", "Director", "Format", "Label",
+        "Region", "Set", "MPAA Rating", "Runtime (min)",
+        "Physical Release Date", "Aspect Ratio", "UPC",
+        "TMDB ID", "IMDb ID",
+    ])
+    for r in sorted(releases, key=lambda x: x.movie.title if x.movie else ""):
+        m = r.movie
+        cover = r.cover_url or ""
+        writer.writerow([
+            m.title if m else "",
+            f'=IMAGE("{cover}")' if cover else "",
+            m.year if m else "",
+            m.director if m else "",
+            r.format or "",
+            r.label or "",
+            r.region or "",
+            r.set_name or "",
+            m.mpaa_rating if m else "",
+            m.runtime_minutes if m else "",
+            r.physical_release_date or "",
+            r.aspect_ratio or "",
+            r.upc or "",
+            m.tmdb_id if m else "",
+            m.imdb_id if m else "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=medialibrary.csv"},
+    )
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}

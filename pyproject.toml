@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "medialibrary"
+version = "0.1.0"
+description = "Physical disc media library — automated metadata enrichment"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "sqlalchemy>=2.0",
+    "aiosqlite>=0.20",
+    "httpx>=0.28",
+    "beautifulsoup4>=4.12",
+    "python-dotenv>=1.0",
+    "typer>=0.15",
+    "rich>=13",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+]
+
+[project.scripts]
+medialibrary = "medialibrary.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["medialibrary*"]
