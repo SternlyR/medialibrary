@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beat the Rich – The Personal Finance Game Show</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --gold: #F5C518;
+      --gold-dark: #C9990A;
+      --green: #00E87A;
+      --red: #FF3B3B;
+      --dark: #0A0A0F;
+      --dark2: #111118;
+      --dark3: #1A1A26;
+      --card: #16161F;
+      --border: rgba(245,197,24,0.18);
+      --text: #F0F0F0;
+      --muted: #888;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--dark);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 48px;
+      background: rgba(10,10,15,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 2px; color: var(--gold); }
+    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.875rem; font-weight: 500; letter-spacing: 0.5px; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--gold); }
+    .nav-cta {
+      background: var(--gold); color: #000; font-weight: 700; font-size: 0.8rem;
+      padding: 10px 22px; border-radius: 4px; text-decoration: none; letter-spacing: 0.5px;
+      transition: background 0.2s;
+    }
+    .nav-cta:hover { background: var(--gold-dark); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(245,197,24,0.12) 0%, transparent 70%),
+                  radial-gradient(ellipse 60% 40% at 80% 80%, rgba(0,232,122,0.06) 0%, transparent 60%),
+                  var(--dark);
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 60px,
+        rgba(245,197,24,0.03) 60px, rgba(245,197,24,0.03) 61px
+      ),
+      repeating-linear-gradient(
+        90deg, transparent, transparent 60px,
+        rgba(245,197,24,0.03) 60px, rgba(245,197,24,0.03) 61px
+      );
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(245,197,24,0.1); border: 1px solid var(--border);
+      color: var(--gold); font-size: 0.75rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+      padding: 7px 16px; border-radius: 100px; margin-bottom: 28px;
+    }
+    .hero-eyebrow::before { content: '●'; font-size: 0.5rem; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(5rem, 14vw, 11rem);
+      line-height: 0.9;
+      letter-spacing: 4px;
+      color: #fff;
+      text-shadow: 0 0 80px rgba(245,197,24,0.25);
+    }
+    h1 span { color: var(--gold); }
+    .hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.35rem);
+      color: var(--muted);
+      max-width: 640px;
+      margin: 24px auto 0;
+      line-height: 1.65;
+      font-weight: 400;
+    }
+    .hero-sub strong { color: var(--text); font-weight: 600; }
+    .hero-buttons {
+      display: flex; gap: 16px; flex-wrap: wrap; justify-content: center;
+      margin-top: 44px;
+    }
+    .btn-primary {
+      background: var(--gold); color: #000; font-weight: 800; font-size: 0.9rem;
+      padding: 16px 36px; border-radius: 4px; text-decoration: none; letter-spacing: 0.5px;
+      transition: transform 0.15s, background 0.2s; display: inline-block;
+    }
+    .btn-primary:hover { transform: translateY(-2px); background: var(--gold-dark); }
+    .btn-outline {
+      border: 2px solid var(--border); color: var(--text); font-weight: 600; font-size: 0.9rem;
+      padding: 14px 34px; border-radius: 4px; text-decoration: none; letter-spacing: 0.5px;
+      transition: border-color 0.2s, color 0.2s; display: inline-block;
+    }
+    .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+    .hero-stats {
+      display: flex; gap: 48px; flex-wrap: wrap; justify-content: center;
+      margin-top: 72px;
+      padding-top: 48px;
+      border-top: 1px solid var(--border);
+      width: 100%; max-width: 800px;
+    }
+    .hero-stat {}
+    .hero-stat-num { font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; color: var(--gold); letter-spacing: 1px; line-height: 1; }
+    .hero-stat-label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+    /* ── SECTION BASE ── */
+    section { padding: 96px 24px; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 3px; text-transform: uppercase;
+      color: var(--gold); margin-bottom: 14px;
+    }
+    h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.8rem, 6vw, 4.5rem);
+      letter-spacing: 2px; line-height: 1.05; margin-bottom: 20px;
+    }
+    .section-intro { font-size: 1.05rem; color: var(--muted); max-width: 680px; line-height: 1.7; }
+
+    /* ── CONCEPT ── */
+    .concept { background: var(--dark2); }
+    .concept-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
+      margin-top: 64px;
+    }
+    .concept-copy p { color: var(--muted); line-height: 1.8; margin-bottom: 16px; font-size: 1rem; }
+    .concept-copy p strong { color: var(--text); }
+    .concept-visual {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .concept-visual::before {
+      content: '';
+      position: absolute; top: -40px; right: -40px;
+      width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(245,197,24,0.15), transparent 70%);
+    }
+    .show-format-list { list-style: none; display: flex; flex-direction: column; gap: 20px; }
+    .show-format-list li {
+      display: flex; gap: 16px; align-items: flex-start;
+    }
+    .format-num {
+      background: var(--gold); color: #000; font-weight: 800; font-size: 0.75rem;
+      width: 28px; height: 28px; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 2px;
+    }
+    .format-text strong { display: block; font-size: 0.95rem; margin-bottom: 4px; }
+    .format-text span { font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── AUDIENCE ── */
+    .audience { background: var(--dark3); }
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px;
+      margin-top: 56px;
+    }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 32px 28px; position: relative; overflow: hidden; transition: border-color 0.2s, transform 0.2s;
+    }
+    .stat-card:hover { border-color: rgba(245,197,24,0.5); transform: translateY(-3px); }
+    .stat-card::after {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--gold), var(--green));
+    }
+    .stat-icon { font-size: 1.5rem; margin-bottom: 16px; }
+    .stat-pct {
+      font-family: 'Bebas Neue', sans-serif; font-size: 4rem; color: var(--gold);
+      line-height: 1; letter-spacing: 1px;
+    }
+    .stat-pct sup { font-size: 1.8rem; vertical-align: super; }
+    .stat-label { font-size: 0.95rem; color: var(--text); font-weight: 600; margin-top: 8px; line-height: 1.4; }
+    .stat-desc { font-size: 0.82rem; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+    .stat-card.highlight { border-color: rgba(245,197,24,0.4); background: rgba(245,197,24,0.04); }
+
+    /* ── CHIME FIT ── */
+    .chime-fit { background: var(--dark2); }
+    .fit-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;
+      margin-top: 56px;
+    }
+    .fit-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 32px; transition: border-color 0.2s;
+    }
+    .fit-card:hover { border-color: rgba(0,232,122,0.4); }
+    .fit-bar {
+      height: 4px; background: var(--dark3); border-radius: 2px; margin-bottom: 24px; overflow: hidden;
+    }
+    .fit-bar-fill { height: 100%; background: linear-gradient(90deg, var(--green), var(--gold)); border-radius: 2px; }
+    .fit-pct-label { font-size: 0.75rem; color: var(--green); font-weight: 700; letter-spacing: 1px; margin-bottom: 10px; }
+    .fit-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
+    .fit-desc { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── REACH ── */
+    .reach { background: var(--dark3); }
+    .reach-inner {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: center;
+      margin-top: 56px;
+    }
+    .reach-numbers { display: flex; flex-direction: column; gap: 32px; }
+    .reach-num-item { display: flex; flex-direction: column; }
+    .reach-num { font-family: 'Bebas Neue', sans-serif; font-size: 3.8rem; color: var(--gold); line-height: 1; }
+    .reach-num-label { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+    .reach-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 40px; text-align: center;
+    }
+    .reach-card h3 { font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 1px; margin-bottom: 8px; }
+    .reach-conversion {
+      font-family: 'Bebas Neue', sans-serif; font-size: 5rem; color: var(--green); letter-spacing: 2px; line-height: 1;
+    }
+    .reach-conversion-label { font-size: 0.85rem; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+    .reach-divider { width: 60px; height: 3px; background: var(--gold); margin: 24px auto; border-radius: 2px; }
+    .reach-note { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── CTA ── */
+    .cta-section {
+      background: linear-gradient(135deg, rgba(245,197,24,0.08) 0%, rgba(0,232,122,0.05) 100%),
+                  var(--dark2);
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 120px 24px;
+    }
+    .cta-section h2 { max-width: 700px; margin: 0 auto 20px; }
+    .cta-section p { color: var(--muted); max-width: 520px; margin: 0 auto 48px; line-height: 1.7; }
+    .contact-card {
+      display: inline-flex; flex-direction: column; align-items: center; gap: 4px;
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 28px 48px; margin-top: 0;
+    }
+    .contact-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); }
+    .contact-name { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+    .contact-org { font-size: 0.85rem; color: var(--gold); }
+
+    /* ── FOOTER ── */
+    footer {
+      background: var(--dark);
+      border-top: 1px solid var(--border);
+      padding: 40px 48px;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+    }
+    .footer-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; color: var(--gold); letter-spacing: 2px; }
+    .footer-copy { font-size: 0.78rem; color: var(--muted); }
+
+    /* ── TICKER ── */
+    .ticker-wrap {
+      background: var(--gold);
+      padding: 12px 0;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    .ticker-inner {
+      display: inline-flex; gap: 0;
+      animation: ticker 30s linear infinite;
+    }
+    .ticker-item {
+      font-weight: 800; font-size: 0.78rem; letter-spacing: 1.5px; text-transform: uppercase;
+      color: #000; padding: 0 40px;
+    }
+    .ticker-sep { color: rgba(0,0,0,0.35); }
+    @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .nav-links { display: none; }
+      .concept-grid, .reach-inner { grid-template-columns: 1fr; gap: 40px; }
+      footer { flex-direction: column; align-items: flex-start; padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">Beat the Rich</div>
+  <ul class="nav-links">
+    <li><a href="#concept">The Show</a></li>
+    <li><a href="#audience">Audience</a></li>
+    <li><a href="#fit">Sponsor Fit</a></li>
+    <li><a href="#reach">Reach</a></li>
+  </ul>
+  <a href="#contact" class="nav-cta">Partner With Us</a>
+</nav>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-eyebrow">Hard Carry Media · Personal Finance Game Show</div>
+  <h1>BEAT<br/><span>THE RICH</span></h1>
+  <p class="hero-sub">
+    The game show where <strong>real people</strong> go head-to-head with the system —
+    competing for cash, knowledge, and financial freedom.
+    Where <strong>personal finance meets prime-time energy.</strong>
+  </p>
+  <div class="hero-buttons">
+    <a href="#concept" class="btn-primary">See the Concept</a>
+    <a href="#audience" class="btn-outline">Audience Data</a>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-num">11M+</div>
+      <div class="hero-stat-label">Followers</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">50M+</div>
+      <div class="hero-stat-label">Monthly Reach</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">72%</div>
+      <div class="hero-stat-label">Chime Interest</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-num">77%</div>
+      <div class="hero-stat-label">Open to Switch Banks</div>
+    </div>
+  </div>
+</header>
+
+<!-- TICKER -->
+<div class="ticker-wrap" aria-hidden="true">
+  <div class="ticker-inner">
+    <span class="ticker-item">Beat the Rich</span>
+    <span class="ticker-item ticker-sep">✦</span>
+    <span class="ticker-item">Hard Carry Media</span>
+    <span class="ticker-item ticker-sep">✦</span>
+    <span class="ticker-item">Personal Finance Game Show</span>
+    <span class="ticker-item ticker-sep">✦</span>
+    <span class="ticker-item">11M+ Followers</span>
+    <span class="ticker-item ticker-sep">✦</span>
+    <span class="ticker-item">50M+ Monthly Reach</span>
+    <span class="ticker-item ticker-sep">✦</span>
+    <span class="ticker-item">72% Chime Interest</span>
+    <span class="ticker-item ticker-sep">✦</span>
+    <!-- duplicate for seamless loop -->
+    <span class="ticker-item">Beat the Rich</span>
+    <span class="ticker-item ticker-sep">✦</span>
+    <span class="ticker-item">Hard Carry Media</span>
+    <span class="ticker-item ticker-sep">✦</span>
+    <span class="ticker-item">Personal Finance Game Show</span>
+    <span class="ticker-item ticker-sep">✦</span>
+    <span class="ticker-item">11M+ Followers</span>
+    <span class="ticker-item ticker-sep">✦</span>
+    <span class="ticker-item">50M+ Monthly Reach</span>
+    <span class="ticker-item ticker-sep">✦</span>
+    <span class="ticker-item">72% Chime Interest</span>
+    <span class="ticker-item ticker-sep">✦</span>
+  </div>
+</div>
+
+<!-- CONCEPT -->
+<section class="concept" id="concept">
+  <div class="container">
+    <div class="section-label">The Show</div>
+    <h2>The Concept</h2>
+    <p class="section-intro">A high-energy game show at the intersection of financial literacy and entertainment — built for the generation that's done playing by the old rules.</p>
+
+    <div class="concept-grid">
+      <div class="concept-copy">
+        <p>
+          <strong>Beat the Rich</strong> is a personal finance game show that transforms money education into must-watch content. Contestants compete through real-world financial challenges — budgeting rounds, credit battles, investment face-offs — with real cash on the line.
+        </p>
+        <p>
+          Hosted within the <strong>Hard Carry Media / Full Squad</strong> ecosystem, the show brings together a massive, highly engaged audience that is <strong>already primed to make moves with their money</strong> — they just need the right partner to do it with.
+        </p>
+        <p>
+          Part game show. Part financial education. Entirely entertaining. <strong>This is where culture and money finally meet.</strong>
+        </p>
+      </div>
+      <div class="concept-visual">
+        <ul class="show-format-list">
+          <li>
+            <div class="format-num">01</div>
+            <div class="format-text">
+              <strong>The Challenge</strong>
+              <span>Contestants face real financial scenarios — budgeting, credit, savings — designed around the struggles everyday people actually face.</span>
+            </div>
+          </li>
+          <li>
+            <div class="format-num">02</div>
+            <div class="format-text">
+              <strong>Beat the System</strong>
+              <span>Players go head-to-head, using financial knowledge and strategy to outmaneuver their opponents and the house.</span>
+            </div>
+          </li>
+          <li>
+            <div class="format-num">03</div>
+            <div class="format-text">
+              <strong>The Payoff</strong>
+              <span>Real money, real tools, real takeaways. Winners walk away with cash and a clear path to financial freedom.</span>
+            </div>
+          </li>
+          <li>
+            <div class="format-num">04</div>
+            <div class="format-text">
+              <strong>The Sponsor Integration</strong>
+              <span>Brand partners are woven organically into the gameplay — not ads, but a core part of the experience contestants actually use.</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AUDIENCE -->
+<section class="audience" id="audience">
+  <div class="container">
+    <div class="section-label">Audience Intelligence</div>
+    <h2>The Data Doesn't Lie</h2>
+    <p class="section-intro">Hard Carry Media's audience isn't just big — it's a uniquely primed financial decision-making audience with switching appetite you won't find anywhere else.</p>
+
+    <div class="stats-grid">
+      <div class="stat-card highlight">
+        <div class="stat-icon">🏦</div>
+        <div class="stat-pct">77<sup>%</sup></div>
+        <div class="stat-label">Open to Switching Banks</div>
+        <div class="stat-desc">Massive switching appetite — nearly 4 in 5 audience members are ready to move to a new bank.</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">⚡</div>
+        <div class="stat-pct">54<sup>%</sup></div>
+        <div class="stat-label">Actively or Likely to Switch in 6 Months</div>
+        <div class="stat-desc">Over half the audience is in an active decision window right now.</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💚</div>
+        <div class="stat-pct">72<sup>%</sup></div>
+        <div class="stat-label">Interested in Trying Chime</div>
+        <div class="stat-desc">72% are interested — 42% say they would <em>"definitely try it."</em></div>
+      </div>
+      <div class="stat-card highlight">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-pct">94<sup>%</sup></div>
+        <div class="stat-label">High-Intent Switchers Want Chime</div>
+        <div class="stat-desc">Among the most ready-to-move segment, Chime interest is near-universal.</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">💸</div>
+        <div class="stat-pct">38<sup>%</sup></div>
+        <div class="stat-label">Cash Back / Rewards as Top Priority</div>
+        <div class="stat-desc">The #1 motivator for switching — perfectly aligned with Chime's core offering.</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">🚫</div>
+        <div class="stat-pct">35<sup>%</sup></div>
+        <div class="stat-label">No Monthly Fees as Top Priority</div>
+        <div class="stat-desc">Along with early direct deposit (33%) and overdraft protection (34%) — Chime checks every box.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CHIME FIT -->
+<section class="chime-fit" id="fit">
+  <div class="container">
+    <div class="section-label">Sponsor Alignment</div>
+    <h2>Why This Works for Chime</h2>
+    <p class="section-intro">This isn't a generic sponsorship. The audience's top banking priorities map directly onto Chime's core product features — organically and powerfully.</p>
+
+    <div class="fit-grid">
+      <div class="fit-card">
+        <div class="fit-pct-label">38% Audience Priority</div>
+        <div class="fit-bar"><div class="fit-bar-fill" style="width:38%"></div></div>
+        <div class="fit-title">Cash Back & Rewards</div>
+        <div class="fit-desc">The single biggest motivator for switching banks — and one of Chime's most compelling differentiators for everyday spending.</div>
+      </div>
+      <div class="fit-card">
+        <div class="fit-pct-label">34% Audience Priority</div>
+        <div class="fit-bar"><div class="fit-bar-fill" style="width:34%"></div></div>
+        <div class="fit-title">Overdraft Protection</div>
+        <div class="fit-desc">SpotMe-style overdraft is exactly what this audience needs. They're not looking for a safety net — they need a bank that actually has their back.</div>
+      </div>
+      <div class="fit-card">
+        <div class="fit-pct-label">33% Audience Priority</div>
+        <div class="fit-bar"><div class="fit-bar-fill" style="width:33%"></div></div>
+        <div class="fit-title">Early Direct Deposit</div>
+        <div class="fit-desc">Getting paid up to 2 days early is a genuine lifestyle upgrade — and this audience knows exactly how much that matters.</div>
+      </div>
+      <div class="fit-card">
+        <div class="fit-pct-label">35% Audience Priority</div>
+        <div class="fit-bar"><div class="fit-bar-fill" style="width:35%"></div></div>
+        <div class="fit-title">No Monthly Fees</div>
+        <div class="fit-desc">Financially conscious and fee-averse — this audience actively chooses tools that don't chip away at their money.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REACH -->
+<section class="reach" id="reach">
+  <div class="container">
+    <div class="section-label">The Opportunity</div>
+    <h2>Proven ROI Potential</h2>
+    <p class="section-intro">The numbers make this one of the highest-conviction influencer finance partnerships available in the market today.</p>
+
+    <div class="reach-inner">
+      <div class="reach-numbers">
+        <div class="reach-num-item">
+          <div class="reach-num">11M+</div>
+          <div class="reach-num-label">Total Followers across Full Squad / Hard Carry Media</div>
+        </div>
+        <div class="reach-num-item">
+          <div class="reach-num">50M+</div>
+          <div class="reach-num-label">Monthly content reach</div>
+        </div>
+        <div class="reach-num-item">
+          <div class="reach-num">50%</div>
+          <div class="reach-num-label">Of audience = high-intent switchers interested in Chime</div>
+        </div>
+        <div class="reach-num-item">
+          <div class="reach-num">5.5M</div>
+          <div class="reach-num-label">Potential Chime customers addressable through this partnership</div>
+        </div>
+      </div>
+      <div class="reach-card">
+        <h3>Direct Conversion Path</h3>
+        <div class="reach-divider"></div>
+        <div class="reach-conversion">~5.5M</div>
+        <div class="reach-conversion-label">
+          Potential new Chime customers<br/>
+          addressable through<br/>
+          <strong>Beat the Rich</strong>
+        </div>
+        <div class="reach-divider"></div>
+        <p class="reach-note">
+          Content exposure → brand trust → account signup.<br/>
+          A direct, measurable funnel built on an audience<br/>
+          that's already ready to move.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section" id="contact">
+  <div class="container">
+    <div class="section-label">Let's Talk</div>
+    <h2>Ready to Beat<br/><span style="color:var(--gold)">The Rich?</span></h2>
+    <p>This is a proof of concept for a show that's built to convert. Bring your brand into the most financially primed audience in creator media.</p>
+    <div class="hero-buttons" style="justify-content:center; margin-bottom: 48px;">
+      <a href="mailto:hello@hardcarrymedia.com" class="btn-primary">Get in Touch</a>
+    </div>
+    <div class="contact-card">
+      <div class="contact-label">Presented by</div>
+      <div class="contact-name">Hard Carry Media</div>
+      <div class="contact-org">Full Squad · Beat the Rich</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Beat the Rich</div>
+  <div class="footer-copy">© 2025 Hard Carry Media. All rights reserved. Proof of concept.</div>
+</footer>
+
+</body>
+</html>
