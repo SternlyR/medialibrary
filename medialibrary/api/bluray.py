@@ -54,7 +54,7 @@ class BlurayClient:
                      fmt: str | None = None) -> list[dict]:
         """Search blu-ray.com for a movie title. Returns list of release stubs."""
         params = {
-            "keyword": title.replace(" ", "+"),
+            "keyword": title,
             "submit": "Search",
             "action": "search",
         }
