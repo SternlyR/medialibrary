@@ -153,7 +153,7 @@ def _parse_release_page(bluray_com_id: int, html: str) -> dict:
 
     # Release country — flag <img src=".../flags/UK.png" title="United Kingdom"> adjacent to h1
     # This is the country the disc was released in (UK, US, Germany, etc.)
-    flag_img = soup.select_one("img[src*='/flags/']")
+    flag_img = soup.find("img", src=re.compile(r"static-bluray\.com/flags/"))
     if flag_img:
         data["region"] = flag_img.get("title", "") or flag_img.get("alt", "")
     else:
