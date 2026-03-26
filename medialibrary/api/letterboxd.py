@@ -1,12 +1,11 @@
-"""Letterboxd ratings via RSS feed.
+"""Letterboxd ratings scraper.
 
-Letterboxd's HTML pages are protected by Cloudflare JS challenges, so
-HTML scraping is not possible from a headless HTTP client.  The per-user
-RSS feed (/<username>/rss/) is publicly accessible without JS and contains
-diary entries with star ratings, film titles, years, and TMDB IDs.
-
-Limitation: the RSS feed only includes recent diary entries (roughly the
-last 50 logged films).  Films logged a long time ago may not appear.
+Strategy (two-tier):
+1. RSS feed (/<username>/rss/) — not Cloudflare-blocked, contains recent
+   diary entries with ratings, film titles, years, and TMDB IDs.
+2. User film page (/<username>/film/<slug>/) — also not Cloudflare-blocked,
+   covers older ratings not present in the RSS feed.  The slug is constructed
+   from the film title; a year-suffixed variant is tried on 404.
 """
 
 from __future__ import annotations
@@ -17,6 +16,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 import httpx
+from bs4 import BeautifulSoup
 
 # XML namespace URIs used in Letterboxd RSS
 _NS_LB = "https://letterboxd.com"
@@ -42,6 +42,29 @@ def _slug_from_url(url: str) -> str:
     return m.group(1) if m else ""
 
 
+def _title_to_slug(title: str) -> str:
+    """Best-effort conversion of a film title to a Letterboxd slug.
+
+    e.g. "Past Lives" -> "past-lives", "Schindler's List" -> "schindlers-list"
+    """
+    slug = title.lower()
+    slug = re.sub(r"['\u2019\u2018`]", "", slug)   # remove apostrophes
+    slug = re.sub(r"[^a-z0-9\s-]", " ", slug)       # non-alnum -> space
+    slug = re.sub(r"\s+", "-", slug.strip())          # spaces -> hyphens
+    slug = re.sub(r"-{2,}", "-", slug).strip("-")     # collapse hyphens
+    return slug
+
+
+def _parse_stars(text: str) -> Optional[float]:
+    """Convert a star string like '★★★★½' to a float (4.5)."""
+    text = text.strip()
+    if not text:
+        return None
+    full = text.count("★")
+    half = 0.5 if "½" in text else 0.0
+    return float(full) + half if (full or half) else None
+
+
 @dataclass
 class LetterboxdRating:
     title: str
@@ -59,7 +82,8 @@ class LetterboxdClient:
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/120.0.0.0 Safari/537.36"
         ),
-        "Accept": "application/rss+xml,application/xml,text/xml,*/*",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
     }
 
     async def get_rating_for_film(
@@ -71,23 +95,64 @@ class LetterboxdClient:
     ) -> Optional[float]:
         """Return the user's star rating (0.5-5.0) for a film, or None.
 
-        Fetches the user's RSS feed and matches by TMDB ID (preferred)
-        or by normalized title + year.
+        Tries the RSS feed first (fast, recent films), then falls back to
+        fetching the user's film page directly (covers older ratings).
         """
+        # ── Tier 1: RSS feed ─────────────────────────────────────────────────
         ratings = await self.get_all_ratings(username)
 
-        # Match by TMDB ID — most reliable, no title-fuzzing needed
         if tmdb_id:
             for r in ratings:
                 if r.tmdb_id == tmdb_id:
                     return r.rating
 
-        # Fall back to normalized title + year
         norm = _normalize(title)
         for r in ratings:
             if _normalize(r.title) == norm:
                 if year is None or r.year is None or abs(r.year - year) <= 1:
                     return r.rating
+
+        # ── Tier 2: direct user film page (older ratings) ────────────────────
+        slug = _title_to_slug(title)
+        rating = await self._scrape_user_film_page(username, slug)
+        if rating is not None:
+            return rating
+
+        # Try slug with year suffix for disambiguation (e.g. "alien-1979")
+        if year:
+            rating = await self._scrape_user_film_page(username, f"{slug}-{year}")
+
+        return rating
+
+    async def _scrape_user_film_page(
+        self, username: str, slug: str
+    ) -> Optional[float]:
+        """Fetch /<username>/film/<slug>/ and extract the star rating."""
+        url = f"{self.BASE}/{username}/film/{slug}/"
+        async with httpx.AsyncClient(
+            headers=self._HEADERS, follow_redirects=True, timeout=10
+        ) as client:
+            try:
+                resp = await client.get(url)
+                if resp.status_code in (404, 403):
+                    return None
+                resp.raise_for_status()
+            except httpx.HTTPError:
+                return None
+
+        soup = BeautifulSoup(resp.text, "html.parser")
+
+        # Rating is in <svg class="glyph -rating" aria-label="★★★★½">
+        # or its child <title>★★★★½</title>
+        svg = soup.select_one("svg.glyph.-rating, svg[aria-label*='★'], svg[aria-label*='½']")
+        if svg:
+            label = svg.get("aria-label", "")
+            rating = _parse_stars(label)
+            if rating is not None:
+                return rating
+            title_el = svg.find("title")
+            if title_el:
+                return _parse_stars(title_el.get_text())
 
         return None
 
@@ -111,7 +176,6 @@ class LetterboxdClient:
 
         ratings: list[LetterboxdRating] = []
         for item in root.findall(".//item"):
-            # Skip diary entries with no rating
             rating_el = item.find(_lb("memberRating"))
             if rating_el is None or not rating_el.text:
                 continue
