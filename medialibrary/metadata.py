@@ -213,6 +213,7 @@ async def enrich(
                 settings.letterboxd_username,
                 result.title,
                 result.year,
+                tmdb_id=result.tmdb_id,
             )
             if rating is not None:
                 result.letterboxd_rating = rating

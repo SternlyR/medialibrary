@@ -1,34 +1,34 @@
-"""Letterboxd ratings scraper.
+"""Letterboxd ratings via RSS feed.
 
-Two usage patterns:
+Letterboxd's HTML pages are protected by Cloudflare JS challenges, so
+HTML scraping is not possible from a headless HTTP client.  The per-user
+RSS feed (/<username>/rss/) is publicly accessible without JS and contains
+diary entries with star ratings, film titles, years, and TMDB IDs.
 
-1. Single-film lookup at add time (2 HTTP requests):
-       client = LetterboxdClient()
-       rating = await client.get_rating_for_film("username", "Alien", 1979)
-       # → 4.5 or None
-
-2. Bulk sync (paginated scrape of all rated films):
-       ratings = await client.get_all_ratings("username")
-       index = client.build_index(ratings)
-       # index[("alien", 1979)] → 4.5
+Limitation: the RSS feed only includes recent diary entries (roughly the
+last 50 logged films).  Films logged a long time ago may not appear.
 """
 
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass, field
 from typing import Optional
 
 import httpx
-from bs4 import BeautifulSoup
+
+# XML namespace URIs used in Letterboxd RSS
+_NS_LB = "https://letterboxd.com"
+_NS_TMDB = "https://themoviedb.org"
 
 
-@dataclass
-class LetterboxdRating:
-    title: str
-    year: Optional[int]
-    rating: float   # 0.5 – 5.0 in half-star increments
-    slug: str       # e.g. "alien-1979"
+def _lb(tag: str) -> str:
+    return f"{{{_NS_LB}}}{tag}"
+
+
+def _tmdb(tag: str) -> str:
+    return f"{{{_NS_TMDB}}}{tag}"
 
 
 def _normalize(title: str) -> str:
@@ -36,153 +36,118 @@ def _normalize(title: str) -> str:
     return re.sub(r"[^\w\s]", "", title.lower()).strip()
 
 
-def _parse_rated_class(classes: list[str]) -> Optional[float]:
-    """Convert a 'rated-N' CSS class (N=1..10) to a 0.5..5.0 star value."""
-    for cls in classes:
-        if cls.startswith("rated-"):
-            try:
-                return int(cls.split("-")[1]) / 2.0
-            except (ValueError, IndexError):
-                pass
-    return None
+def _slug_from_url(url: str) -> str:
+    """Extract film slug from a Letterboxd URL."""
+    m = re.search(r"/film/([^/]+)/", url or "")
+    return m.group(1) if m else ""
+
+
+@dataclass
+class LetterboxdRating:
+    title: str
+    year: Optional[int]
+    rating: float        # 0.5 – 5.0 in half-star increments
+    slug: str
+    tmdb_id: Optional[int] = field(default=None)
 
 
 class LetterboxdClient:
     BASE = "https://letterboxd.com"
     _HEADERS = {
         "User-Agent": (
-            "medialibrary-metadata-tool/1.0 "
-            "(+https://github.com/user/medialibrary)"
-        )
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "Accept": "application/rss+xml,application/xml,text/xml,*/*",
     }
-
-    # ── Single-film lookup ────────────────────────────────────────────────────
 
     async def get_rating_for_film(
         self,
         username: str,
         title: str,
         year: Optional[int] = None,
-        imdb_id: Optional[str] = None,
+        tmdb_id: Optional[int] = None,
     ) -> Optional[float]:
-        """Return the user's star rating (0.5-5.0) for a specific film, or None.
+        """Return the user's star rating (0.5-5.0) for a film, or None.
 
-        Tries slug matching via Letterboxd search (2 HTTP requests).
-        If imdb_id is provided it can serve as a fallback slug hint.
+        Fetches the user's RSS feed and matches by TMDB ID (preferred)
+        or by normalized title + year.
         """
-        slug = await self._find_film_slug(title, year)
-        if not slug:
-            return None
-        return await self._get_user_film_rating(username, slug)
+        ratings = await self.get_all_ratings(username)
 
-    async def _find_film_slug(
-        self,
-        title: str,
-        year: Optional[int],
-    ) -> Optional[str]:
-        """Search Letterboxd for a film and return its slug."""
-        query = title.strip().replace(" ", "+")
-        url = f"{self.BASE}/search/films/{query}/"
-        async with httpx.AsyncClient(
-            headers=self._HEADERS, follow_redirects=True
-        ) as client:
-            try:
-                resp = await client.get(url, timeout=10)
-                resp.raise_for_status()
-            except httpx.HTTPError:
-                return None
+        # Match by TMDB ID — most reliable, no title-fuzzing needed
+        if tmdb_id:
+            for r in ratings:
+                if r.tmdb_id == tmdb_id:
+                    return r.rating
 
-        soup = BeautifulSoup(resp.text, "html.parser")
-        for item in soup.select("li.search-result .film-poster"):
-            slug = item.get("data-film-slug", "")
-            item_year_raw = item.get("data-film-year", "")
-            item_year = int(item_year_raw) if item_year_raw.isdigit() else None
-
-            if year and item_year and abs(item_year - year) > 1:
-                continue  # skip if year is off by more than 1 (re-releases aside)
-
-            if slug:
-                return slug
+        # Fall back to normalized title + year
+        norm = _normalize(title)
+        for r in ratings:
+            if _normalize(r.title) == norm:
+                if year is None or r.year is None or abs(r.year - year) <= 1:
+                    return r.rating
 
         return None
-
-    async def _get_user_film_rating(
-        self, username: str, slug: str
-    ) -> Optional[float]:
-        """Fetch the user's personal film page and extract their rating."""
-        url = f"{self.BASE}/{username}/film/{slug}/"
-        async with httpx.AsyncClient(
-            headers=self._HEADERS, follow_redirects=True
-        ) as client:
-            try:
-                resp = await client.get(url, timeout=10)
-                if resp.status_code == 404:
-                    return None
-                resp.raise_for_status()
-            except httpx.HTTPError:
-                return None
-
-        soup = BeautifulSoup(resp.text, "html.parser")
-
-        # Letterboxd renders the user's own rating in a <span class="rating rated-N">
-        rating_span = soup.select_one("span.rating")
-        if rating_span:
-            return _parse_rated_class(rating_span.get("class", []))
-
-        return None
-
-    # ── Bulk ratings scrape ───────────────────────────────────────────────────
 
     async def get_all_ratings(self, username: str) -> list[LetterboxdRating]:
-        """Scrape all rated films from /{username}/films/ratings/ (paginated)."""
-        ratings: list[LetterboxdRating] = []
-        page = 1
-
+        """Fetch and parse the user's RSS feed into a list of rated films."""
+        url = f"{self.BASE}/{username}/rss/"
         async with httpx.AsyncClient(
-            headers=self._HEADERS, follow_redirects=True
+            headers=self._HEADERS, follow_redirects=True, timeout=15
         ) as client:
-            while True:
-                url = f"{self.BASE}/{username}/films/ratings/page/{page}/"
-                try:
-                    resp = await client.get(url, timeout=15)
-                except httpx.HTTPError:
-                    break
+            try:
+                resp = await client.get(url)
+                if resp.status_code != 200:
+                    return []
+            except httpx.HTTPError:
+                return []
 
-                if resp.status_code == 404:
-                    break
-                resp.raise_for_status()
+        try:
+            root = ET.fromstring(resp.text)
+        except ET.ParseError:
+            return []
 
-                soup = BeautifulSoup(resp.text, "html.parser")
-                items = soup.select("li.poster-container")
-                if not items:
-                    break
+        ratings: list[LetterboxdRating] = []
+        for item in root.findall(".//item"):
+            # Skip diary entries with no rating
+            rating_el = item.find(_lb("memberRating"))
+            if rating_el is None or not rating_el.text:
+                continue
+            try:
+                rating_val = float(rating_el.text)
+            except ValueError:
+                continue
 
-                for item in items:
-                    poster = item.select_one("div.film-poster")
-                    if not poster:
-                        continue
-                    film_name = poster.get("data-film-name", "")
-                    film_year_raw = poster.get("data-film-year", "")
-                    slug = poster.get("data-film-slug", "")
+            title_el = item.find(_lb("filmTitle"))
+            year_el = item.find(_lb("filmYear"))
+            tmdb_el = item.find(_tmdb("movieId"))
+            link_el = item.find("link")
 
-                    rating_span = item.select_one("span.rating")
-                    if not rating_span:
-                        continue
-                    rating_val = _parse_rated_class(rating_span.get("class", []))
-                    if rating_val is None:
-                        continue
+            film_title = title_el.text if title_el is not None else ""
+            film_year = (
+                int(year_el.text)
+                if year_el is not None and (year_el.text or "").isdigit()
+                else None
+            )
+            film_tmdb_id = (
+                int(tmdb_el.text)
+                if tmdb_el is not None and (tmdb_el.text or "").isdigit()
+                else None
+            )
+            link_text = link_el.text if link_el is not None else ""
+            slug = _slug_from_url(link_text)
 
-                    ratings.append(LetterboxdRating(
-                        title=film_name,
-                        year=int(film_year_raw) if film_year_raw.isdigit() else None,
-                        rating=rating_val,
-                        slug=slug,
-                    ))
-
-                # Next page?
-                if not soup.select_one("a.next"):
-                    break
-                page += 1
+            ratings.append(
+                LetterboxdRating(
+                    title=film_title,
+                    year=film_year,
+                    rating=rating_val,
+                    slug=slug,
+                    tmdb_id=film_tmdb_id,
+                )
+            )
 
         return ratings
 
@@ -190,7 +155,4 @@ class LetterboxdClient:
         self, ratings: list[LetterboxdRating]
     ) -> dict[tuple[str, Optional[int]], float]:
         """Return a lookup dict keyed by (normalized_title, year) → rating."""
-        return {
-            (_normalize(r.title), r.year): r.rating
-            for r in ratings
-        }
+        return {(_normalize(r.title), r.year): r.rating for r in ratings}
