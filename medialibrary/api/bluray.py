@@ -147,55 +147,150 @@ def _parse_release_page(bluray_com_id: int, html: str) -> dict:
     soup = BeautifulSoup(html, "html.parser")
     data: dict[str, Any] = {"bluray_com_id": bluray_com_id}
 
-    # Title
-    title_el = soup.select_one("h1, .page_title, #ctl00_ContentPlaceHolder1_lblTitle")
+    # Title — h1 inside the main content area
+    title_el = soup.select_one("h1")
     data["title"] = title_el.get_text(strip=True) if title_el else ""
 
-    # Cover art — front cover image
-    cover_img = soup.select_one(
-        "img.coverart, img[src*='covers'][src*='front'], "
-        "#ctl00_ContentPlaceHolder1_imgCover"
-    )
+    # Cover art — <img class="coverfront">
+    cover_img = soup.select_one("img.coverfront, img.coverart")
     if cover_img:
         src = cover_img.get("src", "")
         data["cover_url"] = src if src.startswith("http") else settings.bluray_base_url + src
+    else:
+        data["cover_url"] = f"{COVER_BASE}/{bluray_com_id}_front.jpg"
 
-    # Details table — most metadata lives in a key/value table
-    specs: dict[str, str] = {}
-    for row in soup.select("table.specs tr, div.specs .row, #specifications tr"):
-        cells = row.find_all(["td", "th"])
-        if len(cells) >= 2:
-            key = cells[0].get_text(strip=True).rstrip(":").lower()
-            val = cells[1].get_text(" ", strip=True)
-            specs[key] = val
+    # Back cover — look in script tags for the _back.jpg reference
+    back_url = ""
+    for script in soup.find_all("script"):
+        script_text = script.string or ""
+        m = re.search(rf"{bluray_com_id}_back\.jpg", script_text)
+        if m:
+            back_url = f"{COVER_BASE}/{bluray_com_id}_back.jpg"
+            break
+    data["cover_url_back"] = back_url
 
-    def spec(*keys: str) -> str:
-        for k in keys:
-            if k in specs:
-                return specs[k]
-        return ""
+    # Info line: <span class="subheading grey"> contains label | year | runtime | rating | release date
+    info_span = soup.select_one("span.subheading.grey, span.subheading[class*='grey']")
+    data["label"] = ""
+    data["physical_release_date"] = ""
+    data["runtime_minutes"] = None
+    if info_span:
+        # First <a> tag is the studio/label
+        links = info_span.find_all("a")
+        if links:
+            data["label"] = links[0].get_text(strip=True)
 
-    data["physical_release_date"] = spec("release date", "street date", "release")
-    data["label"] = spec("studio", "label", "distributor", "publisher")
-    data["region"] = spec("region", "blu-ray region", "region code")
-    data["format"] = spec("format", "disc format")
-    data["edition"] = spec("edition", "version")
-    data["disc_count"] = spec("discs", "number of discs", "disc count")
-    data["aspect_ratio"] = spec("aspect ratio", "video", "ratio")
-    data["upc"] = spec("upc", "barcode", "upc/ean")
-    data["runtime_minutes"] = _parse_runtime(spec("run time", "running time", "runtime"))
+        # MPAA rating — "Rated XX" text node
+        info_text = info_span.get_text(" ", strip=True)
+        rated_m = re.search(r"Rated\s+(\S+)", info_text)
+        if rated_m:
+            data["mpaa_rating"] = rated_m.group(1)
 
-    # Region normalization
-    data["region"] = _normalize_region(data["region"])
+        # Release date — last <a> whose text looks like a date (e.g. "Dec 09, 2025")
+        date_pattern = re.compile(
+            r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},\s+\d{4}\b",
+            re.IGNORECASE,
+        )
+        for a in reversed(links):
+            if date_pattern.search(a.get_text(strip=True)):
+                data["physical_release_date"] = a.get_text(strip=True)
+                break
 
-    # Format normalization
-    data["format"] = _normalize_format(data["format"])
+        # Runtime from <span id="runtime">
+        runtime_span = info_span.select_one("span#runtime, span[id='runtime']")
+        if runtime_span:
+            data["runtime_minutes"] = _parse_runtime(runtime_span.get_text(strip=True))
 
-    # Disc count as int
-    try:
-        data["disc_count"] = int(re.search(r"\d+", data["disc_count"]).group()) if data["disc_count"] else None
-    except Exception:
-        data["disc_count"] = None
+    # Parse <span class="subheading"> sections (Video, Discs, Playback, etc.)
+    # Each section is a <span class="subheading"> followed by <br>-separated lines
+    data["aspect_ratio"] = ""
+    data["format"] = ""
+    data["disc_count"] = None
+    data["region"] = ""
+    data["edition"] = ""
+
+    for heading in soup.select("span.subheading"):
+        # Skip the grey info-line span
+        if "grey" in (heading.get("class") or []):
+            continue
+        heading_text = heading.get_text(strip=True).lower()
+
+        # Collect text lines that follow this heading (siblings until next block element)
+        lines = []
+        for sib in heading.next_siblings:
+            if hasattr(sib, "name"):
+                if sib.name in ("br",):
+                    continue
+                if sib.name in ("span", "div", "table", "h1", "h2", "h3"):
+                    break
+                lines.append(sib.get_text(" ", strip=True))
+            else:
+                txt = str(sib).strip()
+                if txt:
+                    lines.append(txt)
+
+        section = " ".join(lines)
+
+        if "video" in heading_text:
+            # Aspect ratio
+            ar_m = re.search(r"[Aa]spect ratio[:\s]+([\d.]+:\d+)", section)
+            if not ar_m:
+                ar_m = re.search(r"([\d.]+:[\d.]+)", section)
+            if ar_m:
+                data["aspect_ratio"] = ar_m.group(1)
+
+        elif "disc" in heading_text:
+            # Format: look for "4K Ultra HD" or "Blu-ray" or "DVD"
+            if re.search(r"4K|Ultra HD|UHD", section, re.IGNORECASE):
+                data["format"] = "UHD"
+            elif re.search(r"Blu-ray|Blu ray|Bluray", section, re.IGNORECASE):
+                data["format"] = "Blu-Ray"
+            elif re.search(r"DVD", section, re.IGNORECASE):
+                data["format"] = "DVD"
+
+            # Disc count: "Two-disc set", "3-disc", "1 disc", etc.
+            count_m = re.search(
+                r"(one|two|three|four|five|six|\d+)[- ]disc",
+                section, re.IGNORECASE
+            )
+            if count_m:
+                word_map = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
+                val = count_m.group(1).lower()
+                data["disc_count"] = word_map.get(val, None) or int(val)
+
+        elif "playback" in heading_text:
+            # Region: "Region free", "Region A", "Region B", etc.
+            region_m = re.search(r"[Rr]egion\s+(\w+)", section)
+            if region_m:
+                data["region"] = _normalize_region(region_m.group(1))
+
+        elif "edition" in heading_text or "version" in heading_text:
+            data["edition"] = section.strip()
+
+    # Fallback: try specs table (older page layouts)
+    if not data["label"] or not data["physical_release_date"]:
+        specs: dict[str, str] = {}
+        for row in soup.select("table.specs tr, div.specs .row, #specifications tr"):
+            cells = row.find_all(["td", "th"])
+            if len(cells) >= 2:
+                key = cells[0].get_text(strip=True).rstrip(":").lower()
+                val = cells[1].get_text(" ", strip=True)
+                specs[key] = val
+
+        def spec(*keys: str) -> str:
+            for k in keys:
+                if k in specs:
+                    return specs[k]
+            return ""
+
+        data["label"] = data["label"] or spec("studio", "label", "distributor", "publisher")
+        data["physical_release_date"] = data["physical_release_date"] or spec("release date", "street date")
+        data["region"] = data["region"] or _normalize_region(spec("region", "blu-ray region", "region code"))
+        data["format"] = data["format"] or _normalize_format(spec("format", "disc format"))
+        data["edition"] = data["edition"] or spec("edition", "version")
+        data["aspect_ratio"] = data["aspect_ratio"] or spec("aspect ratio", "ratio")
+        if not data["runtime_minutes"]:
+            data["runtime_minutes"] = _parse_runtime(spec("run time", "running time", "runtime"))
 
     return data
 
