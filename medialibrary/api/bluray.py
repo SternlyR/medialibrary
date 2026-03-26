@@ -67,9 +67,10 @@ class BlurayClient:
             r.raise_for_status()
         return _parse_search_results(r.text)
 
-    async def get_release(self, bluray_com_id: int) -> dict | None:
+    async def get_release(self, bluray_com_id: int, url: str | None = None) -> dict | None:
         """Fetch full release details page for a given blu-ray.com movie ID."""
-        url = f"{self.base}/movies/details.aspx?id={bluray_com_id}"
+        if not url:
+            url = f"{self.base}/movies/_/{bluray_com_id}/"
         async with httpx.AsyncClient(headers=HEADERS, timeout=20, follow_redirects=True) as client:
             r = await client.get(url)
             if r.status_code == 404:
@@ -99,7 +100,7 @@ class BlurayClient:
         if not best.get("bluray_com_id"):
             return best
 
-        details = await self.get_release(best["bluray_com_id"])
+        details = await self.get_release(best["bluray_com_id"], best.get("detail_url"))
         return details or best
 
 
@@ -117,6 +118,10 @@ def _parse_search_results(html: str) -> list[dict]:
             title = link.get_text(strip=True) or link.get("title", "")
             cover_url = f"{COVER_BASE}/{bluray_id}_front.jpg"
 
+            # Capture full detail page URL (e.g. /movies/Airplane-4K-Blu-ray/370108/)
+            href = link.get("href", "")
+            detail_url = ("https://www.blu-ray.com" + href) if href.startswith("/") else href
+
             # Grab surrounding container for year/label
             container = link.find_parent("div") or link.find_parent("td") or link
             text = container.get_text(" ", strip=True)
@@ -129,6 +134,7 @@ def _parse_search_results(html: str) -> list[dict]:
                 "year": year,
                 "label": "",
                 "cover_url": cover_url,
+                "detail_url": detail_url,
             })
         except Exception:
             continue
