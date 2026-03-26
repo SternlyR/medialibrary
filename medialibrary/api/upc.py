@@ -73,7 +73,10 @@ def _detect_format(text: str) -> str:
 
 
 def _clean_title(title: str) -> str:
-    """Strip common disc format suffixes to get a clean movie title."""
+    """Strip common disc format suffixes and studio prefixes to get a clean movie title."""
+    # Strip leading "Studio - " or "Brand - " prefix (e.g. "Paramount - Airplane!")
+    cleaned = re.sub(r"^[^-]+-\s+", "", title).strip()
+
     patterns = [
         r"\[.*?\]",           # [Blu-ray], [4K UHD], [DVD], etc.
         r"\(.*?\)",           # (Blu-ray), (2023), etc.
@@ -83,7 +86,6 @@ def _clean_title(title: str) -> str:
         r"UHD.*$",
         r"\s*-\s*$",
     ]
-    cleaned = title
     for pattern in patterns:
         cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE).strip()
     return cleaned.strip(" -,:")
