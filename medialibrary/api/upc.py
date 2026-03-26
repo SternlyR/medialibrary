@@ -76,6 +76,8 @@ def _clean_title(title: str) -> str:
     """Strip common disc format suffixes and studio prefixes to get a clean movie title."""
     # Strip leading "Studio - " or "Brand - " prefix (e.g. "Paramount - Airplane!")
     cleaned = re.sub(r"^[^-]+-\s+", "", title).strip()
+    # Strip trailing junk appended with multiple spaces (e.g. "Title   Action  Warner Bros.")
+    cleaned = re.split(r"\s{2,}", cleaned)[0].strip()
 
     patterns = [
         r"\[.*?\]",           # [Blu-ray], [4K UHD], [DVD], etc.
