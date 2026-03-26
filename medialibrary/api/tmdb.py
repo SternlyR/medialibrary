@@ -96,6 +96,9 @@ class TMDBClient:
         if not self.api_key:
             raise ValueError("TMDB_API_KEY not set. Get one free at https://www.themoviedb.org/settings/api")
         results = await self.search_movie(title, year)
+        # If no results with year, retry without it (UPC year hints are unreliable)
+        if not results and year is not None:
+            results = await self.search_movie(title, None)
         if not results:
             return None
         best = results[0]
