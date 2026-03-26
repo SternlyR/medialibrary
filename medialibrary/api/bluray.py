@@ -29,10 +29,19 @@ from medialibrary.config import settings
 
 HEADERS = {
     "User-Agent": (
-        "Mozilla/5.0 (compatible; MediaLibraryBot/1.0; "
-        "+https://github.com/user/medialibrary)"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
     ),
     "Accept-Language": "en-US,en;q=0.9",
+}
+
+COVER_BASE = "https://images.static-bluray.com/movies/covers"
+
+VIDEO_RESOLUTION_IDS = {
+    "UHD": 2683,
+    "Blu-Ray": 278,
+    "DVD": 2365,
 }
 
 
@@ -41,13 +50,20 @@ class BlurayClient:
     def __init__(self):
         self.base = settings.bluray_base_url
 
-    async def search(self, title: str, year: int | None = None) -> list[dict]:
+    async def search(self, title: str, year: int | None = None,
+                     fmt: str | None = None) -> list[dict]:
         """Search blu-ray.com for a movie title. Returns list of release stubs."""
-        params = {"keyword": title, "submit": "Search", "section": "bluraymovies"}
+        params = {
+            "keyword": title.replace(" ", "+"),
+            "submit": "Search",
+            "action": "search",
+        }
         if year:
-            params["year"] = str(year)
+            params["yearfrom"] = str(year)
+        if fmt and fmt in VIDEO_RESOLUTION_IDS:
+            params["videoresolutionid"] = str(VIDEO_RESOLUTION_IDS[fmt])
         async with httpx.AsyncClient(headers=HEADERS, timeout=20, follow_redirects=True) as client:
-            r = await client.get(f"{self.base}/search/", params=params)
+            r = await client.get(f"{self.base}/movies/search.php", params=params)
             r.raise_for_status()
         return _parse_search_results(r.text)
 
@@ -62,9 +78,13 @@ class BlurayClient:
         return _parse_release_page(bluray_com_id, r.text)
 
     async def search_and_get_best(self, title: str, year: int | None = None,
-                                   label: str | None = None) -> dict | None:
+                                   label: str | None = None,
+                                   fmt: str | None = None) -> dict | None:
         """Search and return the best-matching release details."""
-        candidates = await self.search(title, year)
+        candidates = await self.search(title, year, fmt)
+        if not candidates:
+            # Retry without year filter if no results
+            candidates = await self.search(title, fmt=fmt)
         if not candidates:
             return None
 
@@ -74,16 +94,6 @@ class BlurayClient:
             filtered = [c for c in candidates if label_lower in c.get("label", "").lower()]
             if filtered:
                 candidates = filtered
-
-        # Filter by year if provided
-        if year:
-            year_filtered = [
-                c for c in candidates
-                if str(year) in c.get("physical_release_date", "")
-                or c.get("year") == year
-            ]
-            if year_filtered:
-                candidates = year_filtered
 
         best = candidates[0]
         if not best.get("bluray_com_id"):
@@ -98,38 +108,26 @@ def _parse_search_results(html: str) -> list[dict]:
     soup = BeautifulSoup(html, "html.parser")
     results = []
 
-    # Search results are in divs with class "hresult" or similar table rows
-    for item in soup.select("div.hresult, div.item"):
+    for link in soup.select("a.hoverlink[data-productid]"):
         try:
-            link = item.select_one("a[href*='details.aspx']")
-            if not link:
+            product_id = link.get("data-productid", "")
+            if not product_id:
                 continue
-            href = link.get("href", "")
-            id_match = re.search(r"id=(\d+)", href)
-            bluray_id = int(id_match.group(1)) if id_match else None
+            bluray_id = int(product_id)
+            title = link.get_text(strip=True) or link.get("title", "")
+            cover_url = f"{COVER_BASE}/{bluray_id}_front.jpg"
 
-            title_el = item.select_one(".hresult_title, .title, a b, a strong")
-            title = title_el.get_text(strip=True) if title_el else link.get_text(strip=True)
-
-            img = item.select_one("img")
-            cover_url = img.get("src", "") if img else ""
-            if cover_url and not cover_url.startswith("http"):
-                cover_url = settings.bluray_base_url + cover_url
-
-            # Extract year from text
-            text = item.get_text(" ", strip=True)
+            # Grab surrounding container for year/label
+            container = link.find_parent("div") or link.find_parent("td") or link
+            text = container.get_text(" ", strip=True)
             year_match = re.search(r"\b(19|20)\d{2}\b", text)
             year = int(year_match.group()) if year_match else None
-
-            # Label / distributor
-            label_el = item.select_one(".studio, .distributor, .hresult_studio")
-            label = label_el.get_text(strip=True) if label_el else ""
 
             results.append({
                 "bluray_com_id": bluray_id,
                 "title": title,
                 "year": year,
-                "label": label,
+                "label": "",
                 "cover_url": cover_url,
             })
         except Exception:
