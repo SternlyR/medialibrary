@@ -151,13 +151,16 @@ def _parse_release_page(bluray_com_id: int, html: str) -> dict:
     title_el = soup.select_one("h1")
     data["title"] = title_el.get_text(strip=True) if title_el else ""
 
-    # Cover art — <img class="coverfront">
-    cover_img = soup.select_one("img.coverfront, img.coverart")
-    if cover_img:
-        src = cover_img.get("src", "")
-        data["cover_url"] = src if src.startswith("http") else settings.bluray_base_url + src
+    # Release country — flag <img src=".../flags/UK.png" title="United Kingdom"> adjacent to h1
+    # This is the country the disc was released in (UK, US, Germany, etc.)
+    flag_img = soup.select_one("img[src*='/flags/']")
+    if flag_img:
+        data["region"] = flag_img.get("title", "") or flag_img.get("alt", "")
     else:
-        data["cover_url"] = f"{COVER_BASE}/{bluray_com_id}_front.jpg"
+        data["region"] = ""
+
+    # Cover art — always use the full-res _front.jpg from the CDN (the page serves _medium.jpg)
+    data["cover_url"] = f"{COVER_BASE}/{bluray_com_id}_front.jpg"
 
     # Back cover — look in script tags for the _back.jpg reference
     back_url = ""
@@ -259,10 +262,11 @@ def _parse_release_page(bluray_com_id: int, html: str) -> dict:
                 data["disc_count"] = word_map.get(val, None) or int(val)
 
         elif "playback" in heading_text:
-            # Region: "Region free", "Region A", "Region B", etc.
-            region_m = re.search(r"[Rr]egion\s+(\w+)", section)
-            if region_m:
-                data["region"] = _normalize_region(region_m.group(1))
+            # Only use Playback section for region if the flag img didn't give us a country
+            if not data["region"]:
+                region_m = re.search(r"[Rr]egion\s+(\w+)", section)
+                if region_m:
+                    data["region"] = _normalize_region(region_m.group(1))
 
         elif "edition" in heading_text or "version" in heading_text:
             data["edition"] = section.strip()
