@@ -209,7 +209,6 @@ def _parse_release_page(bluray_com_id: int, html: str) -> dict:
     data["aspect_ratio"] = ""
     data["format"] = ""
     data["disc_count"] = None
-    data["region"] = ""
     data["edition"] = ""
 
     for heading in soup.select("span.subheading"):
