@@ -255,13 +255,13 @@ def _parse_release_page(bluray_com_id: int, html: str) -> dict:
             elif re.search(r"DVD", section, re.IGNORECASE):
                 data["format"] = "DVD"
 
-            # Disc count: "Two-disc set", "3-disc", "1 disc", etc.
+            # Disc count: "Single disc", "Two-disc set", "3-disc", "1 disc", etc.
             count_m = re.search(
-                r"(one|two|three|four|five|six|\d+)[- ]disc",
+                r"(single|one|two|three|four|five|six|\d+)[- ]disc",
                 section, re.IGNORECASE
             )
             if count_m:
-                word_map = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
+                word_map = {"single": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
                 val = count_m.group(1).lower()
                 data["disc_count"] = word_map.get(val, None) or int(val)
 
