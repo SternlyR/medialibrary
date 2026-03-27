@@ -177,6 +177,13 @@ class LetterboxdClient:
                 except (ValueError, TypeError):
                     pass
 
+            # Tertiary: span.rating text e.g. "★★★★★" (reviews page)
+            span = content.select_one("span.rating")
+            if span:
+                rating = _parse_stars(span.get_text(strip=True))
+                if rating is not None:
+                    return rating
+
             # Fallback: SVG star glyph (base film page)
             svg = content.select_one("svg.glyph.-rating")
             if svg:

@@ -481,6 +481,7 @@ async def debug_letterboxd(release_id: int):
         rateit_div   = content.select_one("div.rateit-range") if content else None
         rateit_input = content.select_one("input.rateit-field[type='range']") if content else None
         svg_glyph    = content.select_one("svg.glyph.-rating") if content else None
+        span_rating  = content.select_one("span.rating") if content else None
 
         pages.append({
             "url": url,
@@ -491,9 +492,10 @@ async def debug_letterboxd(release_id: int):
             "rateit_input_value": rateit_input.get("value") if rateit_input else None,
             "svg_glyph_found": svg_glyph is not None,
             "svg_glyph_aria_label": svg_glyph.get("aria-label") if svg_glyph else None,
+            "span_rating_found": span_rating is not None,
+            "span_rating_text": span_rating.get_text(strip=True) if span_rating else None,
+            "html_snippet": html[:3000] if html else None,
         })
-        if status not in (200,):
-            break
 
     return {
         "movie": {"title": movie.title, "year": movie.year, "tmdb_id": movie.tmdb_id},
