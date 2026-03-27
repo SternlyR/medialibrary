@@ -22,9 +22,12 @@ import csv
 import io
 from typing import Optional
 
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
@@ -73,6 +76,31 @@ class AddReleaseRequest(LookupRequest):
     condition: Optional[str] = None
 
 
+class UpdateReleaseRequest(BaseModel):
+    # Movie fields
+    title: Optional[str] = None
+    year: Optional[int] = None
+    director: Optional[str] = None
+    runtime_minutes: Optional[int] = None
+    mpaa_rating: Optional[str] = None
+    genres: Optional[str] = None
+    overview: Optional[str] = None
+    letterboxd_rating: Optional[float] = None
+    # Release fields
+    format: Optional[str] = None
+    label: Optional[str] = None
+    region: Optional[str] = None
+    physical_release_date: Optional[str] = None
+    edition: Optional[str] = None
+    set_name: Optional[str] = None
+    disc_count: Optional[int] = None
+    aspect_ratio: Optional[str] = None
+    upc: Optional[str] = None
+    cover_url: Optional[str] = None
+    cover_url_back: Optional[str] = None
+    notes: Optional[str] = None
+
+
 class ReleaseResponse(BaseModel):
     id: int
     # Movie fields
@@ -98,6 +126,7 @@ class ReleaseResponse(BaseModel):
     cover_url: Optional[str]
     cover_url_back: Optional[str]
     notes: Optional[str]
+    overview: Optional[str]
     letterboxd_rating: Optional[float]
 
     model_config = {"from_attributes": True}
@@ -128,6 +157,7 @@ def _release_to_response(r: PhysicalRelease) -> dict:
         "cover_url": r.cover_url,
         "cover_url_back": r.cover_url_back,
         "notes": r.notes,
+        "overview": m.overview if m else None,
         "letterboxd_rating": m.letterboxd_rating if m else None,
     }
 
@@ -275,6 +305,35 @@ async def get_release(release_id: int):
     return _release_to_response(release)
 
 
+@app.patch("/releases/{release_id}", summary="Update a release")
+async def update_release(release_id: int, req: UpdateReleaseRequest):
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        stmt = select(PhysicalRelease).where(
+            PhysicalRelease.id == release_id
+        ).options(joinedload(PhysicalRelease.movie))
+        release = (await session.execute(stmt)).scalar_one_or_none()
+        if not release:
+            raise HTTPException(404, f"Release {release_id} not found")
+
+        movie = release.movie
+        movie_fields = {"title", "year", "director", "runtime_minutes", "mpaa_rating", "genres", "overview", "letterboxd_rating"}
+        release_fields = {"format", "label", "region", "physical_release_date", "edition", "set_name", "disc_count", "aspect_ratio", "upc", "cover_url", "cover_url_back", "notes"}
+
+        for field, value in req.model_dump(exclude_none=True).items():
+            if field in movie_fields:
+                setattr(movie, field, value)
+            elif field in release_fields:
+                setattr(release, field, value)
+
+        await session.commit()
+        await session.refresh(release)
+        await session.refresh(movie)
+        release.movie = movie
+
+    return _release_to_response(release)
+
+
 @app.delete("/releases/{release_id}", status_code=204, summary="Remove a release")
 async def delete_release(release_id: int):
     engine = await get_engine()
@@ -377,3 +436,14 @@ async def sync_letterboxd(username: Optional[str] = Query(None)):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# ── Frontend (must be last) ───────────────────────────────────────────────────
+_FRONTEND = Path(__file__).parent.parent / "frontend"
+
+if _FRONTEND.exists():
+    app.mount("/static", StaticFiles(directory=str(_FRONTEND)), name="static")
+
+    @app.get("/", include_in_schema=False)
+    async def serve_ui():
+        return FileResponse(str(_FRONTEND / "index.html"))

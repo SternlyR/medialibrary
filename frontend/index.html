@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Media Library</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { accent: '#00a4dc', 'lb': '#00e054' } } }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { background: #101010; color: #fff; font-family: system-ui, -apple-system, sans-serif; margin: 0; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #1c1c1c; }
+    ::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+    .poster-card { transition: transform 0.18s ease; }
+    .poster-card:hover { transform: scale(1.04); z-index: 1; }
+    .poster-overlay { opacity: 0; transition: opacity 0.18s ease; }
+    .poster-card:hover .poster-overlay { opacity: 1; }
+    input, select, textarea { background: #282828; border: 1px solid #383838; color: #fff; border-radius: 6px; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #00a4dc; }
+    .modal-enter-active, .modal-leave-active { transition: opacity 0.15s; }
+    .modal-enter-from, .modal-leave-to { opacity: 0; }
+  </style>
+</head>
+<body>
+<div id="app" class="min-h-screen">
+
+  <!-- ── HEADER ── -->
+  <header class="sticky top-0 z-40 bg-[#101010]/95 backdrop-blur-sm border-b border-[#222] px-5 py-3 flex items-center gap-3">
+    <div class="flex items-center gap-2 font-bold text-white shrink-0 mr-2">
+      <span class="text-xl">📀</span>
+      <span class="text-base">Media Library</span>
+      <span class="text-[#555] text-xs font-normal ml-1">{{ releases.length }} titles</span>
+    </div>
+
+    <!-- Search -->
+    <div class="relative flex-1 max-w-sm">
+      <input v-model="searchQuery" type="text" placeholder="Search titles, directors, labels…"
+        class="w-full px-3 py-1.5 pl-8 text-sm rounded-lg">
+      <svg class="absolute left-2.5 top-2 w-4 h-4 text-[#555]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0"/>
+      </svg>
+    </div>
+
+    <div class="flex items-center gap-2 ml-auto">
+      <!-- Sort -->
+      <select v-model="sortBy" class="px-2 py-1.5 text-sm rounded-lg text-[#ccc]">
+        <option value="title">A–Z</option>
+        <option value="year_desc">Newest</option>
+        <option value="year_asc">Oldest</option>
+        <option value="director">Director</option>
+        <option value="label">Label</option>
+        <option value="rating">My Rating</option>
+      </select>
+
+      <!-- View toggle -->
+      <div class="flex bg-[#1c1c1c] border border-[#2a2a2a] rounded-lg overflow-hidden">
+        <button @click="view='grid'" :class="['px-2.5 py-1.5 transition-colors', view==='grid' ? 'bg-accent text-white' : 'text-[#666] hover:text-white']" title="Grid view">
+          <svg class="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+        </button>
+        <button @click="view='list'" :class="['px-2.5 py-1.5 transition-colors', view==='list' ? 'bg-accent text-white' : 'text-[#666] hover:text-white']" title="List view">
+          <svg class="w-4 h-4" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="2" rx="1"/><rect x="1" y="7" width="14" height="2" rx="1"/><rect x="1" y="12" width="14" height="2" rx="1"/></svg>
+        </button>
+      </div>
+
+      <!-- Add -->
+      <button @click="openAdd" class="bg-accent hover:bg-[#0090c8] text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+        Add Disc
+      </button>
+    </div>
+  </header>
+
+  <!-- ── MAIN ── -->
+  <main class="px-5 py-5 max-w-[1800px] mx-auto">
+
+    <!-- Loading -->
+    <div v-if="loading" class="flex items-center justify-center h-64 text-[#555] gap-3">
+      <svg class="animate-spin w-6 h-6" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+      </svg>
+      Loading library…
+    </div>
+
+    <!-- Empty -->
+    <div v-else-if="filtered.length === 0 && !loading" class="flex flex-col items-center justify-center h-64 text-[#555]">
+      <span class="text-5xl mb-3">📀</span>
+      <p class="text-base">{{ searchQuery ? 'No results for "' + searchQuery + '"' : 'Your library is empty' }}</p>
+      <button v-if="!searchQuery" @click="openAdd" class="mt-4 bg-accent text-white text-sm px-4 py-2 rounded-lg">Add your first disc</button>
+    </div>
+
+    <!-- ── GRID VIEW ── -->
+    <div v-else-if="view === 'grid'" class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))">
+      <div v-for="r in filtered" :key="r.id" @click="openDetail(r)" class="poster-card cursor-pointer group">
+        <div class="relative rounded-lg overflow-hidden bg-[#1c1c1c] shadow-lg" style="aspect-ratio: 2/3">
+          <img v-if="r.cover_url" :src="r.cover_url" :alt="r.title"
+            class="w-full h-full object-cover"
+            @error="e => e.target.style.display='none'">
+          <div v-if="!r.cover_url" class="w-full h-full flex flex-col items-center justify-center p-3 text-center gap-2">
+            <span class="text-3xl">🎬</span>
+            <span class="text-xs text-[#555] leading-tight">{{ r.title }}</span>
+          </div>
+          <!-- Format badge -->
+          <div v-if="r.format" class="absolute top-1.5 right-1.5">
+            <span :class="['text-[10px] font-bold px-1.5 py-0.5 rounded', r.format === 'UHD' ? 'bg-blue-600 text-white' : 'bg-[#333] text-[#ccc]']">
+              {{ r.format === 'UHD' ? '4K' : r.format }}
+            </span>
+          </div>
+          <!-- Letterboxd rating -->
+          <div v-if="r.letterboxd_rating" class="absolute bottom-1.5 left-1.5">
+            <span class="bg-black/75 text-lb text-[11px] font-medium px-1.5 py-0.5 rounded">{{ stars(r.letterboxd_rating) }}</span>
+          </div>
+          <!-- Hover overlay -->
+          <div class="poster-overlay absolute inset-0 bg-black/80 p-3 flex flex-col justify-end">
+            <p class="text-white text-xs font-semibold leading-snug">{{ r.title }}</p>
+            <p class="text-[#aaa] text-[11px] mt-0.5">{{ r.year }}</p>
+            <p v-if="r.director" class="text-[#777] text-[11px] truncate">{{ r.director }}</p>
+          </div>
+        </div>
+        <div class="mt-1.5 px-0.5">
+          <p class="text-[13px] text-white truncate leading-snug">{{ r.title }}</p>
+          <p class="text-[11px] text-[#666]">{{ r.year }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LIST VIEW ── -->
+    <div v-else class="rounded-xl border border-[#222] overflow-hidden">
+      <!-- Column selector -->
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 bg-[#181818] border-b border-[#222]">
+        <span class="text-[11px] text-[#555] uppercase tracking-wider shrink-0">Columns</span>
+        <label v-for="col in allColumns" :key="col.key" class="flex items-center gap-1.5 cursor-pointer select-none">
+          <input type="checkbox" v-model="col.visible" class="accent-accent w-3 h-3">
+          <span class="text-xs text-[#888]">{{ col.label }}</span>
+        </label>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-[#181818]">
+              <th class="px-3 py-2.5 text-left text-[11px] font-medium text-[#555] uppercase tracking-wider w-12">Cover</th>
+              <th v-for="col in visibleColumns" :key="col.key"
+                @click="toggleSort(col.key)"
+                class="px-3 py-2.5 text-left text-[11px] font-medium text-[#555] uppercase tracking-wider cursor-pointer hover:text-[#aaa] whitespace-nowrap select-none">
+                {{ col.label }} <span v-if="sortBy.replace('_asc','').replace('_desc','') === col.key" class="text-accent">{{ sortBy.endsWith('_asc') ? '↑' : '↓' }}</span>
+              </th>
+              <th class="w-8"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in filtered" :key="r.id" @click="openDetail(r)"
+              class="border-t border-[#1e1e1e] hover:bg-[#181818] cursor-pointer transition-colors">
+              <td class="px-3 py-2">
+                <img v-if="r.cover_url" :src="r.cover_url" :alt="r.title"
+                  class="w-9 h-[54px] object-cover rounded shadow"
+                  @error="e => e.target.style.display='none'">
+                <div v-else class="w-9 h-[54px] bg-[#1c1c1c] rounded flex items-center justify-center text-base">🎬</div>
+              </td>
+              <td v-for="col in visibleColumns" :key="col.key" class="px-3 py-2 text-[#ccc] whitespace-nowrap max-w-[200px] truncate">
+                <span v-if="col.key === 'letterboxd_rating' && r[col.key]" class="text-lb font-medium">{{ stars(r[col.key]) }}</span>
+                <span v-else-if="col.key === 'format' && r[col.key]" :class="['text-[11px] font-bold px-1.5 py-0.5 rounded', r.format==='UHD' ? 'bg-blue-700/40 text-blue-300' : 'bg-[#2a2a2a] text-[#aaa]']">
+                  {{ r[col.key] === 'UHD' ? '4K UHD' : r[col.key] }}
+                </span>
+                <span v-else>{{ r[col.key] ?? '—' }}</span>
+              </td>
+              <td class="px-3 py-2 text-right">
+                <button @click.stop="confirmDelete(r)" class="text-[#333] hover:text-red-500 transition-colors text-base leading-none" title="Delete">✕</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══════════════════ DETAIL MODAL ═══════════════════ -->
+  <transition name="modal">
+    <div v-if="detail" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75" @click.self="closeDetail">
+      <div class="bg-[#191919] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-[#2a2a2a] shadow-2xl">
+        <!-- Header -->
+        <div class="sticky top-0 bg-[#191919] flex items-center justify-between px-5 py-3.5 border-b border-[#222] z-10">
+          <h2 class="font-semibold text-white text-base">{{ editing ? 'Edit Release' : 'Release Details' }}</h2>
+          <div class="flex items-center gap-2">
+            <button v-if="!editing" @click="startEdit" class="text-xs bg-[#252525] hover:bg-[#2e2e2e] px-3 py-1.5 rounded-lg text-[#ccc] transition-colors">Edit</button>
+            <template v-if="editing">
+              <button @click="saveEdit" :disabled="saving" class="text-xs bg-accent hover:bg-[#0090c8] px-3 py-1.5 rounded-lg text-white transition-colors disabled:opacity-50">
+                {{ saving ? 'Saving…' : 'Save' }}
+              </button>
+              <button @click="cancelEdit" class="text-xs bg-[#252525] hover:bg-[#2e2e2e] px-3 py-1.5 rounded-lg text-[#ccc] transition-colors">Cancel</button>
+            </template>
+            <button @click="confirmDelete(detail)" class="text-xs bg-red-950/50 hover:bg-red-900/70 px-3 py-1.5 rounded-lg text-red-400 transition-colors">Delete</button>
+            <button @click="closeDetail" class="text-[#555] hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#252525] transition-colors">✕</button>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div class="p-5 flex gap-5">
+          <!-- Cover -->
+          <div class="shrink-0 w-36">
+            <img :src="showBack && form.cover_url_back ? form.cover_url_back : form.cover_url"
+              class="w-full rounded-lg shadow-xl"
+              @error="e => e.target.src = ''">
+            <div v-if="form.cover_url_back" class="flex gap-1 mt-2">
+              <button @click="showBack=false" :class="['flex-1 text-[11px] py-1 rounded transition-colors', !showBack ? 'bg-accent text-white' : 'bg-[#252525] text-[#777]']">Front</button>
+              <button @click="showBack=true" :class="['flex-1 text-[11px] py-1 rounded transition-colors', showBack ? 'bg-accent text-white' : 'bg-[#252525] text-[#777]']">Back</button>
+            </div>
+          </div>
+
+          <!-- Fields -->
+          <div class="flex-1 min-w-0">
+            <!-- Title + year -->
+            <div class="mb-4">
+              <div v-if="!editing">
+                <p class="text-xl font-bold text-white leading-tight">{{ form.title }}</p>
+                <p class="text-[#666] text-sm mt-0.5">{{ form.year }} · {{ form.director }}</p>
+              </div>
+              <div v-else class="flex gap-2">
+                <input v-model="form.title" placeholder="Title" class="flex-1 px-2.5 py-1.5 text-sm rounded">
+                <input v-model.number="form.year" type="number" placeholder="Year" class="w-20 px-2.5 py-1.5 text-sm rounded">
+              </div>
+            </div>
+
+            <!-- Field grid -->
+            <div class="grid grid-cols-2 gap-x-5 gap-y-3">
+              <div v-for="f in detailFields" :key="f.key">
+                <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-0.5">{{ f.label }}</label>
+                <p v-if="!editing" class="text-sm">
+                  <span v-if="f.key==='letterboxd_rating' && form[f.key]" class="text-lb">{{ stars(form[f.key]) }} ({{ form[f.key] }})</span>
+                  <span v-else class="text-[#ccc]">{{ form[f.key] ?? '—' }}</span>
+                </p>
+                <input v-else v-model="form[f.key]" :type="f.type||'text'" class="w-full px-2.5 py-1 text-sm rounded">
+              </div>
+            </div>
+
+            <!-- Overview -->
+            <div class="mt-4">
+              <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-0.5">Overview</label>
+              <p v-if="!editing" class="text-sm text-[#888] leading-relaxed">{{ form.overview || '—' }}</p>
+              <textarea v-else v-model="form.overview" rows="3" class="w-full px-2.5 py-1.5 text-sm rounded resize-none"></textarea>
+            </div>
+
+            <!-- Notes -->
+            <div class="mt-3">
+              <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-0.5">Notes</label>
+              <p v-if="!editing" class="text-sm text-[#888]">{{ form.notes || '—' }}</p>
+              <textarea v-else v-model="form.notes" rows="2" class="w-full px-2.5 py-1.5 text-sm rounded resize-none"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ═══════════════════ ADD DISC MODAL ═══════════════════ -->
+  <transition name="modal">
+    <div v-if="showAdd" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75" @click.self="closeAdd">
+      <div class="bg-[#191919] rounded-2xl w-full max-w-md border border-[#2a2a2a] shadow-2xl">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#222]">
+          <h2 class="font-semibold text-white text-base">Add Disc</h2>
+          <button @click="closeAdd" class="text-[#555] hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#252525] transition-colors">✕</button>
+        </div>
+
+        <div class="p-5">
+          <!-- Mode tabs -->
+          <div class="flex bg-[#141414] rounded-lg p-0.5 mb-5 border border-[#222]">
+            <button @click="addMode='upc'" :class="['flex-1 py-1.5 text-sm rounded-md transition-colors font-medium', addMode==='upc' ? 'bg-accent text-white' : 'text-[#666] hover:text-[#aaa]']">UPC Barcode</button>
+            <button @click="addMode='title'" :class="['flex-1 py-1.5 text-sm rounded-md transition-colors font-medium', addMode==='title' ? 'bg-accent text-white' : 'text-[#666] hover:text-[#aaa]']">Title / Manual</button>
+          </div>
+
+          <!-- UPC input -->
+          <div v-if="addMode==='upc'" class="mb-4">
+            <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-1.5">Barcode Number</label>
+            <input v-model="addUpc" type="text" placeholder="e.g. 843501637036"
+              @keyup.enter="lookupDisc"
+              class="w-full px-4 py-3 text-lg tracking-widest rounded-lg">
+          </div>
+
+          <!-- Title input -->
+          <div v-else class="flex gap-2.5 mb-4">
+            <div class="flex-1">
+              <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-1.5">Title</label>
+              <input v-model="addTitle" type="text" placeholder="e.g. The Thing" @keyup.enter="lookupDisc" class="w-full px-3 py-2.5 text-sm rounded-lg">
+            </div>
+            <div class="w-24">
+              <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-1.5">Year</label>
+              <input v-model.number="addYear" type="number" placeholder="1982" class="w-full px-3 py-2.5 text-sm rounded-lg">
+            </div>
+          </div>
+
+          <!-- Lookup button -->
+          <button @click="lookupDisc" :disabled="addLoading"
+            class="w-full bg-[#252525] hover:bg-[#2e2e2e] border border-[#333] text-[#ccc] py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 mb-4">
+            <span v-if="addLoading" class="flex items-center justify-center gap-2">
+              <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              Looking up…
+            </span>
+            <span v-else>🔍 Look Up Metadata</span>
+          </button>
+
+          <!-- Error -->
+          <div v-if="addError" class="mb-4 p-3 bg-red-950/60 border border-red-900/50 rounded-lg text-red-400 text-sm">{{ addError }}</div>
+
+          <!-- Preview card -->
+          <div v-if="addPreview" class="bg-[#141414] border border-[#252525] rounded-xl overflow-hidden mb-4">
+            <div class="flex gap-4 p-4">
+              <img v-if="addPreview.cover_url" :src="addPreview.cover_url"
+                class="w-16 rounded shadow-lg shrink-0" style="aspect-ratio: 2/3; object-fit: cover;"
+                @error="e => e.target.style.display='none'">
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-white leading-tight">{{ addPreview.title }} <span class="text-[#666] font-normal">({{ addPreview.year }})</span></p>
+                <p class="text-xs text-[#888] mt-0.5 mb-2">{{ addPreview.director }}</p>
+                <div class="flex flex-wrap gap-1.5">
+                  <span v-if="addPreview.format" :class="['text-[11px] font-bold px-1.5 py-0.5 rounded', addPreview.format==='UHD' ? 'bg-blue-700/50 text-blue-300' : 'bg-[#252525] text-[#aaa]']">
+                    {{ addPreview.format === 'UHD' ? '4K UHD' : addPreview.format }}
+                  </span>
+                  <span v-if="addPreview.label" class="text-[11px] bg-[#252525] text-[#aaa] px-1.5 py-0.5 rounded">{{ addPreview.label }}</span>
+                  <span v-if="addPreview.region" class="text-[11px] bg-[#252525] text-[#aaa] px-1.5 py-0.5 rounded">{{ addPreview.region }}</span>
+                  <span v-if="addPreview.letterboxd_rating" class="text-[11px] text-lb font-medium">{{ stars(addPreview.letterboxd_rating) }}</span>
+                </div>
+                <div v-if="addPreview.warnings && addPreview.warnings.length" class="mt-2">
+                  <p v-for="w in addPreview.warnings" :key="w" class="text-[11px] text-yellow-500">⚠ {{ w }}</p>
+                </div>
+                <p class="text-[10px] text-[#444] mt-2">Sources: {{ (addPreview.sources || []).join(', ') }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Save button -->
+          <button v-if="addPreview" @click="saveDisc" :disabled="addLoading"
+            class="w-full bg-accent hover:bg-[#0090c8] text-white py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50">
+            ✓ Add to Library
+          </button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+  <!-- ═══════════════════ DELETE CONFIRM ═══════════════════ -->
+  <transition name="modal">
+    <div v-if="delTarget" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80" @click.self="delTarget=null">
+      <div class="bg-[#191919] rounded-xl w-full max-w-xs border border-[#2a2a2a] p-5 shadow-2xl">
+        <p class="font-semibold text-white mb-1">Delete this release?</p>
+        <p class="text-sm text-[#777] mb-5">"{{ delTarget.title }}" will be permanently removed.</p>
+        <div class="flex gap-2.5">
+          <button @click="delTarget=null" class="flex-1 bg-[#252525] hover:bg-[#2e2e2e] text-[#ccc] py-2 rounded-lg text-sm transition-colors">Cancel</button>
+          <button @click="doDelete" class="flex-1 bg-red-800 hover:bg-red-700 text-white py-2 rounded-lg text-sm font-medium transition-colors">Delete</button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
+</div>
+
+<script>
+const { createApp, ref, computed, reactive, onMounted } = Vue;
+
+createApp({
+  setup() {
+    const releases  = ref([]);
+    const loading   = ref(true);
+    const view      = ref('grid');
+    const searchQuery = ref('');
+    const sortBy    = ref('title');
+
+    // Detail modal
+    const detail    = ref(null);
+    const editing   = ref(false);
+    const saving    = ref(false);
+    const showBack  = ref(false);
+    const form      = ref({});
+
+    // Add modal
+    const showAdd   = ref(false);
+    const addMode   = ref('upc');
+    const addUpc    = ref('');
+    const addTitle  = ref('');
+    const addYear   = ref(null);
+    const addLoading = ref(false);
+    const addError  = ref('');
+    const addPreview = ref(null);
+
+    // Delete
+    const delTarget = ref(null);
+
+    const allColumns = reactive([
+      { key: 'title',                label: 'Title',        visible: true  },
+      { key: 'year',                 label: 'Year',         visible: true  },
+      { key: 'director',             label: 'Director',     visible: true  },
+      { key: 'label',                label: 'Label',        visible: true  },
+      { key: 'region',               label: 'Region',       visible: true  },
+      { key: 'format',               label: 'Format',       visible: false },
+      { key: 'mpaa_rating',          label: 'MPAA',         visible: false },
+      { key: 'runtime_minutes',      label: 'Runtime (m)',  visible: false },
+      { key: 'disc_count',           label: 'Discs',        visible: false },
+      { key: 'aspect_ratio',         label: 'Aspect Ratio', visible: false },
+      { key: 'physical_release_date',label: 'Released',     visible: false },
+      { key: 'letterboxd_rating',    label: 'Letterboxd',   visible: false },
+      { key: 'upc',                  label: 'UPC',          visible: false },
+    ]);
+
+    const detailFields = [
+      { key: 'director',              label: 'Director'      },
+      { key: 'genres',                label: 'Genres'        },
+      { key: 'format',                label: 'Format'        },
+      { key: 'label',                 label: 'Label'         },
+      { key: 'region',                label: 'Region'        },
+      { key: 'physical_release_date', label: 'Release Date'  },
+      { key: 'disc_count',            label: 'Disc Count',    type: 'number' },
+      { key: 'aspect_ratio',          label: 'Aspect Ratio'  },
+      { key: 'mpaa_rating',           label: 'MPAA Rating'   },
+      { key: 'runtime_minutes',       label: 'Runtime (min)', type: 'number' },
+      { key: 'letterboxd_rating',     label: 'My Rating',     type: 'number' },
+      { key: 'edition',               label: 'Edition'       },
+      { key: 'set_name',              label: 'Set / Box Set' },
+      { key: 'upc',                   label: 'UPC'           },
+      { key: 'bluray_com_id',         label: 'Blu-ray.com ID', type: 'number' },
+    ];
+
+    const visibleColumns = computed(() => allColumns.filter(c => c.visible));
+
+    const filtered = computed(() => {
+      let list = releases.value;
+      if (searchQuery.value) {
+        const q = searchQuery.value.toLowerCase();
+        list = list.filter(r =>
+          (r.title || '').toLowerCase().includes(q) ||
+          (r.director || '').toLowerCase().includes(q) ||
+          (r.label || '').toLowerCase().includes(q) ||
+          (r.genres || '').toLowerCase().includes(q)
+        );
+      }
+      return [...list].sort((a, b) => {
+        if (sortBy.value === 'year_desc') return (b.year || 0) - (a.year || 0);
+        if (sortBy.value === 'year_asc')  return (a.year || 0) - (b.year || 0);
+        if (sortBy.value === 'rating')    return (b.letterboxd_rating || 0) - (a.letterboxd_rating || 0);
+        const key = sortBy.value.replace(/_asc|_desc/, '');
+        return (a[key] || '').toString().localeCompare((b[key] || '').toString());
+      });
+    });
+
+    function stars(r) {
+      if (!r) return '';
+      const full = Math.floor(r);
+      const half = (r - full) >= 0.5;
+      return '★'.repeat(full) + (half ? '½' : '');
+    }
+
+    function toggleSort(key) {
+      if (sortBy.value === key || sortBy.value === key + '_desc') sortBy.value = key + '_asc';
+      else sortBy.value = key + '_desc';
+    }
+
+    // ── Fetch ──────────────────────────────────────────────
+    async function fetchReleases() {
+      loading.value = true;
+      try {
+        const res = await fetch('/releases');
+        releases.value = await res.json();
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    // ── Detail ─────────────────────────────────────────────
+    function openDetail(r) {
+      detail.value  = r;
+      form.value    = { ...r };
+      editing.value = false;
+      showBack.value = false;
+    }
+    function closeDetail() { detail.value = null; editing.value = false; }
+    function startEdit()   { editing.value = true; }
+    function cancelEdit()  { form.value = { ...detail.value }; editing.value = false; }
+
+    async function saveEdit() {
+      saving.value = true;
+      try {
+        const res = await fetch(`/releases/${form.value.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form.value),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const updated = await res.json();
+        const idx = releases.value.findIndex(r => r.id === updated.id);
+        if (idx !== -1) releases.value[idx] = updated;
+        detail.value  = updated;
+        form.value    = { ...updated };
+        editing.value = false;
+      } catch(e) {
+        alert('Save failed: ' + e.message);
+      } finally {
+        saving.value = false;
+      }
+    }
+
+    // ── Delete ─────────────────────────────────────────────
+    function confirmDelete(r) { delTarget.value = r; }
+
+    async function doDelete() {
+      const r = delTarget.value;
+      await fetch(`/releases/${r.id}`, { method: 'DELETE' });
+      releases.value = releases.value.filter(x => x.id !== r.id);
+      delTarget.value = null;
+      if (detail.value?.id === r.id) closeDetail();
+    }
+
+    // ── Add disc ───────────────────────────────────────────
+    function openAdd()  { showAdd.value = true; addPreview.value = null; addError.value = ''; }
+    function closeAdd() { showAdd.value = false; addPreview.value = null; addError.value = ''; addUpc.value = ''; addTitle.value = ''; addYear.value = null; }
+
+    async function lookupDisc() {
+      addError.value   = '';
+      addPreview.value = null;
+      addLoading.value = true;
+      try {
+        const body = addMode.value === 'upc'
+          ? { upc: addUpc.value.trim() }
+          : { title: addTitle.value.trim(), year: addYear.value || undefined };
+        const res = await fetch('/releases/lookup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error('Lookup failed — check the barcode or title.');
+        addPreview.value = await res.json();
+      } catch(e) {
+        addError.value = e.message;
+      } finally {
+        addLoading.value = false;
+      }
+    }
+
+    async function saveDisc() {
+      addLoading.value = true;
+      try {
+        const body = addMode.value === 'upc'
+          ? { upc: addUpc.value.trim() }
+          : { title: addTitle.value.trim(), year: addYear.value || undefined };
+        const res = await fetch('/releases', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error('Failed to save.');
+        const saved = await res.json();
+        releases.value.push(saved);
+        closeAdd();
+      } catch(e) {
+        addError.value = e.message;
+      } finally {
+        addLoading.value = false;
+      }
+    }
+
+    onMounted(fetchReleases);
+
+    return {
+      releases, loading, view, searchQuery, sortBy,
+      detail, editing, saving, showBack, form,
+      showAdd, addMode, addUpc, addTitle, addYear, addLoading, addError, addPreview,
+      delTarget,
+      allColumns, visibleColumns, detailFields, filtered,
+      stars, toggleSort,
+      openDetail, closeDetail, startEdit, cancelEdit, saveEdit,
+      confirmDelete, doDelete,
+      openAdd, closeAdd, lookupDisc, saveDisc,
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
