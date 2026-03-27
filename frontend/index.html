@@ -112,9 +112,9 @@
     <!-- ── GRID VIEW ── -->
     <div v-else-if="view === 'grid'" class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))">
       <div v-for="r in filtered" :key="r.id" @click="openDetail(r)" class="poster-card cursor-pointer group">
-        <div class="relative rounded-lg overflow-hidden bg-[#1c1c1c] shadow-lg" style="aspect-ratio: 2/3">
+        <div class="relative rounded-lg overflow-hidden bg-[#1c1c1c] shadow-lg" style="aspect-ratio: 27/38">
           <img v-if="r.cover_url" :src="r.cover_url" :alt="r.title"
-            class="w-full h-full object-cover"
+            class="w-full h-full object-contain"
             @error="e => e.target.style.display='none'">
           <div v-if="!r.cover_url" class="w-full h-full flex flex-col items-center justify-center p-3 text-center gap-2">
             <span class="text-3xl">🎬</span>
