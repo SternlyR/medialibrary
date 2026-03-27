@@ -124,19 +124,109 @@ class LetterboxdClient:
 
         return rating
 
+    def _parse_rating_from_page(self, soup: "BeautifulSoup") -> Optional[float]:
+        """Extract a star rating from any Letterboxd page soup.
+
+        Tries sources in order of reliability:
+        1. twitter:data2 meta tag — server-rendered on individual viewing pages
+        2. input.rateit-field — server-rendered backing field (diary page)
+        3. div.rateit-range aria-valuenow — may be JS-set
+        4. span.rating text — reviews listing page
+        5. svg.glyph.-rating aria-label — base film page
+        """
+        # 1. Twitter meta (individual viewing pages, e.g. /seancohen/film/thief/2/)
+        meta = soup.find("meta", attrs={"name": "twitter:data2"})
+        if meta:
+            r = _parse_stars(meta.get("content", ""))
+            if r is not None:
+                return r
+
+        content = soup.select_one("div#content") or soup
+
+        # 2. Hidden range input (diary page — server-rendered)
+        ri = content.select_one("input.rateit-field[type='range']")
+        if ri:
+            try:
+                val = int(ri.get("value", "0"))
+                if val > 0:
+                    return val / 2.0
+            except (ValueError, TypeError):
+                pass
+
+        # 3. Rateit div aria-valuenow (may be JS-set)
+        rd = content.select_one("div.rateit-range")
+        if rd:
+            try:
+                val = int(rd.get("aria-valuenow", "0"))
+                if val > 0:
+                    return val / 2.0
+            except (ValueError, TypeError):
+                pass
+
+        # 4. Star text in span.rating (reviews page)
+        span = content.select_one("span.rating")
+        if span:
+            r = _parse_stars(span.get_text(strip=True))
+            if r is not None:
+                return r
+
+        # 5. SVG glyph (base film page — shows oldest entry)
+        svg = content.select_one("svg.glyph.-rating")
+        if svg:
+            r = _parse_stars(svg.get("aria-label", ""))
+            if r is not None:
+                return r
+            title_el = svg.find("title")
+            if title_el:
+                r = _parse_stars(title_el.get_text())
+                if r is not None:
+                    return r
+
+        return None
+
+    async def _probe_numbered_reviews(
+        self, username: str, slug: str, max_n: int = 5
+    ) -> Optional[float]:
+        """Probe /slug/1/, /slug/2/, … ascending until 404, return last found rating.
+
+        Individual review entry pages (e.g. /seancohen/film/thief/2/) are not
+        Cloudflare-blocked unlike the diary/reviews listing pages. The highest
+        numbered page is the most recent review.
+        """
+        last_rating = None
+        for n in range(1, max_n + 1):
+            url = f"{self.BASE}/{username}/film/{slug}/{n}/"
+            async with httpx.AsyncClient(
+                headers=self._HEADERS, follow_redirects=True, timeout=10
+            ) as client:
+                try:
+                    resp = await client.get(url)
+                except httpx.HTTPError:
+                    break
+
+            if resp.status_code == 404:
+                break  # No more numbered entries
+            if resp.status_code != 200:
+                continue
+
+            soup = BeautifulSoup(resp.text, "html.parser")
+            r = self._parse_rating_from_page(soup)
+            if r is not None:
+                last_rating = r
+
+        return last_rating
+
     async def _scrape_user_film_page(
         self, username: str, slug: str
     ) -> Optional[float]:
         """Fetch the user's diary/review page and extract their most recent rating.
 
-        Tries /{username}/film/{slug}/diary/ first — covers all logged viewings
-        including star-only logs with no written review, and the first row is
-        always the most recent entry.
-
-        Falls back to /reviews/ then the base film page.
-
-        Rating is in <div class="rateit-range" aria-valuenow="N"> on a 0–10
-        scale (10 = 5 stars, 9 = 4.5 stars, … 1 = 0.5 stars, 0 = no rating).
+        Tries in order:
+        1. /{username}/film/{slug}/diary/  — full diary listing (403 on some accounts)
+        2. /{username}/film/{slug}/reviews/ — review listing (often also 403)
+        3. /{username}/film/{slug}/         — base film page (always 200, but shows
+           the OLDEST entry). After parsing it, probes numbered review pages
+           (/1/, /2/, …) to find the most recent rating.
         """
         for path in ["diary/", "reviews/", ""]:
             url = f"{self.BASE}/{username}/film/{slug}/{path}"
@@ -152,50 +242,16 @@ class LetterboxdClient:
                     continue
 
             soup = BeautifulSoup(resp.text, "html.parser")
-            content = soup.select_one("div#content") or soup
+            rating = self._parse_rating_from_page(soup)
 
-            # Primary: hidden range input backing the rateit widget.
-            # This is server-rendered so BeautifulSoup can read it.
-            # First match = most recent diary entry.
-            rateit_input = content.select_one("input.rateit-field[type='range']")
-            if rateit_input:
-                try:
-                    val = int(rateit_input.get("value", "0"))
-                    if val > 0:
-                        return val / 2.0
-                except (ValueError, TypeError):
-                    pass
+            if path == "":
+                # Base page shows the OLDEST entry — probe numbered review pages
+                # (/1/, /2/, …) to find a more recent rating.
+                recent = await self._probe_numbered_reviews(username, slug)
+                return recent if recent is not None else rating
 
-            # Secondary: rateit-range div aria-valuenow (may be JS-set,
-            # but try in case the server pre-populates it)
-            rateit_div = content.select_one("div.rateit-range")
-            if rateit_div:
-                try:
-                    val = int(rateit_div.get("aria-valuenow", "0"))
-                    if val > 0:
-                        return val / 2.0
-                except (ValueError, TypeError):
-                    pass
-
-            # Tertiary: span.rating text e.g. "★★★★★" (reviews page)
-            span = content.select_one("span.rating")
-            if span:
-                rating = _parse_stars(span.get_text(strip=True))
-                if rating is not None:
-                    return rating
-
-            # Fallback: SVG star glyph (base film page)
-            svg = content.select_one("svg.glyph.-rating")
-            if svg:
-                label = svg.get("aria-label", "")
-                rating = _parse_stars(label)
-                if rating is not None:
-                    return rating
-                title_el = svg.find("title")
-                if title_el:
-                    rating = _parse_stars(title_el.get_text())
-                    if rating is not None:
-                        return rating
+            if rating is not None:
+                return rating
 
         return None
 
