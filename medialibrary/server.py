@@ -433,6 +433,47 @@ async def sync_letterboxd(username: Optional[str] = Query(None)):
     }
 
 
+@app.post("/releases/{release_id}/refresh-letterboxd", summary="Refresh Letterboxd rating for one release")
+async def refresh_letterboxd_rating(release_id: int):
+    """Re-fetch the configured user's Letterboxd rating for this specific release.
+
+    Uses the two-tier strategy (RSS feed + direct film page scrape) so it works
+    for both recent and older ratings.
+    """
+    from medialibrary.api.letterboxd import LetterboxdClient
+
+    lb_user = settings.letterboxd_username
+    if not lb_user:
+        raise HTTPException(400, "LETTERBOXD_USERNAME not set in .env")
+
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        stmt = select(PhysicalRelease).where(
+            PhysicalRelease.id == release_id
+        ).options(joinedload(PhysicalRelease.movie))
+        release = (await session.execute(stmt)).scalar_one_or_none()
+        if not release:
+            raise HTTPException(404, f"Release {release_id} not found")
+
+        movie = release.movie
+        lb_client = LetterboxdClient()
+        rating = await lb_client.get_rating_for_film(
+            lb_user,
+            title=movie.title,
+            year=movie.year,
+            tmdb_id=movie.tmdb_id,
+        )
+
+        if rating is not None:
+            movie.letterboxd_rating = rating
+            await session.commit()
+            await session.refresh(release)
+            await session.refresh(movie)
+            release.movie = movie
+
+    return _release_to_response(release)
+
+
 @app.get("/bluray/search-covers", summary="Search blu-ray.com and return cover art options")
 async def search_covers(
     title: str = Query(...),
