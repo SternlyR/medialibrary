@@ -478,23 +478,49 @@ async def debug_letterboxd(release_id: int):
         soup = BeautifulSoup(html, "html.parser") if html else None
         content = soup.select_one("div#content") if soup else None
 
-        rateit_div   = content.select_one("div.rateit-range") if content else None
+        twitter_meta  = soup.find("meta", attrs={"name": "twitter:data2"}) if soup else None
         rateit_input = content.select_one("input.rateit-field[type='range']") if content else None
         svg_glyph    = content.select_one("svg.glyph.-rating") if content else None
         span_rating  = content.select_one("span.rating") if content else None
 
+        parsed_rating = lb._parse_rating_from_page(soup) if soup else None
+
         pages.append({
             "url": url,
             "status": status,
-            "rateit_div_found": rateit_div is not None,
-            "rateit_div_attrs": dict(rateit_div.attrs) if rateit_div else None,
-            "rateit_input_found": rateit_input is not None,
+            "parsed_rating": parsed_rating,
+            "twitter_data2": twitter_meta.get("content") if twitter_meta else None,
             "rateit_input_value": rateit_input.get("value") if rateit_input else None,
-            "svg_glyph_found": svg_glyph is not None,
             "svg_glyph_aria_label": svg_glyph.get("aria-label") if svg_glyph else None,
-            "span_rating_found": span_rating is not None,
             "span_rating_text": span_rating.get_text(strip=True) if span_rating else None,
-            "html_snippet": html[:3000] if html else None,
+        })
+
+    # Probe numbered review pages
+    numbered = []
+    for n in range(1, 6):
+        url = f"{lb.BASE}/{lb_user}/film/{slug}/{n}/"
+        async with httpx.AsyncClient(headers=lb._HEADERS, follow_redirects=True, timeout=10) as client:
+            try:
+                resp = await client.get(url)
+                status = resp.status_code
+                html = resp.text if status == 200 else ""
+            except Exception as e:
+                status = 0
+                html = ""
+
+        if status == 404:
+            numbered.append({"url": url, "status": 404, "parsed_rating": None})
+            break
+
+        soup = BeautifulSoup(html, "html.parser") if html else None
+        twitter_meta = soup.find("meta", attrs={"name": "twitter:data2"}) if soup else None
+        parsed = lb._parse_rating_from_page(soup) if soup else None
+
+        numbered.append({
+            "url": url,
+            "status": status,
+            "parsed_rating": parsed,
+            "twitter_data2": twitter_meta.get("content") if twitter_meta else None,
         })
 
     return {
@@ -503,6 +529,11 @@ async def debug_letterboxd(release_id: int):
         "rss_total": len(ratings),
         "rss_matches": rss_matches,
         "pages": pages,
+        "numbered_pages": numbered,
+        "final_rating_would_be": next(
+            (p["parsed_rating"] for p in reversed(numbered) if p.get("parsed_rating") is not None),
+            next((p["parsed_rating"] for p in pages if p.get("parsed_rating") is not None), None)
+        ),
     }
 
 
