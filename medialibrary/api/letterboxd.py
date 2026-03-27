@@ -18,6 +18,15 @@ from typing import Optional
 import httpx
 from bs4 import BeautifulSoup
 
+# curl_cffi impersonates Chrome's TLS fingerprint, bypassing Cloudflare bot
+# detection that blocks plain httpx/requests on user sub-pages.
+# Install with: pip install curl_cffi
+try:
+    from curl_cffi.requests import AsyncSession as _CurlSession
+    _HAS_CURL_CFFI = True
+except ImportError:
+    _HAS_CURL_CFFI = False
+
 # XML namespace URIs used in Letterboxd RSS
 _NS_LB = "https://letterboxd.com"
 _NS_TMDB = "https://themoviedb.org"
@@ -85,6 +94,32 @@ class LetterboxdClient:
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
     }
+
+    async def _get(self, url: str, timeout: int = 10) -> tuple[int, str]:
+        """Fetch a URL and return (status_code, response_text).
+
+        Uses curl_cffi with Chrome impersonation if available (bypasses
+        Cloudflare TLS fingerprint detection).  Falls back to httpx.
+        """
+        if _HAS_CURL_CFFI:
+            try:
+                async with _CurlSession(impersonate="chrome120") as session:
+                    r = await session.get(
+                        url, headers=self._HEADERS,
+                        allow_redirects=True, timeout=timeout,
+                    )
+                    return r.status_code, r.text
+            except Exception:
+                return 0, ""
+        else:
+            async with httpx.AsyncClient(
+                headers=self._HEADERS, follow_redirects=True, timeout=timeout
+            ) as client:
+                try:
+                    r = await client.get(url)
+                    return r.status_code, r.text
+                except httpx.HTTPError:
+                    return 0, ""
 
     async def get_rating_for_film(
         self,
@@ -187,33 +222,19 @@ class LetterboxdClient:
     async def _probe_numbered_reviews(
         self, username: str, slug: str, max_n: int = 5
     ) -> Optional[float]:
-        """Probe /slug/1/, /slug/2/, … ascending until 404, return last found rating.
-
-        Individual review entry pages (e.g. /seancohen/film/thief/2/) are not
-        Cloudflare-blocked unlike the diary/reviews listing pages. The highest
-        numbered page is the most recent review.
-        """
+        """Probe /slug/1/, /slug/2/, … ascending until 404, return last found rating."""
         last_rating = None
         for n in range(1, max_n + 1):
             url = f"{self.BASE}/{username}/film/{slug}/{n}/"
-            async with httpx.AsyncClient(
-                headers=self._HEADERS, follow_redirects=True, timeout=10
-            ) as client:
-                try:
-                    resp = await client.get(url)
-                except httpx.HTTPError:
-                    break
-
-            if resp.status_code == 404:
-                break  # No more numbered entries
-            if resp.status_code != 200:
+            status, html = await self._get(url)
+            if status == 404:
+                break
+            if status != 200 or not html:
                 continue
-
-            soup = BeautifulSoup(resp.text, "html.parser")
+            soup = BeautifulSoup(html, "html.parser")
             r = self._parse_rating_from_page(soup)
             if r is not None:
                 last_rating = r
-
         return last_rating
 
     async def _scrape_user_film_page(
@@ -222,31 +243,22 @@ class LetterboxdClient:
         """Fetch the user's diary/review page and extract their most recent rating.
 
         Tries in order:
-        1. /{username}/film/{slug}/diary/  — full diary listing (403 on some accounts)
-        2. /{username}/film/{slug}/reviews/ — review listing (often also 403)
-        3. /{username}/film/{slug}/         — base film page (always 200, but shows
-           the OLDEST entry). After parsing it, probes numbered review pages
-           (/1/, /2/, …) to find the most recent rating.
+        1. /{username}/film/{slug}/diary/  — full diary listing
+        2. /{username}/film/{slug}/reviews/ — review listing
+        3. /{username}/film/{slug}/         — base film page (shows OLDEST entry).
+           After parsing, probes numbered review pages (/1/, /2/, …) to find
+           the most recent rating.
         """
         for path in ["diary/", "reviews/", ""]:
             url = f"{self.BASE}/{username}/film/{slug}/{path}"
-            async with httpx.AsyncClient(
-                headers=self._HEADERS, follow_redirects=True, timeout=10
-            ) as client:
-                try:
-                    resp = await client.get(url)
-                    if resp.status_code in (404, 403):
-                        continue
-                    resp.raise_for_status()
-                except httpx.HTTPError:
-                    continue
+            status, html = await self._get(url)
+            if status in (403, 404) or not html:
+                continue
 
-            soup = BeautifulSoup(resp.text, "html.parser")
+            soup = BeautifulSoup(html, "html.parser")
             rating = self._parse_rating_from_page(soup)
 
             if path == "":
-                # Base page shows the OLDEST entry — probe numbered review pages
-                # (/1/, /2/, …) to find a more recent rating.
                 recent = await self._probe_numbered_reviews(username, slug)
                 return recent if recent is not None else rating
 
@@ -258,18 +270,12 @@ class LetterboxdClient:
     async def get_all_ratings(self, username: str) -> list[LetterboxdRating]:
         """Fetch and parse the user's RSS feed into a list of rated films."""
         url = f"{self.BASE}/{username}/rss/"
-        async with httpx.AsyncClient(
-            headers=self._HEADERS, follow_redirects=True, timeout=15
-        ) as client:
-            try:
-                resp = await client.get(url)
-                if resp.status_code != 200:
-                    return []
-            except httpx.HTTPError:
-                return []
+        status, text = await self._get(url, timeout=15)
+        if status != 200 or not text:
+            return []
 
         try:
-            root = ET.fromstring(resp.text)
+            root = ET.fromstring(text)
         except ET.ParseError:
             return []
 

@@ -466,14 +466,7 @@ async def debug_letterboxd(release_id: int):
     pages = []
     for path in ["diary/", "reviews/", ""]:
         url = f"{lb.BASE}/{lb_user}/film/{slug}/{path}"
-        async with httpx.AsyncClient(headers=lb._HEADERS, follow_redirects=True, timeout=10) as client:
-            try:
-                resp = await client.get(url)
-                status = resp.status_code
-                html = resp.text if status == 200 else ""
-            except Exception as e:
-                status = 0
-                html = str(e)
+        status, html = await lb._get(url)
 
         soup = BeautifulSoup(html, "html.parser") if html else None
         content = soup.select_one("div#content") if soup else None
@@ -499,14 +492,7 @@ async def debug_letterboxd(release_id: int):
     numbered = []
     for n in range(1, 6):
         url = f"{lb.BASE}/{lb_user}/film/{slug}/{n}/"
-        async with httpx.AsyncClient(headers=lb._HEADERS, follow_redirects=True, timeout=10) as client:
-            try:
-                resp = await client.get(url)
-                status = resp.status_code
-                html = resp.text if status == 200 else ""
-            except Exception as e:
-                status = 0
-                html = ""
+        status, html = await lb._get(url)
 
         if status == 404:
             numbered.append({"url": url, "status": 404, "parsed_rating": None})
@@ -523,9 +509,11 @@ async def debug_letterboxd(release_id: int):
             "twitter_data2": twitter_meta.get("content") if twitter_meta else None,
         })
 
+    from medialibrary.api.letterboxd import _HAS_CURL_CFFI
     return {
         "movie": {"title": movie.title, "year": movie.year, "tmdb_id": movie.tmdb_id},
         "slug": slug,
+        "curl_cffi_active": _HAS_CURL_CFFI,
         "rss_total": len(ratings),
         "rss_matches": rss_matches,
         "pages": pages,
