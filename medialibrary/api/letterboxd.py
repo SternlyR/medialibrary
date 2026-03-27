@@ -127,32 +127,40 @@ class LetterboxdClient:
     async def _scrape_user_film_page(
         self, username: str, slug: str
     ) -> Optional[float]:
-        """Fetch /<username>/film/<slug>/ and extract the star rating."""
-        url = f"{self.BASE}/{username}/film/{slug}/"
-        async with httpx.AsyncClient(
-            headers=self._HEADERS, follow_redirects=True, timeout=10
-        ) as client:
-            try:
-                resp = await client.get(url)
-                if resp.status_code in (404, 403):
-                    return None
-                resp.raise_for_status()
-            except httpx.HTTPError:
-                return None
+        """Fetch the user's film review page and extract their most recent star rating.
 
-        soup = BeautifulSoup(resp.text, "html.parser")
+        Tries /<username>/film/<slug>/reviews/ first (most-recent rating at top),
+        then falls back to /<username>/film/<slug>/ (diary entries).
+        """
+        for path in [f"reviews/", ""]:
+            url = f"{self.BASE}/{username}/film/{slug}/{path}"
+            async with httpx.AsyncClient(
+                headers=self._HEADERS, follow_redirects=True, timeout=10
+            ) as client:
+                try:
+                    resp = await client.get(url)
+                    if resp.status_code in (404, 403):
+                        continue
+                    resp.raise_for_status()
+                except httpx.HTTPError:
+                    continue
 
-        # Rating is in <svg class="glyph -rating" aria-label="★★★★½">
-        # or its child <title>★★★★½</title>
-        svg = soup.select_one("svg.glyph.-rating, svg[aria-label*='★'], svg[aria-label*='½']")
-        if svg:
-            label = svg.get("aria-label", "")
-            rating = _parse_stars(label)
-            if rating is not None:
-                return rating
-            title_el = svg.find("title")
-            if title_el:
-                return _parse_stars(title_el.get_text())
+            soup = BeautifulSoup(resp.text, "html.parser")
+
+            # Rating is in <svg class="glyph -rating" aria-label="★★★★½">
+            # inside div#content — use first match (most recent entry)
+            content = soup.select_one("div#content") or soup
+            svg = content.select_one("svg.glyph.-rating")
+            if svg:
+                label = svg.get("aria-label", "")
+                rating = _parse_stars(label)
+                if rating is not None:
+                    return rating
+                title_el = svg.find("title")
+                if title_el:
+                    rating = _parse_stars(title_el.get_text())
+                    if rating is not None:
+                        return rating
 
         return None
 

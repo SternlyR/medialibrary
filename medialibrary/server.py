@@ -433,6 +433,28 @@ async def sync_letterboxd(username: Optional[str] = Query(None)):
     }
 
 
+@app.get("/bluray/search-covers", summary="Search blu-ray.com and return cover art options")
+async def search_covers(
+    title: str = Query(...),
+    year: Optional[int] = Query(None),
+):
+    from medialibrary.api.bluray import BlurayClient
+    client = BlurayClient()
+    results = await client.search(title, year)
+    if not results and year:
+        results = await client.search(title)
+    return [
+        {
+            "bluray_com_id": r["bluray_com_id"],
+            "title": r["title"],
+            "year": r.get("year"),
+            "cover_url": r["cover_url"],
+            "detail_url": r.get("detail_url", ""),
+        }
+        for r in results[:12]
+    ]
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
