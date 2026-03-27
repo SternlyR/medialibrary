@@ -433,6 +433,77 @@ async def sync_letterboxd(username: Optional[str] = Query(None)):
     }
 
 
+@app.get("/debug/letterboxd/{release_id}", summary="Debug Letterboxd scraping for a release")
+async def debug_letterboxd(release_id: int):
+    """Show exactly what the scraper sees for a release — use to troubleshoot rating issues."""
+    import httpx
+    from bs4 import BeautifulSoup
+    from medialibrary.api.letterboxd import LetterboxdClient, _normalize, _title_to_slug
+
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        stmt = select(PhysicalRelease).where(
+            PhysicalRelease.id == release_id
+        ).options(joinedload(PhysicalRelease.movie))
+        release = (await session.execute(stmt)).scalar_one_or_none()
+        if not release:
+            raise HTTPException(404, "Not found")
+        movie = release.movie
+
+    lb_user = settings.letterboxd_username
+    lb = LetterboxdClient()
+
+    # RSS check
+    ratings = await lb.get_all_ratings(lb_user)
+    norm_title = _normalize(movie.title)
+    rss_matches = [
+        {"title": r.title, "year": r.year, "rating": r.rating, "tmdb_id": r.tmdb_id}
+        for r in ratings
+        if r.tmdb_id == movie.tmdb_id or _normalize(r.title) == norm_title
+    ]
+
+    slug = _title_to_slug(movie.title)
+    pages = []
+    for path in ["diary/", "reviews/", ""]:
+        url = f"{lb.BASE}/{lb_user}/film/{slug}/{path}"
+        async with httpx.AsyncClient(headers=lb._HEADERS, follow_redirects=True, timeout=10) as client:
+            try:
+                resp = await client.get(url)
+                status = resp.status_code
+                html = resp.text if status == 200 else ""
+            except Exception as e:
+                status = 0
+                html = str(e)
+
+        soup = BeautifulSoup(html, "html.parser") if html else None
+        content = soup.select_one("div#content") if soup else None
+
+        rateit_div   = content.select_one("div.rateit-range") if content else None
+        rateit_input = content.select_one("input.rateit-field[type='range']") if content else None
+        svg_glyph    = content.select_one("svg.glyph.-rating") if content else None
+
+        pages.append({
+            "url": url,
+            "status": status,
+            "rateit_div_found": rateit_div is not None,
+            "rateit_div_attrs": dict(rateit_div.attrs) if rateit_div else None,
+            "rateit_input_found": rateit_input is not None,
+            "rateit_input_value": rateit_input.get("value") if rateit_input else None,
+            "svg_glyph_found": svg_glyph is not None,
+            "svg_glyph_aria_label": svg_glyph.get("aria-label") if svg_glyph else None,
+        })
+        if status not in (200,):
+            break
+
+    return {
+        "movie": {"title": movie.title, "year": movie.year, "tmdb_id": movie.tmdb_id},
+        "slug": slug,
+        "rss_total": len(ratings),
+        "rss_matches": rss_matches,
+        "pages": pages,
+    }
+
+
 @app.post("/releases/{release_id}/refresh-letterboxd", summary="Refresh Letterboxd rating for one release")
 async def refresh_letterboxd_rating(release_id: int):
     """Re-fetch the configured user's Letterboxd rating for this specific release.

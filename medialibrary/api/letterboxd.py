@@ -154,17 +154,30 @@ class LetterboxdClient:
             soup = BeautifulSoup(resp.text, "html.parser")
             content = soup.select_one("div#content") or soup
 
-            # Primary: rateit widget — first match is the most recent entry
-            rateit = content.select_one("div.rateit-range[aria-valuenow]")
-            if rateit:
+            # Primary: hidden range input backing the rateit widget.
+            # This is server-rendered so BeautifulSoup can read it.
+            # First match = most recent diary entry.
+            rateit_input = content.select_one("input.rateit-field[type='range']")
+            if rateit_input:
                 try:
-                    val = int(rateit["aria-valuenow"])
+                    val = int(rateit_input.get("value", "0"))
                     if val > 0:
                         return val / 2.0
-                except (ValueError, KeyError):
+                except (ValueError, TypeError):
                     pass
 
-            # Fallback: SVG star glyph (older page format / base film page)
+            # Secondary: rateit-range div aria-valuenow (may be JS-set,
+            # but try in case the server pre-populates it)
+            rateit_div = content.select_one("div.rateit-range")
+            if rateit_div:
+                try:
+                    val = int(rateit_div.get("aria-valuenow", "0"))
+                    if val > 0:
+                        return val / 2.0
+                except (ValueError, TypeError):
+                    pass
+
+            # Fallback: SVG star glyph (base film page)
             svg = content.select_one("svg.glyph.-rating")
             if svg:
                 label = svg.get("aria-label", "")
