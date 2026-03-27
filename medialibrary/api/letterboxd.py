@@ -127,12 +127,18 @@ class LetterboxdClient:
     async def _scrape_user_film_page(
         self, username: str, slug: str
     ) -> Optional[float]:
-        """Fetch the user's film review page and extract their most recent star rating.
+        """Fetch the user's diary/review page and extract their most recent rating.
 
-        Tries /<username>/film/<slug>/reviews/ first (most-recent rating at top),
-        then falls back to /<username>/film/<slug>/ (diary entries).
+        Tries /{username}/film/{slug}/diary/ first — covers all logged viewings
+        including star-only logs with no written review, and the first row is
+        always the most recent entry.
+
+        Falls back to /reviews/ then the base film page.
+
+        Rating is in <div class="rateit-range" aria-valuenow="N"> on a 0–10
+        scale (10 = 5 stars, 9 = 4.5 stars, … 1 = 0.5 stars, 0 = no rating).
         """
-        for path in [f"reviews/", ""]:
+        for path in ["diary/", "reviews/", ""]:
             url = f"{self.BASE}/{username}/film/{slug}/{path}"
             async with httpx.AsyncClient(
                 headers=self._HEADERS, follow_redirects=True, timeout=10
@@ -146,10 +152,19 @@ class LetterboxdClient:
                     continue
 
             soup = BeautifulSoup(resp.text, "html.parser")
-
-            # Rating is in <svg class="glyph -rating" aria-label="★★★★½">
-            # inside div#content — use first match (most recent entry)
             content = soup.select_one("div#content") or soup
+
+            # Primary: rateit widget — first match is the most recent entry
+            rateit = content.select_one("div.rateit-range[aria-valuenow]")
+            if rateit:
+                try:
+                    val = int(rateit["aria-valuenow"])
+                    if val > 0:
+                        return val / 2.0
+                except (ValueError, KeyError):
+                    pass
+
+            # Fallback: SVG star glyph (older page format / base film page)
             svg = content.select_one("svg.glyph.-rating")
             if svg:
                 label = svg.get("aria-label", "")
