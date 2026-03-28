@@ -82,6 +82,20 @@
         </button>
       </div>
 
+      <!-- Import CSV -->
+      <button @click="triggerImport" :disabled="importLoading"
+        :class="['text-xs px-2.5 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5',
+          importLoading ? 'bg-[#1c1c1c] border-[#2a2a2a] text-[#555] cursor-not-allowed' :
+          'bg-[#1c1c1c] border-[#2a2a2a] text-[#666] hover:text-[#aaa]']"
+        title="Bulk import from CSV">
+        <svg :class="['w-3.5 h-3.5', importLoading ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path v-if="!importLoading" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+          <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 9a8 8 0 0114.93-2M20 15a8 8 0 01-14.93 2"/>
+        </svg>
+        <span class="hidden sm:inline">{{ importLoading ? 'Importing…' : 'Import CSV' }}</span>
+      </button>
+      <input ref="csvFileInput" type="file" accept=".csv" class="hidden" @change="importCsv">
+
       <!-- Add -->
       <button @click="openAdd" class="bg-accent hover:bg-[#0090c8] text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
@@ -193,6 +207,42 @@
       </div>
     </div>
   </main>
+
+  <!-- ═══════════════════ IMPORT RESULT MODAL ═══════════════════ -->
+  <transition name="modal">
+    <div v-if="importResult" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75" @click.self="importResult=null">
+      <div class="bg-[#191919] rounded-2xl w-full max-w-md border border-[#2a2a2a] shadow-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-semibold text-white text-base">Import Complete</h2>
+          <button @click="importResult=null" class="text-[#555] hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#252525] transition-colors">✕</button>
+        </div>
+        <!-- Summary stats -->
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <div class="bg-[#1c1c1c] rounded-xl p-3 text-center">
+            <div class="text-2xl font-bold text-green-400">{{ importResult.imported }}</div>
+            <div class="text-[11px] text-[#666] mt-0.5">Imported</div>
+          </div>
+          <div class="bg-[#1c1c1c] rounded-xl p-3 text-center">
+            <div class="text-2xl font-bold text-[#888]">{{ importResult.skipped }}</div>
+            <div class="text-[11px] text-[#666] mt-0.5">Skipped</div>
+          </div>
+          <div class="bg-[#1c1c1c] rounded-xl p-3 text-center">
+            <div class="text-2xl font-bold" :class="importResult.failed > 0 ? 'text-red-400' : 'text-[#888]'">{{ importResult.failed }}</div>
+            <div class="text-[11px] text-[#666] mt-0.5">Failed</div>
+          </div>
+        </div>
+        <p class="text-xs text-[#555] mb-4">{{ importResult.total_rows }} rows processed</p>
+        <!-- Errors list -->
+        <div v-if="importResult.errors && importResult.errors.length" class="bg-[#1c1c1c] rounded-xl p-3 max-h-48 overflow-y-auto">
+          <p class="text-[11px] font-medium text-red-400 mb-2">Errors</p>
+          <div v-for="e in importResult.errors" :key="e.row" class="text-[11px] text-[#999] mb-1.5">
+            <span class="text-[#555]">Row {{ e.row }}:</span> <span class="text-white">{{ e.title }}</span> — {{ e.error }}
+          </div>
+        </div>
+        <button @click="importResult=null" class="w-full mt-4 bg-accent hover:bg-[#0090c8] text-white py-2 rounded-lg text-sm font-medium transition-colors">Done</button>
+      </div>
+    </div>
+  </transition>
 
   <!-- ═══════════════════ DETAIL MODAL ═══════════════════ -->
   <transition name="modal">
@@ -671,6 +721,37 @@ createApp({
       }
     }
 
+    // ── CSV Import ─────────────────────────────────────────
+    const csvFileInput  = ref(null);
+    const importLoading = ref(false);
+    const importResult  = ref(null);
+
+    function triggerImport() {
+      if (csvFileInput.value) {
+        csvFileInput.value.value = '';  // reset so same file can be re-selected
+        csvFileInput.value.click();
+      }
+    }
+
+    async function importCsv(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      importLoading.value = true;
+      importResult.value  = null;
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/import/csv', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error(await res.text());
+        importResult.value = await res.json();
+        await fetchReleases();
+      } catch(e) {
+        alert('Import failed: ' + e.message);
+      } finally {
+        importLoading.value = false;
+      }
+    }
+
     // ── Bulk Letterboxd sync ────────────────────────────────
     async function syncLetterboxd() {
       syncing.value = true;
@@ -709,6 +790,7 @@ createApp({
       confirmDelete, doDelete,
       openAdd, closeAdd, lookupDisc, saveDisc,
       articleTitle,
+      csvFileInput, importLoading, importResult, triggerImport, importCsv,
     };
   }
 }).mount('#app');

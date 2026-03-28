@@ -24,7 +24,7 @@ from typing import Optional
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -494,6 +494,186 @@ async def search_covers(
         }
         for r in results[:12]
     ]
+
+
+@app.post("/import/csv", summary="Bulk import releases from a CSV file")
+async def import_csv(file: UploadFile = File(...)):
+    """Import multiple releases from a CSV file.
+
+    Flexible column mapping — understands common header names from Google Sheets
+    or the app's own export format. Skips rows that already exist (matched by
+    title+year or UPC). Returns a summary with per-row errors.
+
+    Required: a column containing the film title (title / film / movie / name).
+    Optional: year, format, label, region, set / set_name, edition, notes,
+              upc / barcode, tmdb_id, bluray_com_id, condition.
+    """
+    content = await file.read()
+    try:
+        text = content.decode("utf-8-sig")  # strip BOM if present
+    except UnicodeDecodeError:
+        text = content.decode("latin-1")
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise HTTPException(400, "CSV has no headers")
+
+    # Normalise header names to lowercase-stripped keys
+    def _norm(h: str) -> str:
+        return h.strip().lower().replace(" ", "_").replace("-", "_")
+
+    # Map of normalised header → field name we care about
+    _TITLE_KEYS   = {"title", "film", "movie", "name"}
+    _YEAR_KEYS    = {"year"}
+    _FORMAT_KEYS  = {"format", "disc_format"}
+    _LABEL_KEYS   = {"label", "studio", "distributor", "publisher"}
+    _REGION_KEYS  = {"region"}
+    _SET_KEYS     = {"set", "set_name", "collection", "box_set"}
+    _EDITION_KEYS = {"edition"}
+    _NOTES_KEYS   = {"notes", "note", "comments"}
+    _UPC_KEYS     = {"upc", "barcode", "ean"}
+    _TMDB_KEYS    = {"tmdb_id", "tmdb"}
+    _BLURAY_KEYS  = {"bluray_com_id", "bluray_id", "bluray.com_id"}
+    _CONDITION_KEYS = {"condition"}
+
+    def _pick(row: dict, keys: set) -> str:
+        for k, v in row.items():
+            if _norm(k) in keys and v and str(v).strip():
+                return str(v).strip()
+        return ""
+
+    engine = await get_engine()
+
+    imported = 0
+    skipped  = 0
+    failed   = 0
+    errors: list[dict] = []
+
+    rows = list(reader)
+    for i, raw_row in enumerate(rows, start=2):  # row 2 = first data row
+        title = _pick(raw_row, _TITLE_KEYS)
+        if not title or title.startswith("="):
+            skipped += 1
+            continue
+
+        year_str = _pick(raw_row, _YEAR_KEYS)
+        try:
+            year: Optional[int] = int(float(year_str)) if year_str else None
+        except ValueError:
+            year = None
+
+        upc    = _pick(raw_row, _UPC_KEYS) or None
+        label  = _pick(raw_row, _LABEL_KEYS) or None
+        fmt    = _pick(raw_row, _FORMAT_KEYS) or None
+        region = _pick(raw_row, _REGION_KEYS) or None
+        set_nm = _pick(raw_row, _SET_KEYS) or None
+        edition = _pick(raw_row, _EDITION_KEYS) or None
+        notes  = _pick(raw_row, _NOTES_KEYS) or None
+        condition = _pick(raw_row, _CONDITION_KEYS) or None
+
+        tmdb_str = _pick(raw_row, _TMDB_KEYS)
+        try:
+            tmdb_id: Optional[int] = int(float(tmdb_str)) if tmdb_str else None
+        except ValueError:
+            tmdb_id = None
+
+        bluray_str = _pick(raw_row, _BLURAY_KEYS)
+        try:
+            bluray_com_id: Optional[int] = int(float(bluray_str)) if bluray_str else None
+        except ValueError:
+            bluray_com_id = None
+
+        try:
+            result = await enrich(
+                upc=upc,
+                title=title,
+                year=year,
+                label=label,
+                bluray_com_id=bluray_com_id,
+                tmdb_id=tmdb_id,
+            )
+        except Exception as exc:
+            failed += 1
+            errors.append({"row": i, "title": title, "error": str(exc)})
+            continue
+
+        # Override enrich defaults with CSV-supplied values when present
+        if fmt:
+            result.format = fmt
+        if set_nm:
+            result.set_name = set_nm
+        if edition:
+            result.edition = edition
+
+        try:
+            async with await get_session(engine) as session:
+                # Duplicate check: same title+year already in library
+                dup_stmt = (
+                    select(PhysicalRelease)
+                    .join(PhysicalRelease.movie)
+                    .where(Movie.title.ilike(result.title or title))
+                )
+                if year or result.year:
+                    dup_stmt = dup_stmt.where(Movie.year == (result.year or year))
+                dup = (await session.execute(dup_stmt)).scalar_one_or_none()
+                if dup:
+                    skipped += 1
+                    continue
+
+                # Upsert Movie
+                movie = None
+                if result.tmdb_id:
+                    stmt = select(Movie).where(Movie.tmdb_id == result.tmdb_id)
+                    movie = (await session.execute(stmt)).scalar_one_or_none()
+
+                if not movie:
+                    movie = Movie(
+                        title=result.title or title,
+                        year=result.year or year,
+                        director=result.director,
+                        runtime_minutes=result.runtime_minutes,
+                        mpaa_rating=result.mpaa_rating,
+                        tmdb_id=result.tmdb_id,
+                        imdb_id=result.imdb_id,
+                        overview=result.overview,
+                        genres=result.genres,
+                        letterboxd_rating=result.letterboxd_rating,
+                    )
+                    session.add(movie)
+                    await session.flush()
+
+                release = PhysicalRelease(
+                    movie_id=movie.id,
+                    upc=result.upc or upc,
+                    bluray_com_id=result.bluray_com_id or bluray_com_id,
+                    format=result.format,
+                    label=result.label or label,
+                    region=result.region or region,
+                    physical_release_date=result.physical_release_date,
+                    edition=result.edition,
+                    set_name=result.set_name,
+                    disc_count=result.disc_count,
+                    aspect_ratio=result.aspect_ratio,
+                    cover_url=result.cover_url,
+                    cover_url_back=result.cover_url_back,
+                    notes=notes,
+                    condition=condition,
+                )
+                session.add(release)
+                await session.commit()
+                imported += 1
+
+        except Exception as exc:
+            failed += 1
+            errors.append({"row": i, "title": title, "error": str(exc)})
+
+    return {
+        "total_rows": len(rows),
+        "imported": imported,
+        "skipped": skipped,
+        "failed": failed,
+        "errors": errors[:50],  # cap to avoid huge responses
+    }
 
 
 @app.get("/health")
