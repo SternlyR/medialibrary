@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Scan Disc – Media Library</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { accent: '#00a4dc' } } }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      background: #101010; color: #fff;
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0; overscroll-behavior: none;
+    }
+    /* Suppress html5-qrcode's built-in UI chrome */
+    #camera-view > img { display: none !important; }
+    #camera-view video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+    #camera-view > div > span { display: none !important; }
+
+    @keyframes scan-line {
+      0%   { top: 10%; }
+      50%  { top: 80%; }
+      100% { top: 10%; }
+    }
+    .scan-line {
+      position: absolute;
+      left: 12.5%;
+      width: 75%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #00a4dc, transparent);
+      animation: scan-line 2s ease-in-out infinite;
+    }
+    @keyframes fade-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fade-in 0.25s ease forwards; }
+
+    .corner { position: absolute; width: 22px; height: 22px; border-color: #00a4dc; border-style: solid; }
+    .corner-tl { top: 10%; left: 12.5%; border-width: 3px 0 0 3px; border-radius: 3px 0 0 0; }
+    .corner-tr { top: 10%; right: 12.5%; border-width: 3px 3px 0 0; border-radius: 0 3px 0 0; }
+    .corner-bl { bottom: 10%; left: 12.5%; border-width: 0 0 3px 3px; border-radius: 0 0 0 3px; }
+    .corner-br { bottom: 10%; right: 12.5%; border-width: 0 3px 3px 0; border-radius: 0 0 3px 0; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<!-- ── HEADER ── -->
+<header class="flex items-center gap-3 px-4 py-3 border-b border-[#1e1e1e] bg-[#101010]/95 backdrop-blur-sm shrink-0">
+  <a href="/" class="text-[#555] hover:text-white transition-colors p-1 -ml-1">
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+    </svg>
+  </a>
+  <span class="text-sm font-semibold">Scan Disc</span>
+  <span id="session-count" class="ml-auto text-xs text-[#444]"></span>
+</header>
+
+<!-- ── HTTPS WARNING ── -->
+<div id="https-warning" class="hidden mx-4 mt-4 bg-amber-950/60 border border-amber-800/50 rounded-2xl p-4">
+  <p class="text-sm font-medium text-amber-300 mb-1">Camera requires HTTPS</p>
+  <p class="text-xs text-amber-400/70 leading-relaxed">
+    Live scanning needs a secure connection. You can still scan using the
+    <strong class="text-amber-300">Take Photo</strong> button below —
+    or set up HTTPS (see <code class="bg-amber-900/40 px-1 rounded">scripts/setup-https.sh</code>).
+  </p>
+</div>
+
+<!-- ── CAMERA SECTION ── -->
+<div id="section-scanner" class="flex flex-col flex-1 px-4 py-4 gap-4">
+
+  <!-- Viewfinder -->
+  <div id="viewfinder" class="relative rounded-2xl overflow-hidden bg-[#161616] shadow-inner" style="aspect-ratio: 4/3">
+    <!-- html5-qrcode renders into this div -->
+    <div id="camera-view" class="absolute inset-0"></div>
+
+    <!-- Idle placeholder -->
+    <div id="cam-idle" class="absolute inset-0 flex flex-col items-center justify-center gap-3 text-[#444]">
+      <svg class="w-14 h-14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2"
+          d="M3 9V6a1 1 0 011-1h3M21 9V6a1 1 0 00-1-1h-3M3 15v3a1 1 0 001 1h3M21 15v3a1 1 0 01-1 1h-3"/>
+        <rect x="7" y="9" width="3" height="6" rx="0.5" fill="currentColor" opacity="0.5"/>
+        <rect x="11.5" y="9" width="1.5" height="6" rx="0.5" fill="currentColor" opacity="0.5"/>
+        <rect x="14.5" y="9" width="2" height="6" rx="0.5" fill="currentColor" opacity="0.5"/>
+        <rect x="17.5" y="9" width="1" height="6" rx="0.5" fill="currentColor" opacity="0.5"/>
+      </svg>
+      <p class="text-sm">Align barcode in frame</p>
+    </div>
+
+    <!-- Scanning overlay (shown while active) -->
+    <div id="cam-overlay" class="hidden absolute inset-0 pointer-events-none">
+      <div class="absolute inset-0 bg-black/35"></div>
+      <div class="corner corner-tl"></div>
+      <div class="corner corner-tr"></div>
+      <div class="corner corner-bl"></div>
+      <div class="corner corner-br"></div>
+      <div class="scan-line"></div>
+    </div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="flex gap-3">
+    <button id="btn-scan"
+      onclick="toggleScan()"
+      class="flex-1 bg-accent hover:bg-[#0090c8] active:bg-[#007ab0] text-white py-3.5 rounded-2xl text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+      <svg id="btn-scan-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M3 9V6a1 1 0 011-1h3M21 9V6a1 1 0 00-1-1h-3M3 15v3a1 1 0 001 1h3M21 15v3a1 1 0 01-1 1h-3M8 12h8"/>
+      </svg>
+      <span id="btn-scan-label">Start Scanning</span>
+    </button>
+
+    <!-- Photo capture fallback (works over HTTP) -->
+    <label class="flex items-center justify-center gap-1.5 px-4 py-3.5 rounded-2xl bg-[#1c1c1c] border border-[#2a2a2a] text-[#777] hover:text-white active:bg-[#252525] text-sm font-medium cursor-pointer transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+        <circle cx="12" cy="13" r="3" stroke="currentColor" stroke-width="2"/>
+      </svg>
+      Photo
+      <input id="photo-input" type="file" accept="image/*" capture="environment"
+        class="hidden" onchange="scanFromPhoto(this)">
+    </label>
+  </div>
+
+  <!-- Manual UPC entry -->
+  <div class="flex gap-2">
+    <input id="manual-upc" type="text" inputmode="numeric" placeholder="Enter UPC manually…"
+      class="flex-1 px-4 py-2.5 text-sm rounded-xl bg-[#1c1c1c] border border-[#2a2a2a] text-white placeholder-[#444] focus:border-accent focus:outline-none"
+      onkeydown="if(event.key==='Enter') lookupManual()">
+    <button onclick="lookupManual()"
+      class="px-4 py-2.5 bg-[#1c1c1c] border border-[#2a2a2a] text-[#777] hover:text-white rounded-xl text-sm transition-colors">
+      Go
+    </button>
+  </div>
+
+</div>
+
+<!-- ── LOADING SECTION ── -->
+<div id="section-loading" class="hidden flex-1 flex flex-col items-center justify-center gap-4 px-4">
+  <svg class="animate-spin w-9 h-9 text-accent" fill="none" viewBox="0 0 24 24">
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+  </svg>
+  <p id="loading-text" class="text-sm text-[#666]">Looking up disc…</p>
+</div>
+
+<!-- ── RESULT SECTION ── -->
+<div id="section-result" class="hidden flex-1 flex flex-col px-4 py-4 gap-4 fade-in">
+  <div class="bg-[#191919] rounded-2xl border border-[#2a2a2a] overflow-hidden">
+    <!-- Cover + title -->
+    <div class="flex gap-4 p-4">
+      <div class="shrink-0 w-24 rounded-xl overflow-hidden bg-[#141414] shadow-lg" style="aspect-ratio: 27/38">
+        <img id="result-cover" src="" alt="" class="w-full h-full object-contain"
+          onerror="this.parentElement.innerHTML='<div class=\'w-full h-full flex items-center justify-center text-3xl\'>🎬</div>'">
+      </div>
+      <div class="flex-1 min-w-0 py-0.5">
+        <p id="result-title" class="font-semibold text-white text-base leading-snug mb-1"></p>
+        <p id="result-year-dir" class="text-sm text-[#777] mb-3"></p>
+        <div id="result-badges" class="flex flex-wrap gap-1.5"></div>
+      </div>
+    </div>
+
+    <!-- Meta rows -->
+    <div id="result-meta" class="border-t border-[#222] divide-y divide-[#1e1e1e]"></div>
+
+    <!-- UPC -->
+    <div class="px-4 py-2.5 border-t border-[#1e1e1e]">
+      <p id="result-upc" class="text-xs font-mono text-[#444]"></p>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex gap-3 px-4 pb-4 pt-3">
+      <button id="btn-add"
+        onclick="addDisc()"
+        class="flex-1 bg-accent hover:bg-[#0090c8] active:bg-[#007ab0] text-white py-3 rounded-xl text-sm font-semibold transition-colors">
+        Add to Library
+      </button>
+      <button onclick="goBack()"
+        class="px-5 py-3 bg-[#222] hover:bg-[#2a2a2a] active:bg-[#303030] text-[#999] rounded-xl text-sm transition-colors">
+        Back
+      </button>
+    </div>
+  </div>
+
+  <!-- Already-in-library notice -->
+  <div id="already-notice" class="hidden bg-blue-950/40 border border-blue-900/40 rounded-xl px-4 py-3 text-xs text-blue-300">
+    Already in your library — adding will update the metadata.
+  </div>
+</div>
+
+<!-- ── ERROR BANNER ── -->
+<div id="error-banner" class="hidden mx-4 mt-2 mb-2 bg-red-950/50 border border-red-900/40 rounded-2xl px-4 py-3 flex items-start gap-3">
+  <svg class="w-4 h-4 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+  </svg>
+  <p id="error-text" class="text-sm text-red-300"></p>
+</div>
+
+<!-- ── SUCCESS TOAST ── -->
+<div id="toast"
+  class="hidden fixed bottom-8 left-1/2 -translate-x-1/2 bg-[#1a3a1a] border border-green-800/60 text-green-300 text-sm font-medium px-6 py-3 rounded-full shadow-2xl z-50 flex items-center gap-2 whitespace-nowrap">
+  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+  </svg>
+  <span id="toast-text">Added to library</span>
+</div>
+
+<!-- ── HIDDEN CONTAINER for photo scanning ── -->
+<div id="_photo_reader" style="position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;overflow:hidden;"></div>
+
+<script>
+'use strict';
+
+// ── State ──────────────────────────────────────────────────────────────────
+let scanner     = null;
+let scanning    = false;
+let sessionCount = 0;
+let currentData = null;
+let currentUpc  = null;
+
+const BARCODE_FORMATS = [
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.UPC_E,
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.CODE_39,
+];
+
+// ── Sections ───────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function showSection(name) {
+  ['scanner', 'loading', 'result'].forEach(s => {
+    $(`section-${s}`).classList.toggle('hidden', s !== name);
+    $(`section-${s}`).classList.toggle('flex', s === name);
+  });
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+(function init() {
+  if (!window.isSecureContext) {
+    $('https-warning').classList.remove('hidden');
+    $('btn-scan').disabled = true;
+    $('btn-scan').classList.add('opacity-40', 'cursor-not-allowed');
+  }
+  showSection('scanner');
+})();
+
+// ── Scanner ────────────────────────────────────────────────────────────────
+async function toggleScan() {
+  if (scanning) {
+    await stopScan();
+  } else {
+    await startScan();
+  }
+}
+
+async function startScan() {
+  if (!window.isSecureContext) return;
+  hideError();
+
+  scanner = new Html5Qrcode('camera-view');
+  try {
+    await scanner.start(
+      { facingMode: 'environment' },
+      {
+        fps: 12,
+        qrbox: (w, h) => ({ width: Math.round(w * 0.75), height: Math.round(Math.min(h * 0.3, 90)) }),
+        formatsToSupport: BARCODE_FORMATS,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      },
+      onDetected,
+      () => {} // per-frame failures are normal; suppress them
+    );
+
+    scanning = true;
+    $('cam-idle').style.display    = 'none';
+    $('cam-overlay').classList.remove('hidden');
+    $('btn-scan-label').textContent = 'Stop';
+    $('btn-scan').classList.replace('bg-accent', 'bg-[#2a2a2a]');
+    $('btn-scan').classList.replace('hover:bg-[#0090c8]', 'hover:bg-[#333]');
+    $('btn-scan').classList.add('text-[#aaa]');
+    $('btn-scan').classList.remove('text-white');
+
+  } catch (e) {
+    scanner = null;
+    showError('Camera access denied — tap Allow when the browser asks for permission, then try again.');
+  }
+}
+
+async function stopScan() {
+  if (scanner) {
+    try { await scanner.stop(); } catch (_) {}
+    scanner = null;
+  }
+  scanning = false;
+  $('cam-idle').style.display    = '';
+  $('cam-overlay').classList.add('hidden');
+  $('btn-scan-label').textContent = 'Start Scanning';
+  $('btn-scan').classList.replace('bg-[#2a2a2a]', 'bg-accent');
+  $('btn-scan').classList.replace('hover:bg-[#333]', 'hover:bg-[#0090c8]');
+  $('btn-scan').classList.remove('text-[#aaa]');
+  $('btn-scan').classList.add('text-white');
+}
+
+async function onDetected(upc) {
+  if (!scanning) return;
+  await stopScan();
+  await handleUpc(upc);
+}
+
+// ── Photo capture ──────────────────────────────────────────────────────────
+async function scanFromPhoto(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  input.value = '';
+  hideError();
+  showSection('loading');
+  $('loading-text').textContent = 'Reading barcode from photo…';
+
+  try {
+    const photoScanner = new Html5Qrcode('_photo_reader');
+    const upc = await photoScanner.scanFile(file, /* showImage= */ false);
+    await handleUpc(upc);
+  } catch (_) {
+    showSection('scanner');
+    showError('No barcode found. Ensure the barcode is well-lit and fills the frame.');
+  }
+}
+
+// ── Manual entry ───────────────────────────────────────────────────────────
+async function lookupManual() {
+  const upc = $('manual-upc').value.trim();
+  if (!upc) return;
+  $('manual-upc').value = '';
+  hideError();
+  await handleUpc(upc);
+}
+
+// ── Lookup + display ───────────────────────────────────────────────────────
+async function handleUpc(upc) {
+  showSection('loading');
+  $('loading-text').textContent = `Looking up ${upc}…`;
+
+  try {
+    const res = await fetch('/releases/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ upc }),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(body || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    showResult(data, upc);
+  } catch (e) {
+    showSection('scanner');
+    showError(`Disc not found: ${e.message}`);
+  }
+}
+
+function showResult(data, upc) {
+  currentData = data;
+  currentUpc  = upc;
+
+  // Cover
+  const coverSrc = data.cover_url || data.poster_url || '';
+  if (coverSrc) {
+    $('result-cover').src = coverSrc;
+    $('result-cover').parentElement.style.display = '';
+  } else {
+    $('result-cover').parentElement.style.display = 'none';
+  }
+
+  // Title / year / director
+  $('result-title').textContent = data.title || 'Unknown Title';
+  const subtitle = [data.year, data.director].filter(Boolean).join(' · ');
+  $('result-year-dir').textContent = subtitle;
+
+  // Badges: format, rating
+  const badgesEl = $('result-badges');
+  badgesEl.innerHTML = '';
+  if (data.format) {
+    const b = document.createElement('span');
+    b.className = data.format === 'UHD'
+      ? 'text-[11px] font-bold px-2 py-0.5 rounded-lg bg-blue-700/50 text-blue-200'
+      : 'text-[11px] font-bold px-2 py-0.5 rounded-lg bg-[#252525] text-[#aaa]';
+    b.textContent = data.format === 'UHD' ? '4K UHD' : data.format;
+    badgesEl.appendChild(b);
+  }
+  if (data.mpaa_rating) {
+    const b = document.createElement('span');
+    b.className = 'text-[11px] px-2 py-0.5 rounded-lg bg-[#252525] text-[#999]';
+    b.textContent = data.mpaa_rating;
+    badgesEl.appendChild(b);
+  }
+
+  // Meta rows
+  const metaEl = $('result-meta');
+  const rows = [
+    ['Label',   data.label],
+    ['Region',  data.region],
+    ['Edition', data.edition],
+    ['Runtime', data.runtime_minutes ? `${data.runtime_minutes} min` : null],
+    ['Genres',  data.genres],
+  ].filter(([, v]) => v);
+
+  metaEl.innerHTML = rows.map(([label, val]) =>
+    `<div class="flex items-center px-4 py-2.5 gap-3">
+       <span class="text-xs text-[#555] w-16 shrink-0">${label}</span>
+       <span class="text-sm text-[#ccc] truncate">${val}</span>
+     </div>`
+  ).join('');
+
+  $('result-upc').textContent = `UPC: ${upc}`;
+  $('btn-add').textContent  = 'Add to Library';
+  $('btn-add').disabled     = false;
+  $('already-notice').classList.add('hidden');
+
+  showSection('result');
+}
+
+// ── Add to library ─────────────────────────────────────────────────────────
+async function addDisc() {
+  const btn = $('btn-add');
+  btn.textContent = 'Adding…';
+  btn.disabled    = true;
+
+  try {
+    const res = await fetch('/releases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ upc: currentUpc }),
+    });
+    if (!res.ok) throw new Error(await res.text().catch(() => `HTTP ${res.status}`));
+
+    sessionCount++;
+    updateSessionCount();
+    showToast(`✓ ${currentData?.title || 'Disc'} added`);
+    setTimeout(goBack, 1400);
+
+  } catch (e) {
+    btn.textContent = 'Add to Library';
+    btn.disabled    = false;
+    showError('Failed to save: ' + e.message);
+  }
+}
+
+// ── Navigation helpers ─────────────────────────────────────────────────────
+function goBack() {
+  currentData = null;
+  currentUpc  = null;
+  hideError();
+  showSection('scanner');
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────────────
+function showError(msg) {
+  $('error-text').textContent = msg;
+  $('error-banner').classList.remove('hidden');
+}
+
+function hideError() {
+  $('error-banner').classList.add('hidden');
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  $('toast-text').textContent = msg;
+  $('toast').classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $('toast').classList.add('hidden'), 2500);
+}
+
+function updateSessionCount() {
+  $('session-count').textContent = sessionCount === 0 ? '' :
+    `${sessionCount} added this session`;
+}
+</script>
+</body>
+</html>

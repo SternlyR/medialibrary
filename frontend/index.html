@@ -82,6 +82,17 @@
         </button>
       </div>
 
+      <!-- Scan link -->
+      <a href="/scan"
+        class="text-xs px-2.5 py-1.5 rounded-lg border border-[#2a2a2a] bg-[#1c1c1c] text-[#666] hover:text-[#aaa] transition-colors flex items-center gap-1.5"
+        title="Open disc scanner">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 9V6a1 1 0 011-1h3M21 9V6a1 1 0 00-1-1h-3M3 15v3a1 1 0 001 1h3M21 15v3a1 1 0 01-1 1h-3M8 12h8"/>
+        </svg>
+        <span class="hidden sm:inline">Scan</span>
+      </a>
+
       <!-- Import CSV -->
       <button @click="triggerImport" :disabled="importLoading"
         :class="['text-xs px-2.5 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5',

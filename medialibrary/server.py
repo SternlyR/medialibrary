@@ -690,3 +690,7 @@ if _FRONTEND.exists():
     @app.get("/", include_in_schema=False)
     async def serve_ui():
         return FileResponse(str(_FRONTEND / "index.html"))
+
+    @app.get("/scan", include_in_schema=False)
+    async def serve_scan():
+        return FileResponse(str(_FRONTEND / "scan.html"))
