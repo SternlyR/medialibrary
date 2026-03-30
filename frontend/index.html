@@ -293,10 +293,15 @@
               <button @click="showBack=true" :class="['flex-1 text-[11px] py-1 rounded transition-colors', showBack ? 'bg-accent text-white' : 'bg-[#252525] text-[#777]']">Back</button>
             </div>
             <!-- Browse covers button (edit mode only) -->
-            <button v-if="editing" @click="browseCovers" :disabled="coversLoading"
-              class="w-full mt-2 text-[11px] py-1 rounded bg-[#252525] hover:bg-[#2e2e2e] text-[#aaa] transition-colors disabled:opacity-50">
-              {{ coversLoading ? '…' : '🖼 Browse Covers' }}
-            </button>
+            <div v-if="editing" class="mt-2 flex gap-1">
+              <input v-model="coverQuery" @keydown.enter="browseCovers"
+                :placeholder="form.title"
+                class="flex-1 min-w-0 px-2 py-1 text-[11px] rounded bg-[#252525] border border-[#333] text-[#ccc] placeholder-[#555] focus:border-accent focus:outline-none">
+              <button @click="browseCovers" :disabled="coversLoading"
+                class="text-[11px] px-2 py-1 rounded bg-[#252525] hover:bg-[#2e2e2e] text-[#aaa] transition-colors disabled:opacity-50 shrink-0">
+                {{ coversLoading ? '…' : '🔍' }}
+              </button>
+            </div>
             <!-- Cover picker -->
             <div v-if="coverOptions.length" class="mt-2 bg-[#141414] border border-[#252525] rounded-lg p-2">
               <p class="text-[10px] text-[#555] mb-1.5">Click to select:</p>
@@ -525,6 +530,7 @@ createApp({
     // Cover browser
     const coverOptions  = ref([]);
     const coversLoading = ref(false);
+    const coverQuery    = ref('');
 
     // Rating refresh (per-release)
     const ratingRefreshing = ref(false);
@@ -625,8 +631,8 @@ createApp({
       showBack.value = false;
     }
     function closeDetail() { detail.value = null; editing.value = false; coverOptions.value = []; }
-    function startEdit()   { editing.value = true; coverOptions.value = []; }
-    function cancelEdit()  { form.value = { ...detail.value }; editing.value = false; coverOptions.value = []; }
+    function startEdit()   { editing.value = true; coverOptions.value = []; coverQuery.value = ''; }
+    function cancelEdit()  { form.value = { ...detail.value }; editing.value = false; coverOptions.value = []; coverQuery.value = ''; }
 
     async function saveEdit() {
       saving.value = true;
@@ -711,12 +717,13 @@ createApp({
 
     // ── Cover browser ──────────────────────────────────────
     async function browseCovers() {
-      if (!form.value.title) return;
+      const query = coverQuery.value.trim() || form.value.title;
+      if (!query) return;
       coversLoading.value = true;
       coverOptions.value  = [];
       try {
-        const params = new URLSearchParams({ title: form.value.title });
-        if (form.value.year) params.set('year', form.value.year);
+        const params = new URLSearchParams({ title: query });
+        if (!coverQuery.value.trim() && form.value.year) params.set('year', form.value.year);
         const res = await fetch(`/bluray/search-covers?${params}`);
         if (!res.ok) throw new Error('Search failed');
         coverOptions.value = await res.json();
@@ -822,7 +829,7 @@ createApp({
       allColumns, visibleColumns, detailFields, filtered,
       stars, toggleSort,
       openDetail, closeDetail, startEdit, cancelEdit, saveEdit,
-      coverOptions, coversLoading, browseCovers, pickCover,
+      coverOptions, coversLoading, coverQuery, browseCovers, pickCover,
       ratingRefreshing, refreshRating,
       syncing, syncOk, lastSync, syncLetterboxd,
       confirmDelete, doDelete,
