@@ -276,48 +276,17 @@ def _parse_release_page(bluray_com_id: int, html: str) -> dict:
             data["edition"] = section.strip()
 
     # ── Films included (box sets) ────────────────────────────────────────────
-    # Strategy 1: look for a "Titles" / "Films" subheading with movie links
+    # Primary: <span class="subheadingtitle"> contains slash-separated titles
+    # e.g. "The Wicked Go to Hell / Nude in a White Car / The Taste of Violence | Limited Edition / 3,000 copies"
     films_included: list[str] = []
-    for heading in soup.select("span.subheading"):
-        if "grey" in (heading.get("class") or []):
-            continue
-        if any(kw in heading.get_text(strip=True).lower() for kw in ("titles", "films", "movies")):
-            # Collect /movies/ links that follow this heading
-            for sib in heading.next_siblings:
-                if hasattr(sib, "name"):
-                    if sib.name in ("span",) and "subheading" in (sib.get("class") or []):
-                        break
-                    for a in sib.find_all("a", href=True) if hasattr(sib, "find_all") else []:
-                        href = a.get("href", "")
-                        if "/movies/" in href:
-                            t = a.get_text(strip=True)
-                            if t and t not in films_included:
-                                films_included.append(t)
-            if films_included:
-                break
-
-    # Strategy 2: slash-separated subtitle in the page (e.g. "Film A / Film B / Film C")
-    if not films_included:
-        for el in soup.select("h2, .subtitle, span.grey, p.grey"):
-            text_content = el.get_text(strip=True)
-            if "/" in text_content and 10 < len(text_content) < 400:
-                parts = [p.strip() for p in text_content.split("/")]
-                if len(parts) >= 2 and all(3 < len(p) < 100 for p in parts):
-                    # Looks like a film list, not a URL or aspect ratio
-                    if not re.search(r"^\d+[\.:]\d+$", parts[0]):
-                        films_included = parts
-                        break
-
-    # Strategy 3: look for movie links inside a boxset/collection div
-    if not films_included:
-        for container in soup.select("div#boxset, div.boxset, div#collection, table#boxset"):
-            for a in container.find_all("a", href=True):
-                if "/movies/" in a.get("href", ""):
-                    t = a.get_text(strip=True)
-                    if t and t not in films_included:
-                        films_included.append(t)
-            if films_included:
-                break
+    subtitle_el = soup.select_one("span.subheadingtitle")
+    if subtitle_el:
+        raw = subtitle_el.get_text(strip=True)
+        # Everything after a "|" is edition/copy info, not film titles
+        raw = raw.split("|")[0]
+        parts = [p.strip() for p in raw.split("/")]
+        # Keep only parts that look like film titles (not numbers, not very short)
+        films_included = [p for p in parts if len(p) > 4 and not re.match(r"^\d[\d,]* copies?$", p, re.IGNORECASE)]
 
     data["films_included"] = films_included
 
