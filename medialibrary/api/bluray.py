@@ -60,6 +60,7 @@ class BlurayClient:
         }
         if year:
             params["yearfrom"] = str(year)
+            params["yearto"]   = str(year)
         if fmt and fmt in VIDEO_RESOLUTION_IDS:
             params["videoresolutionid"] = str(VIDEO_RESOLUTION_IDS[fmt])
         async with httpx.AsyncClient(headers=HEADERS, timeout=20, follow_redirects=True) as client:
