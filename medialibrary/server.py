@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 from typing import Optional
 
 from pathlib import Path
@@ -99,6 +100,7 @@ class UpdateReleaseRequest(BaseModel):
     cover_url: Optional[str] = None
     cover_url_back: Optional[str] = None
     notes: Optional[str] = None
+    films_included: Optional[list] = None
 
 
 class ReleaseResponse(BaseModel):
@@ -128,8 +130,21 @@ class ReleaseResponse(BaseModel):
     notes: Optional[str]
     overview: Optional[str]
     letterboxd_rating: Optional[float]
+    films_included: Optional[list] = None
 
     model_config = {"from_attributes": True}
+
+
+def _parse_films(raw: str | None) -> list:
+    """Deserialise films_included from JSON string stored in DB."""
+    if not raw:
+        return []
+    import json
+    try:
+        result = json.loads(raw)
+        return result if isinstance(result, list) else []
+    except Exception:
+        return []
 
 
 def _release_to_response(r: PhysicalRelease) -> dict:
@@ -159,6 +174,7 @@ def _release_to_response(r: PhysicalRelease) -> dict:
         "notes": r.notes,
         "overview": m.overview if m else None,
         "letterboxd_rating": m.letterboxd_rating if m else None,
+        "films_included": _parse_films(r.films_included),
     }
 
 
@@ -250,11 +266,14 @@ async def add_release(req: AddReleaseRequest):
                 cover_url=result.cover_url,
                 cover_url_back=result.cover_url_back,
                 notes=req.notes,
+                films_included=json.dumps(result.films_included) if result.films_included else None,
             )
             session.add(release)
         else:
             release.cover_url = result.cover_url or release.cover_url
             release.label = result.label or release.label
+            if result.films_included:
+                release.films_included = json.dumps(result.films_included)
 
         await session.commit()
         await session.refresh(release)
@@ -286,7 +305,14 @@ async def list_releases(
 
     if q:
         q_lower = q.lower()
-        results = [r for r in results if q_lower in r["title"].lower()]
+        def _matches(r: dict) -> bool:
+            if q_lower in (r.get("title") or "").lower():
+                return True
+            for film in (r.get("films_included") or []):
+                if q_lower in film.lower():
+                    return True
+            return False
+        results = [r for r in results if _matches(r)]
 
     return sorted(results, key=lambda r: r["title"])
 
@@ -325,6 +351,8 @@ async def update_release(release_id: int, req: UpdateReleaseRequest):
                 setattr(movie, field, value)
             elif field in release_fields:
                 setattr(release, field, value)
+            elif field == "films_included":
+                release.films_included = json.dumps(value) if value else None
 
         await session.commit()
         await session.refresh(release)

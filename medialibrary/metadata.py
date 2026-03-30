@@ -50,6 +50,7 @@ class EnrichedRelease:
     aspect_ratio: str = ""
     cover_url: str = ""           # Blu-ray.com front cover
     cover_url_back: str = ""
+    films_included: list[str] = field(default_factory=list)  # titles in a box set
 
     # Personal rating (from Letterboxd)
     letterboxd_rating: float | None = None  # 0.5 – 5.0, None if not rated / not fetched
@@ -204,6 +205,9 @@ async def enrich(
         # Override format from Blu-ray.com (more reliable than UPC description)
         if bluray_data.get("format"):
             result.format = bluray_data["format"]
+
+        if bluray_data.get("films_included"):
+            result.films_included = bluray_data["films_included"]
 
     # ── Step 4: Letterboxd personal rating ───────────────────────────────────
     if settings.letterboxd_username and result.title:

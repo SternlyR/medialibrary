@@ -65,6 +65,7 @@ class PhysicalRelease(Base):
     owned = Column(String(10), default="yes")  # yes, wishlist, sold
     condition = Column(String(50))           # new, like new, good, etc.
     notes = Column(Text)
+    films_included = Column(Text)            # JSON array of film titles for box sets
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -77,9 +78,18 @@ async def get_engine():
 
 
 async def init_db():
+    from sqlalchemy import text
     engine = create_async_engine(settings.database_url, echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Migrations: add new columns to existing databases
+        for col_sql in [
+            "ALTER TABLE physical_releases ADD COLUMN films_included TEXT",
+        ]:
+            try:
+                await conn.execute(text(col_sql))
+            except Exception:
+                pass  # Column already exists
     return engine
 
 

@@ -151,6 +151,12 @@
               {{ r.format === 'UHD' ? '4K' : r.format }}
             </span>
           </div>
+          <!-- Box set badge -->
+          <div v-if="r.films_included && r.films_included.length" class="absolute bottom-1.5 right-1.5">
+            <span class="bg-black/75 text-[#aaa] text-[10px] px-1.5 py-0.5 rounded" :title="r.films_included.join(', ')">
+              {{ r.films_included.length }} films
+            </span>
+          </div>
           <!-- Letterboxd rating -->
           <div v-if="r.letterboxd_rating" class="absolute bottom-1.5 left-1.5">
             <span class="bg-black/75 text-lb text-[11px] font-medium px-1.5 py-0.5 rounded">{{ stars(r.letterboxd_rating) }}</span>
@@ -351,6 +357,26 @@
               <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-0.5">Overview</label>
               <p v-if="!editing" class="text-sm text-[#888] leading-relaxed">{{ form.overview || '—' }}</p>
               <textarea v-else v-model="form.overview" rows="3" class="w-full px-2.5 py-1.5 text-sm rounded resize-none"></textarea>
+            </div>
+
+            <!-- Films Included (box sets) -->
+            <div v-if="!editing && form.films_included && form.films_included.length" class="mt-4">
+              <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-1.5">Films Included</label>
+              <div class="bg-[#141414] rounded-xl border border-[#222] overflow-hidden">
+                <div v-for="(film, i) in form.films_included" :key="i"
+                  class="flex items-center gap-2.5 px-3 py-2 border-b border-[#1e1e1e] last:border-0">
+                  <span class="text-[#444] text-xs font-mono w-4 shrink-0">{{ i + 1 }}</span>
+                  <span class="text-sm text-[#ccc]">{{ film }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-if="editing" class="mt-4">
+              <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-0.5">Films Included (one per line)</label>
+              <textarea
+                :value="(form.films_included || []).join('\n')"
+                @input="form.films_included = $event.target.value.split('\n').map(s => s.trim()).filter(Boolean)"
+                rows="4" placeholder="The Wicked Go to Hell&#10;Nude in a White Car&#10;The Taste of Violence"
+                class="w-full px-2.5 py-1.5 text-sm rounded resize-none font-mono"></textarea>
             </div>
 
             <!-- Notes -->
@@ -555,7 +581,8 @@ createApp({
           (r.title || '').toLowerCase().includes(q) ||
           (r.director || '').toLowerCase().includes(q) ||
           (r.label || '').toLowerCase().includes(q) ||
-          (r.genres || '').toLowerCase().includes(q)
+          (r.genres || '').toLowerCase().includes(q) ||
+          (r.films_included || []).some(f => f.toLowerCase().includes(q))
         );
       }
       return [...list].sort((a, b) => {
