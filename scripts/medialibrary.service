@@ -1,0 +1,14 @@
+[Unit]
+Description=Media Library API
+After=network.target
+
+[Service]
+Type=simple
+User=sean
+WorkingDirectory=/home/sean/medialibrary
+ExecStart=/home/sean/medialibrary/venv/bin/uvicorn medialibrary.server:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
