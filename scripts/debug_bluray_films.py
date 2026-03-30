@@ -16,7 +16,7 @@ HEADERS = {
 }
 
 BLURAY_ID = 394187
-URL = f"https://www.blu-ray.com/movies/_/{BLURAY_ID}/"
+URL = f"https://www.blu-ray.com/movies/Wicked-Games-Three-Films-by-Robert-Hossein-Blu-ray/{BLURAY_ID}/"
 
 async def main():
     async with httpx.AsyncClient(headers=HEADERS, timeout=20, follow_redirects=True) as client:
