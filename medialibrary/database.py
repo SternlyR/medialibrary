@@ -73,6 +73,35 @@ class PhysicalRelease(Base):
     movie = relationship("Movie", back_populates="releases")
 
 
+class YoutubeShort(Base):
+    """A cached YouTube Shorts video with its statistics."""
+    __tablename__ = "youtube_shorts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    channel_id = Column(String(100), nullable=False, index=True)
+    video_id = Column(String(20), unique=True, nullable=False)
+    title = Column(String(500), nullable=False)
+    description = Column(Text)
+    published_at = Column(DateTime)
+    thumbnail_url = Column(String(1000))   # maxresdefault (landscape, 16:9)
+    duration_seconds = Column(Integer, default=0)
+    views = Column(Integer, default=0)
+    likes = Column(Integer, default=0)
+    comments = Column(Integer, default=0)
+    rank = Column(Integer, default=0)      # rank by views among channel shorts
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
+class YoutubeViewsSnapshot(Base):
+    """A periodic snapshot of total short-form views for chart data."""
+    __tablename__ = "youtube_views_snapshots"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    channel_id = Column(String(100), nullable=False, index=True)
+    timestamp = Column(DateTime, nullable=False)
+    total_views = Column(Integer, default=0)   # cumulative views at this moment
+
+
 async def get_engine():
     return create_async_engine(settings.database_url, echo=False)
 

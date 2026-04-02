@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>YouTube Shorts Dashboard</title>
+
+<style>
+/* ── Reset & base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --yt-red:      #FF0000;
+  --yt-red-dim:  #CC0000;
+  --bg:          #0a0a0a;
+  --bg-card:     #141414;
+  --bg-card2:    #1a1a1a;
+  --text:        #FFFFFF;
+  --text-muted:  #888888;
+  --border:      #2a2a2a;
+  --accent-glow: rgba(255,0,0,0.55);
+
+  --header-h:    190px;
+  --chart-h:     360px;
+  --gap:         10px;
+  --side-pad:    18px;
+}
+
+html, body {
+  width:  1080px;
+  height: 1920px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout shell ─────────────────────────────────────────────────────────── */
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  width: 1080px;
+  height: 1920px;
+  padding: var(--side-pad);
+  gap: 14px;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+.header {
+  flex: 0 0 var(--header-h);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 14px 0 6px;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.yt-icon {
+  width: 52px;
+  height: 37px;
+  flex-shrink: 0;
+}
+
+.brand-text h1 {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.1;
+}
+
+.brand-text p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.stats-row {
+  display: flex;
+  gap: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.stat-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 16px;
+  border-right: 1px solid var(--border);
+}
+.stat-block:first-child { padding-left: 0; }
+.stat-block:last-child  { border-right: none; }
+
+.stat-value {
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1px;
+  color: var(--text);
+}
+.stat-value .unit {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--yt-red);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 500;
+}
+
+.stat-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* ── Section title ────────────────────────────────────────────────────────── */
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  padding-bottom: 2px;
+  border-bottom: 2px solid var(--yt-red);
+  display: inline-block;
+}
+
+/* ── Grid ─────────────────────────────────────────────────────────────────── */
+.grid-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.shorts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: var(--gap);
+  flex: 1;
+}
+
+/* ── Thumbnail card ───────────────────────────────────────────────────────── */
+.short-card {
+  position: relative;
+  background: var(--bg-card);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.short-card:hover {
+  transform: scale(1.02);
+}
+
+.short-card.playing {
+  border-color: var(--yt-red);
+  box-shadow: 0 0 22px var(--accent-glow), 0 0 6px var(--accent-glow);
+}
+
+.short-card.playing .card-rank {
+  background: var(--yt-red);
+}
+
+.thumb-wrap {
+  width: 100%;
+  aspect-ratio: 9 / 14;   /* slightly taller than square, suits shorts content */
+  overflow: hidden;
+  position: relative;
+  background: #111;
+}
+
+.thumb-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+  transition: opacity 0.4s ease;
+}
+
+.thumb-wrap img.loading {
+  opacity: 0;
+}
+
+/* Play indicator overlay */
+.play-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.35);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.short-card.playing .play-overlay {
+  opacity: 1;
+}
+.play-overlay svg {
+  width: 48px;
+  height: 48px;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.8));
+}
+
+/* Stats overlay at bottom of thumbnail */
+.thumb-stats {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,0.88));
+  padding: 22px 8px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.thumb-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+}
+
+.thumb-stat .icon { font-size: 11px; }
+
+/* Rank badge */
+.card-rank {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+  line-height: 1.4;
+}
+
+/* Duration badge */
+.card-duration {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0,0,0,0.65);
+  color: #ccc;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+  line-height: 1.4;
+}
+
+/* ── Video player (hidden, cycles through shorts) ─────────────────────────── */
+#yt-player-wrap {
+  position: fixed;
+  bottom: -9999px;
+  right: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ── Chart section ────────────────────────────────────────────────────────── */
+.chart-section {
+  flex: 0 0 var(--chart-h);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 4px;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.chart-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.chart-wrap {
+  flex: 1;
+  background: var(--bg-card);
+  border-radius: 10px;
+  padding: 16px 18px 12px;
+  position: relative;
+}
+
+/* ── Loading / empty states ───────────────────────────────────────────────── */
+.empty-card {
+  background: var(--bg-card);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  aspect-ratio: 9 / 14;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card2) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Refresh indicator ────────────────────────────────────────────────────── */
+.refresh-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--yt-red);
+  display: inline-block;
+  margin-right: 6px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.8); }
+}
+
+.next-refresh {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+}
+
+/* ── Scrolling ticker for current video title ─────────────────────────────── */
+.now-playing-bar {
+  background: rgba(255,0,0,0.08);
+  border: 1px solid rgba(255,0,0,0.2);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.np-label {
+  color: var(--yt-red);
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  flex-shrink: 0;
+}
+
+.np-title {
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="brand-row">
+      <!-- YouTube logo SVG -->
+      <svg class="yt-icon" viewBox="0 0 90 63" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M88.1 9.86C87.1 6.29 84.3 3.5 80.74 2.5 73.68.5 45.5.5 45.5.5S17.32.5 10.26 2.5C6.7 3.5 3.9 6.29 2.9 9.86 0.9 16.92.9 31.5.9 31.5s0 14.58 2 21.64c1 3.57 3.8 6.36 7.36 7.36C17.32 62.5 45.5 62.5 45.5 62.5s28.18 0 35.24-2c3.56-1 6.36-3.79 7.36-7.36 2-7.06 2-21.64 2-21.64s0-14.58-2-21.64Z" fill="#FF0000"/>
+        <path d="M36.5 45L59.5 31.5 36.5 18V45Z" fill="white"/>
+      </svg>
+      <div class="brand-text">
+        <h1>Shorts Dashboard</h1>
+        <p id="channel-name">Loading channel…</p>
+      </div>
+      <div style="margin-left:auto;" class="next-refresh">
+        <span class="refresh-dot"></span>
+        <span id="countdown">--:--</span>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-block">
+        <div class="stat-icon">👁️</div>
+        <div class="stat-value"><span id="views-count">0</span><span class="unit"> Views</span></div>
+        <div class="stat-label">Last 7 Days</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-icon">👍</div>
+        <div class="stat-value"><span id="likes-count">0</span><span class="unit"> Likes</span></div>
+        <div class="stat-label">Last 7 Days</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-icon">💬</div>
+        <div class="stat-value"><span id="comments-count">0</span><span class="unit"> Comments</span></div>
+        <div class="stat-label">Last 7 Days</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Grid section ───────────────────────────────────────────────────── -->
+  <section class="grid-section">
+    <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+      <span class="section-title">Top Shorts · Last 7 Days</span>
+    </div>
+
+    <!-- Now-playing bar -->
+    <div class="now-playing-bar" id="now-playing-bar" style="display:none;">
+      <span class="np-label">▶ Now Playing</span>
+      <span class="np-title" id="np-title">—</span>
+    </div>
+
+    <div class="shorts-grid" id="shorts-grid">
+      <!-- Cards injected by JS -->
+    </div>
+  </section>
+
+  <!-- ── Chart section ──────────────────────────────────────────────────── -->
+  <section class="chart-section">
+    <div class="chart-header">
+      <span class="section-title">Views · Last 24 Hours</span>
+      <span class="chart-subtitle" id="chart-subtitle">15-min intervals</span>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="views-chart"></canvas>
+    </div>
+  </section>
+
+</div>
+
+<!-- Hidden YouTube player -->
+<div id="yt-player-wrap">
+  <div id="yt-player"></div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   YouTube Shorts Dashboard — Main Controller
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const REFRESH_MS   = 15 * 60 * 1000;   // 15 minutes
+const VIDEO_DUR_MS = 20 * 1000;        // seconds to show each video before advancing
+const API_BASE     = '';               // same-origin
+
+let videos        = [];
+let currentIdx    = 0;
+let ytPlayer      = null;
+let videoTimer    = null;
+let viewsChart    = null;
+let refreshTimer  = null;
+let countdownVal  = REFRESH_MS / 1000;
+
+// ── Bootstrap ────────────────────────────────────────────────────────────────
+
+async function init() {
+  await loadDashboard();
+  startRefreshCycle();
+  loadYouTubeAPI();
+}
+
+// ── Data loading ──────────────────────────────────────────────────────────────
+
+async function loadDashboard() {
+  try {
+    const resp = await fetch(`${API_BASE}/youtube/shorts/dashboard?limit=9`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    videos = data.videos || [];
+    animateMetrics(data.metrics || {});
+    renderGrid(videos);
+    renderChart(data.chart || {});
+  } catch (err) {
+    console.error('Dashboard load failed:', err);
+    renderGrid([]);
+  }
+}
+
+// ── Metric count-up animation ─────────────────────────────────────────────────
+
+function animateMetrics(metrics) {
+  countUp('views-count',    metrics.views_7d    || 0);
+  countUp('likes-count',    metrics.likes_7d    || 0);
+  countUp('comments-count', metrics.comments_7d || 0);
+}
+
+function countUp(elId, target) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const start    = parseInt(el.textContent.replace(/[^0-9]/g, '')) || 0;
+  const duration = 1800;
+  const steps    = 60;
+  const step     = (target - start) / steps;
+  let   current  = start;
+  let   count    = 0;
+
+  const timer = setInterval(() => {
+    count++;
+    current += step;
+    el.textContent = formatCount(Math.round(current));
+    if (count >= steps) {
+      el.textContent = formatCount(target);
+      clearInterval(timer);
+    }
+  }, duration / steps);
+}
+
+function formatCount(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (n >= 1_000)     return (n / 1_000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return n.toString();
+}
+
+// ── Grid rendering ────────────────────────────────────────────────────────────
+
+function renderGrid(vids) {
+  const grid = document.getElementById('shorts-grid');
+  grid.innerHTML = '';
+
+  if (vids.length === 0) {
+    for (let i = 0; i < 9; i++) {
+      const div = document.createElement('div');
+      div.className = 'empty-card skeleton';
+      grid.appendChild(div);
+    }
+    return;
+  }
+
+  vids.forEach((v, idx) => {
+    const card = document.createElement('div');
+    card.className = 'short-card' + (idx === currentIdx ? ' playing' : '');
+    card.dataset.idx = idx;
+    card.addEventListener('click', () => playVideo(idx));
+
+    card.innerHTML = `
+      <div class="thumb-wrap">
+        <img src="${escHtml(v.thumbnail_url)}" alt="${escHtml(v.title)}"
+             loading="lazy"
+             onload="this.classList.remove('loading')"
+             class="loading">
+        <div class="play-overlay">
+          <svg viewBox="0 0 24 24" fill="white">
+            <circle cx="12" cy="12" r="11" fill="rgba(0,0,0,0.5)"/>
+            <polygon points="10,8 18,12 10,16" fill="white"/>
+          </svg>
+        </div>
+        <div class="thumb-stats">
+          <span class="thumb-stat">
+            <span class="icon">👁</span>
+            <span>${formatCount(v.views)}</span>
+          </span>
+          <span class="thumb-stat">
+            <span class="icon">👍</span>
+            <span>${formatCount(v.likes)}</span>
+          </span>
+          <span class="thumb-stat">
+            <span class="icon">💬</span>
+            <span>${formatCount(v.comments)}</span>
+          </span>
+        </div>
+      </div>
+      <div class="card-rank">#${v.rank}</div>
+      <div class="card-duration">${fmtDuration(v.duration_seconds)}</div>
+    `;
+
+    grid.appendChild(card);
+  });
+}
+
+function escHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function fmtDuration(s) {
+  if (!s) return '';
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+function setActiveCard(idx) {
+  document.querySelectorAll('.short-card').forEach((c, i) => {
+    c.classList.toggle('playing', i === idx);
+  });
+}
+
+// ── YouTube IFrame Player ─────────────────────────────────────────────────────
+
+function loadYouTubeAPI() {
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+}
+
+window.onYouTubeIframeAPIReady = function () {
+  if (!videos.length) return;
+  createPlayer(videos[currentIdx].video_id);
+};
+
+function createPlayer(videoId) {
+  if (ytPlayer) {
+    ytPlayer.destroy();
+    ytPlayer = null;
+  }
+  ytPlayer = new YT.Player('yt-player', {
+    width:  '1',
+    height: '1',
+    videoId: videoId,
+    playerVars: {
+      autoplay:       1,
+      mute:           1,
+      controls:       0,
+      modestbranding: 1,
+      rel:            0,
+      playsinline:    1,
+      loop:           0,
+    },
+    events: {
+      onReady:       onPlayerReady,
+      onStateChange: onPlayerStateChange,
+    },
+  });
+}
+
+function onPlayerReady(event) {
+  event.target.playVideo();
+  scheduleAdvance();
+  updateNowPlaying();
+}
+
+function onPlayerStateChange(event) {
+  // YT.PlayerState.ENDED = 0
+  if (event.data === YT.PlayerState.ENDED) {
+    advanceVideo();
+  }
+}
+
+function playVideo(idx) {
+  currentIdx = idx;
+  setActiveCard(idx);
+  clearTimeout(videoTimer);
+  if (ytPlayer && videos[idx]) {
+    ytPlayer.loadVideoById(videos[idx].video_id);
+    ytPlayer.playVideo();
+    scheduleAdvance();
+    updateNowPlaying();
+  }
+}
+
+function advanceVideo() {
+  clearTimeout(videoTimer);
+  currentIdx = (currentIdx + 1) % videos.length;
+  setActiveCard(currentIdx);
+  if (ytPlayer && videos[currentIdx]) {
+    ytPlayer.loadVideoById(videos[currentIdx].video_id);
+    ytPlayer.playVideo();
+    scheduleAdvance();
+    updateNowPlaying();
+  }
+}
+
+function scheduleAdvance() {
+  clearTimeout(videoTimer);
+  // Auto-advance after VIDEO_DUR_MS even if video hasn't ended
+  videoTimer = setTimeout(advanceVideo, VIDEO_DUR_MS);
+}
+
+function updateNowPlaying() {
+  const bar   = document.getElementById('now-playing-bar');
+  const title = document.getElementById('np-title');
+  if (!videos.length) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  title.textContent = videos[currentIdx]?.title || '—';
+}
+
+// ── Chart rendering ───────────────────────────────────────────────────────────
+
+function renderChart(chartData) {
+  const labels = chartData.labels || [];
+  const values = chartData.values || [];
+
+  const ctx = document.getElementById('views-chart').getContext('2d');
+
+  if (viewsChart) {
+    viewsChart.data.labels  = labels;
+    viewsChart.data.datasets[0].data = values;
+    viewsChart.update('none');
+    return;
+  }
+
+  viewsChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label:           'Views',
+        data:            values,
+        backgroundColor: 'rgba(255, 0, 0, 0.70)',
+        borderColor:     'rgba(255, 0, 0, 0.90)',
+        borderWidth:     1,
+        borderRadius:    2,
+        borderSkipped:   false,
+      }],
+    },
+    options: {
+      responsive:          true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 600,
+        easing:   'easeOutQuart',
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(20,20,20,0.92)',
+          titleColor:      '#fff',
+          bodyColor:       '#aaa',
+          borderColor:     '#333',
+          borderWidth:     1,
+          callbacks: {
+            label: ctx => `  ${formatCount(ctx.parsed.y)} views`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid:  { color: 'rgba(255,255,255,0.04)' },
+          ticks: {
+            color:    '#666',
+            font:     { size: 10 },
+            maxRotation: 0,
+            maxTicksLimit: 12,
+          },
+        },
+        y: {
+          grid:  { color: 'rgba(255,255,255,0.06)' },
+          ticks: {
+            color:    '#555',
+            font:     { size: 10 },
+            callback: v => formatCount(v),
+          },
+          beginAtZero: true,
+        },
+      },
+    },
+  });
+}
+
+// ── Refresh cycle & countdown ─────────────────────────────────────────────────
+
+function startRefreshCycle() {
+  countdownVal = REFRESH_MS / 1000;
+  updateCountdown();
+
+  clearInterval(refreshTimer);
+  refreshTimer = setInterval(async () => {
+    countdownVal = REFRESH_MS / 1000;
+    await loadDashboard();
+    // Re-attach player if videos changed
+    if (ytPlayer && videos.length) {
+      const curId = videos[currentIdx % videos.length]?.video_id;
+      if (curId) ytPlayer.loadVideoById(curId);
+    }
+  }, REFRESH_MS);
+
+  // Countdown ticker
+  setInterval(() => {
+    countdownVal = Math.max(0, countdownVal - 1);
+    updateCountdown();
+  }, 1000);
+}
+
+function updateCountdown() {
+  const m = Math.floor(countdownVal / 60);
+  const s = countdownVal % 60;
+  const el = document.getElementById('countdown');
+  if (el) el.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+// ── Start ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

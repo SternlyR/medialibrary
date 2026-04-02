@@ -27,5 +27,10 @@ class Settings(BaseSettings):
     # Letterboxd (no API key required — public profile scraping)
     letterboxd_username: str = ""
 
+    # YouTube Dashboard
+    youtube_api_key: str = ""
+    youtube_channel_id: str = ""
+    youtube_refresh_interval_minutes: int = 15   # how often to poll the API
+
 
 settings = Settings()

@@ -21,6 +21,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from pathlib import Path
@@ -36,11 +37,22 @@ from sqlalchemy.orm import joinedload
 from medialibrary.database import init_db, get_session, Movie, PhysicalRelease
 from medialibrary.metadata import enrich
 from medialibrary.config import settings
+import medialibrary.youtube_cache as yt_cache
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    engine = await init_db()
+    await yt_cache.start_scheduler(engine)
+    yield
+    await yt_cache.stop_scheduler()
+
 
 app = FastAPI(
     title="Media Library API",
     description="Physical disc media library — metadata lookup and management.",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -709,6 +721,73 @@ async def health():
     return {"status": "ok"}
 
 
+# ── YouTube Shorts Dashboard ──────────────────────────────────────────────────
+
+@app.get("/youtube/shorts/dashboard", summary="Full dashboard payload for the Shorts TV display")
+async def youtube_shorts_dashboard(
+    channel_id: str = Query(default="", description="Override channel ID (uses env var if blank)"),
+    limit: int = Query(default=9, ge=1, le=50),
+):
+    """Returns videos, 7-day metrics, and 24-hr chart data in one call."""
+    cid = channel_id or settings.youtube_channel_id
+    if not cid:
+        raise HTTPException(400, "channel_id is required (or set YOUTUBE_CHANNEL_ID in .env)")
+
+    videos, metrics, chart = await _fetch_yt_dashboard(cid, limit)
+    return {"videos": videos, "metrics": metrics, "chart": chart}
+
+
+@app.get("/youtube/shorts/videos", summary="Cached top shorts for a channel")
+async def youtube_shorts_videos(
+    channel_id: str = Query(default=""),
+    limit: int = Query(default=9, ge=1, le=50),
+):
+    cid = channel_id or settings.youtube_channel_id
+    if not cid:
+        raise HTTPException(400, "channel_id required")
+    return await yt_cache.get_cached_shorts(cid, limit=limit)
+
+
+@app.get("/youtube/shorts/metrics", summary="7-day aggregate metrics (cached)")
+async def youtube_shorts_metrics(channel_id: str = Query(default="")):
+    cid = channel_id or settings.youtube_channel_id
+    if not cid:
+        raise HTTPException(400, "channel_id required")
+    return await yt_cache.get_7day_metrics(cid)
+
+
+@app.get("/youtube/shorts/chart", summary="24-hr per-interval view deltas for bar chart")
+async def youtube_shorts_chart(
+    channel_id: str = Query(default=""),
+    hours: int = Query(default=24, ge=1, le=72),
+):
+    cid = channel_id or settings.youtube_channel_id
+    if not cid:
+        raise HTTPException(400, "channel_id required")
+    return await yt_cache.get_chart_data(cid, hours=hours)
+
+
+@app.post("/youtube/shorts/refresh", summary="Trigger an immediate data refresh")
+async def youtube_shorts_refresh(channel_id: str = Query(default="")):
+    cid = channel_id or settings.youtube_channel_id
+    if not cid:
+        raise HTTPException(400, "channel_id required")
+    if not settings.youtube_api_key:
+        raise HTTPException(503, "YOUTUBE_API_KEY not configured")
+    await yt_cache._refresh_job()
+    return {"status": "refreshed"}
+
+
+async def _fetch_yt_dashboard(cid: str, limit: int):
+    import asyncio
+    videos, metrics, chart = await asyncio.gather(
+        yt_cache.get_cached_shorts(cid, limit=limit),
+        yt_cache.get_7day_metrics(cid),
+        yt_cache.get_chart_data(cid),
+    )
+    return videos, metrics, chart
+
+
 # ── Frontend (must be last) ───────────────────────────────────────────────────
 _FRONTEND = Path(__file__).parent.parent / "frontend"
 
@@ -722,3 +801,7 @@ if _FRONTEND.exists():
     @app.get("/scan", include_in_schema=False)
     async def serve_scan():
         return FileResponse(str(_FRONTEND / "scan.html"))
+
+    @app.get("/youtube-shorts", include_in_schema=False)
+    async def serve_youtube_shorts():
+        return FileResponse(str(_FRONTEND / "youtube-shorts-dashboard.html"))
