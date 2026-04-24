@@ -106,6 +106,27 @@
     </div>
   </div>
 
+  <!-- Camera controls: zoom + torch (shown only when scanning and device supports them) -->
+  <div id="cam-controls" style="display:none" class="flex items-center justify-center gap-3">
+    <button id="btn-torch" style="display:none"
+      onclick="toggleTorch()"
+      class="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-[#1c1c1c] border border-[#2a2a2a] text-[#777] hover:text-white text-sm font-medium transition-colors">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.347.347a3.38 3.38 0 00-.991 2.035l-.116.813a1 1 0 01-.99.859H9.995a1 1 0 01-.99-.859l-.116-.813a3.38 3.38 0 00-.991-2.035l-.347-.347z"/>
+      </svg>
+      <span id="torch-label">Flash</span>
+    </button>
+    <div id="zoom-controls" style="display:none"
+      class="flex items-center gap-2 px-3 py-2.5 rounded-2xl bg-[#1c1c1c] border border-[#2a2a2a]">
+      <button onclick="adjustZoom(-0.5)"
+        class="w-7 h-7 flex items-center justify-center text-[#777] hover:text-white text-xl leading-none transition-colors select-none">−</button>
+      <span id="zoom-label" class="text-sm text-[#999] min-w-[2.5rem] text-center">1.0×</span>
+      <button onclick="adjustZoom(0.5)"
+        class="w-7 h-7 flex items-center justify-center text-[#777] hover:text-white text-xl leading-none transition-colors select-none">+</button>
+    </div>
+  </div>
+
   <!-- Buttons -->
   <div class="flex gap-3">
     <button id="btn-scan"
@@ -221,11 +242,18 @@
 'use strict';
 
 // ── State ──────────────────────────────────────────────────────────────────
-let scanner     = null;
-let scanning    = false;
+let scanner      = null;
+let scanning     = false;
 let sessionCount = 0;
-let currentData = null;
-let currentUpc  = null;
+let currentData  = null;
+let currentUpc   = null;
+
+let torchOn        = false;
+let torchSupported = false;
+let zoomSupported  = false;
+let zoomCurrent    = 1.0;
+let zoomMin        = 1.0;
+let zoomMax        = 1.0;
 
 const BARCODE_FORMATS = [
   Html5QrcodeSupportedFormats.UPC_A,
@@ -272,14 +300,14 @@ async function startScan() {
   scanner = new Html5Qrcode('camera-view');
   try {
     await scanner.start(
-      { facingMode: 'environment' },
+      { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
       {
-        fps: 12,
+        fps: 20,
         formatsToSupport: BARCODE_FORMATS,
         experimentalFeatures: { useBarCodeDetectorIfSupported: true },
       },
       onDetected,
-      () => {} // per-frame failures are normal; suppress them
+      () => {}
     );
 
     scanning = true;
@@ -290,6 +318,8 @@ async function startScan() {
     $('btn-scan').classList.replace('hover:bg-[#0090c8]', 'hover:bg-[#333]');
     $('btn-scan').classList.add('text-[#aaa]');
     $('btn-scan').classList.remove('text-white');
+
+    setTimeout(checkCameraCapabilities, 700);
 
   } catch (e) {
     scanner = null;
@@ -310,6 +340,17 @@ async function stopScan() {
   $('btn-scan').classList.replace('hover:bg-[#333]', 'hover:bg-[#0090c8]');
   $('btn-scan').classList.remove('text-[#aaa]');
   $('btn-scan').classList.add('text-white');
+
+  // Hide camera controls and reset state
+  $('cam-controls').style.display  = 'none';
+  $('btn-torch').style.display     = 'none';
+  $('zoom-controls').style.display = 'none';
+  torchOn = false;
+  torchSupported = false;
+  zoomSupported  = false;
+  zoomCurrent    = 1.0;
+  $('btn-torch').classList.remove('text-amber-300', 'border-amber-700/50');
+  $('btn-torch').classList.add('text-[#777]', 'border-[#2a2a2a]');
 }
 
 async function onDetected(upc) {
@@ -489,6 +530,74 @@ function showToast(msg) {
 function updateSessionCount() {
   $('session-count').textContent = sessionCount === 0 ? '' :
     `${sessionCount} added this session`;
+}
+
+// ── Camera capabilities: zoom + torch ─────────────────────────────────────
+function getCameraTrack() {
+  const video = document.querySelector('#camera-view video');
+  return video?.srcObject?.getVideoTracks()?.[0];
+}
+
+async function checkCameraCapabilities() {
+  try {
+    const track = getCameraTrack();
+    if (!track) return;
+    const caps = track.getCapabilities?.();
+    if (!caps) return;
+
+    let anyControl = false;
+
+    if (caps.torch) {
+      torchSupported = true;
+      $('btn-torch').style.display = 'flex';
+      anyControl = true;
+    }
+
+    if (caps.zoom && caps.zoom.max > 1.01) {
+      zoomSupported = true;
+      zoomMin = caps.zoom.min ?? 1.0;
+      zoomMax = caps.zoom.max;
+      zoomCurrent = 1.0;
+      $('zoom-controls').style.display = 'flex';
+      anyControl = true;
+    }
+
+    if (anyControl) {
+      $('cam-controls').style.display = 'flex';
+    }
+  } catch (_) {}
+}
+
+async function toggleTorch() {
+  if (!torchSupported) return;
+  torchOn = !torchOn;
+  try {
+    const track = getCameraTrack();
+    await track?.applyConstraints({ advanced: [{ torch: torchOn }] });
+    if (torchOn) {
+      $('btn-torch').classList.add('text-amber-300', 'border-amber-700/50');
+      $('btn-torch').classList.remove('text-[#777]', 'border-[#2a2a2a]');
+      $('torch-label').textContent = 'Flash On';
+    } else {
+      $('btn-torch').classList.remove('text-amber-300', 'border-amber-700/50');
+      $('btn-torch').classList.add('text-[#777]', 'border-[#2a2a2a]');
+      $('torch-label').textContent = 'Flash';
+    }
+  } catch (_) {
+    torchOn = !torchOn;
+  }
+}
+
+async function adjustZoom(delta) {
+  if (!zoomSupported) return;
+  const step = Math.max(0.1, (zoomMax - zoomMin) / 10);
+  zoomCurrent = Math.max(zoomMin, Math.min(zoomMax, zoomCurrent + delta * step * 2));
+  zoomCurrent = Math.round(zoomCurrent * 10) / 10;
+  try {
+    const track = getCameraTrack();
+    await track?.applyConstraints({ advanced: [{ zoom: zoomCurrent }] });
+    $('zoom-label').textContent = `${zoomCurrent.toFixed(1)}×`;
+  } catch (_) {}
 }
 </script>
 </body>
