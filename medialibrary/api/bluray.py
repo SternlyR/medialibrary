@@ -276,20 +276,55 @@ def _parse_release_page(bluray_com_id: int, html: str) -> dict:
         elif "edition" in heading_text or "version" in heading_text:
             data["edition"] = section.strip()
 
-    # ── Films included (box sets) ────────────────────────────────────────────
-    # Primary: <span class="subheadingtitle"> contains slash-separated titles
-    # e.g. "The Wicked Go to Hell / Nude in a White Car / The Taste of Violence | Limited Edition / 3,000 copies"
+    # ── Films included (box sets / multi-film discs) ─────────────────────────
+    # subheadingtitle contains either:
+    #   A) slash-separated film titles: "Film A / Film B / Film C | Edition info"
+    #   B) bonus-film descriptors: "includes "Murder à la Mod" on BD / 4K Ultra HD + Blu-ray"
+    FORMAT_RE = re.compile(
+        r'\b(4K|UHD|Ultra\s*HD|Blu[- ]?ray|BD|Digital\s*HD|DVD|HDR|SDR|HEVC)\b',
+        re.IGNORECASE,
+    )
+    INCLUDES_RE = re.compile(
+        r'includes?\s+[«»“”‘’"\'«»]([^"\'«»“”‘’]+)[«»“”‘’"\'«»]',
+        re.IGNORECASE,
+    )
+
     films_included: list[str] = []
     subtitle_el = soup.select_one("span.subheadingtitle")
     if subtitle_el:
         raw = subtitle_el.get_text(strip=True)
-        # Everything after a "|" is edition/copy info, not film titles
         raw = raw.split("|")[0]
         parts = [p.strip() for p in raw.split("/")]
-        # Keep only parts that look like film titles (not numbers, not very short)
-        films_included = [p for p in parts if len(p) > 4 and not re.match(r"^\d[\d,]* copies?$", p, re.IGNORECASE)]
+
+        extracted_via_includes = False
+        for part in parts:
+            if not part or len(part) <= 3:
+                continue
+            if re.match(r"^\d[\d,]*\s*copies?$", part, re.IGNORECASE):
+                continue
+            # Part is a format descriptor (e.g. "4K Ultra HD + Blu-ray") — skip
+            if FORMAT_RE.search(part) and len(part) < 40:
+                continue
+            # Part is an "includes 'X' on BD" descriptor — extract just the title
+            m = INCLUDES_RE.search(part)
+            if m:
+                films_included.append(m.group(1).strip())
+                extracted_via_includes = True
+                continue
+            films_included.append(part)
+
+        # If we extracted films via "includes X" patterns, the main film isn't
+        # listed in the subtitle — derive it from the disc title and prepend it.
+        if extracted_via_includes and films_included:
+            main_title = re.sub(
+                r'\s*\b(4K|UHD|Ultra\s*HD|Blu[- ]?ray|BD)\b.*$',
+                '', data.get("title", ""), flags=re.IGNORECASE,
+            ).strip()
+            if main_title and main_title not in films_included:
+                films_included.insert(0, main_title)
 
     data["films_included"] = films_included
+
 
     # Fallback: try specs table (older page layouts)
     if not data["label"] or not data["physical_release_date"]:

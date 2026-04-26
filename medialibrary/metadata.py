@@ -142,7 +142,14 @@ async def enrich(
 
     if tmdb_data is None and title:
         try:
-            tmdb_data = await tmdb.lookup(title, year)
+            # Strip disc format indicators before searching TMDB so
+            # "Blow Out 4K" finds "Blow Out", "Se7en 4K UHD" finds "Se7en", etc.
+            import re as _re
+            tmdb_title = _re.sub(
+                r'\s*\b(4K|UHD|Ultra\s*HD|Blu[- ]?ray|BD)\b.*$',
+                '', title, flags=_re.IGNORECASE,
+            ).strip() or title
+            tmdb_data = await tmdb.lookup(tmdb_title, year)
             if tmdb_data:
                 result.sources.append("tmdb")
         except ValueError as e:
