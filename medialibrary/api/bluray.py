@@ -283,50 +283,49 @@ def _parse_release_page(bluray_com_id: int, html: str) -> dict:
         elif "edition" in heading_text or "version" in heading_text:
             data["edition"] = section.strip()
 
-    # ── Films included (box sets / multi-film discs) ─────────────────────────
+    # Films included (box sets / multi-film discs)
     # subheadingtitle can contain:
-    #   A) slash-separated film titles: “Film A / Film B / Film C | Edition info”
-    #   B) bonus-film: ‘includes “Murder à la Mod” on BD / 4K Ultra HD + Blu-ray’
-    #   C) single alternate/original title or edition note: “Straume”, “75th Anniversary”
-    #      → case C should NOT be treated as films_included
+    #   A) slash-separated film titles: "Film A / Film B / Film C | Edition info"
+    #   B) bonus-film descriptor: includes "Murder a la Mod" on BD / 4K Ultra HD + Blu-ray
+    #   C) single alternate/original title or edition note: Straume, 75th Anniversary
+    #      Case C should NOT be treated as films_included
 
     FORMAT_RE = re.compile(
-        r’\b(4K|UHD|Ultra\s*HD|Blu[- ]?ray|BD|Digital\s*HD|DVD|HDR|SDR|HEVC)\b’,
+        r"\b(4K|UHD|Ultra\s*HD|Blu[- ]?ray|BD|Digital\s*HD|DVD|HDR|SDR|HEVC)\b",
         re.IGNORECASE,
     )
 
-    def _extract_included_film(part: str) -> str | None:
-        “””Return the film title from an ‘includes X on BD’ fragment, or None.”””
-        # Quoted form: includes “X” on ... / includes ‘X’ on ...
+    def _extract_included_film(part):
+        # Quoted form: includes "X" on BD  (ASCII or Unicode curly quotes)
         m = re.search(
-            r’includes?\s+[“‘«”\’](.*?)[”’»”\’]’,
+            u'includes?\\s+[\\u201c\\u2018\\u00ab\\"\\\'](.*?)[\\u201d\\u2019\\u00bb\\"\\\']',
             part, re.IGNORECASE,
         )
         if m:
             return m.group(1).strip()
-        # Unquoted form: includes X on BD / includes X on Blu-ray
+        # Unquoted form: includes X on BD / on Blu-ray
         m = re.search(
-            r’includes?\s+(.+?)\s+on\s+\b(BD|Blu[- ]?ray|UHD|Disc)’,
+            r"includes?\s+(.+?)\s+on\s+\b(BD|Blu[- ]?ray|UHD|Disc)",
             part, re.IGNORECASE,
         )
         if m:
             return m.group(1).strip()
         return None
 
-    films_included: list[str] = []
-    subtitle_el = soup.select_one(“span.subheadingtitle”)
+    films_included = []
+    subtitle_el = soup.select_one("span.subheadingtitle")
     if subtitle_el:
         raw = subtitle_el.get_text(strip=True)
-        raw = raw.split(“|”)[0]
-        parts = [p.strip() for p in raw.split(“/”)]
+        raw = raw.split("|")[0]
+        parts = [p.strip() for p in raw.split("/")]
 
-        plain_titles: list[str] = []
-        bonus_titles: list[str] = []
+        plain_titles = []
+        bonus_titles = []
 
         for part in parts:
             if not part or len(part) <= 3:
                 continue
-            if re.match(r”^\d[\d,]*\s*copies?$”, part, re.IGNORECASE):
+            if re.match(r"^\d[\d,]*\s*copies?$", part, re.IGNORECASE):
                 continue
             if FORMAT_RE.search(part) and len(part) < 40:
                 continue
@@ -337,21 +336,20 @@ def _parse_release_page(bluray_com_id: int, html: str) -> dict:
                 plain_titles.append(part)
 
         if bonus_titles:
-            # Bonus film found via “includes X” — prepend cleaned disc title as film 1
+            # Bonus film via "includes X" — prepend cleaned disc title as film 1
             main_title = re.sub(
-                r’\s*\b(4K|UHD|Ultra\s*HD|Blu[- ]?ray|BD)\b.*$’,
-                ‘’, data.get(“title”, “”), flags=re.IGNORECASE,
+                r"\s*\b(4K|UHD|Ultra\s*HD|Blu[- ]?ray|BD)\b.*$",
+                "", data.get("title", ""), flags=re.IGNORECASE,
             ).strip()
-            films_included = []
             if main_title:
                 films_included.append(main_title)
             films_included.extend(bonus_titles)
         elif len(plain_titles) >= 2:
-            # Multiple slash-separated titles → genuine box set listing
+            # Multiple slash-separated titles = genuine box set listing
             films_included = plain_titles
-        # else: single plain item (alternate title, edition note) → leave empty
+        # else: single plain item (alt title, edition note) — leave empty
 
-    data[“films_included”] = films_included
+    data["films_included"] = films_included
 
 
     # Fallback: try specs table (older page layouts)
