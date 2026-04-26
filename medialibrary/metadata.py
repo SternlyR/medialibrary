@@ -180,7 +180,17 @@ async def enrich(
             result.sources.append("bluray.com")
         except Exception as e:
             result.warnings.append(f"Blu-ray.com fetch by ID failed: {e}")
-    elif result.title:
+
+    # UPC search finds the exact disc edition — much more reliable than title search
+    if bluray_data is None and result.upc:
+        try:
+            bluray_data = await bluray.search_by_upc(result.upc)
+            if bluray_data:
+                result.sources.append("bluray.com")
+        except Exception as e:
+            result.warnings.append(f"Blu-ray.com UPC search failed: {e}")
+
+    if bluray_data is None and result.title:
         try:
             bluray_data = await bluray.search_and_get_best(
                 result.title, result.year, label
