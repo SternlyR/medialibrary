@@ -249,7 +249,7 @@ class LetterboxdClient:
            After parsing, probes numbered review pages (/1/, /2/, …) to find
            the most recent rating.
         """
-        for path in ["diary/", "reviews/", ""]:
+        for path in ["diary/", "reviews/", "activity/", ""]:
             url = f"{self.BASE}/{username}/film/{slug}/{path}"
             status, html = await self._get(url)
             if status in (403, 404) or not html:
