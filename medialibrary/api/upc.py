@@ -1,8 +1,12 @@
 """UPC / barcode lookup client.
 
-Uses UPCitemdb (https://www.upcitemdb.com/) — free tier allows 100 lookups/day
-with no API key required. Returns product info including title which is then
-used to look up detailed movie metadata via TMDB.
+Two-tier lookup:
+1. UPCitemdb — free tier, 100 lookups/day, no key required.
+2. Best Buy Open API — broader physical media coverage, free developer key.
+   Falls back automatically when UPCitemdb returns nothing.
+
+Returns product info including title which is then used to look up detailed
+movie metadata via TMDB.
 
 Barcode scanning on mobile: any standard QR/barcode scanner app can read
 UPC-A (12-digit) and EAN-13 (13-digit) barcodes from disc cases.
@@ -21,8 +25,15 @@ class UPCClient:
         self.base = settings.upcitemdb_base_url
 
     async def lookup(self, upc: str) -> dict | None:
-        """Look up a UPC code. Returns parsed product info or None."""
+        """Look up a UPC code. Tries UPCitemdb first, then Best Buy as fallback."""
         upc = upc.strip().replace("-", "").replace(" ", "")
+        result = await self._lookup_upcitemdb(upc)
+        if result:
+            return result
+        return await self._lookup_bestbuy(upc)
+
+    async def _lookup_upcitemdb(self, upc: str) -> dict | None:
+        """Query UPCitemdb (100 lookups/day free, no key required)."""
         async with httpx.AsyncClient(timeout=15) as client:
             r = await client.get(self.base, params={"upc": upc})
             if r.status_code == 429:
@@ -34,6 +45,36 @@ class UPCClient:
             if not items:
                 return None
             return self._parse(upc, items[0])
+
+    async def _lookup_bestbuy(self, upc: str) -> dict | None:
+        """Query Best Buy Open API as fallback (broader movie/disc coverage)."""
+        api_key = settings.bestbuy_api_key
+        if not api_key:
+            return None
+        url = f"{settings.bestbuy_base_url}/products(upc={upc})"
+        params = {
+            "apiKey": api_key,
+            "show": "name,upc,manufacturer,shortDescription,longDescription",
+            "format": "json",
+        }
+        async with httpx.AsyncClient(timeout=15) as client:
+            try:
+                r = await client.get(url, params=params)
+            except httpx.HTTPError:
+                return None
+            if r.status_code != 200:
+                return None
+            data = r.json()
+            products = data.get("products", [])
+            if not products:
+                return None
+            p = products[0]
+            item = {
+                "title": p.get("name", ""),
+                "description": p.get("shortDescription") or p.get("longDescription") or "",
+                "brand": p.get("manufacturer", ""),
+            }
+            return self._parse(upc, item)
 
     def _parse(self, upc: str, item: dict) -> dict:
         """Extract movie-relevant fields from a UPCitemdb item."""

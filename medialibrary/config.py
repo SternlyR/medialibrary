@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     # UPCitemdb
     upcitemdb_base_url: str = "https://api.upcitemdb.com/prod/trial/lookup"
 
+    # Best Buy Open API (second-tier UPC fallback)
+    bestbuy_api_key: str = ""
+    bestbuy_base_url: str = "https://api.bestbuy.com/v1"
+
     # Letterboxd (no API key required — public profile scraping)
     letterboxd_username: str = ""
 
