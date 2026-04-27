@@ -174,6 +174,35 @@
   <p id="loading-text" class="text-sm text-[#666]">Looking up disc…</p>
 </div>
 
+<!-- ── NOT FOUND SECTION ── -->
+<div id="section-notfound" class="hidden flex-1 flex flex-col px-4 py-4 gap-4 fade-in">
+  <div class="bg-[#191919] rounded-2xl border border-[#2a2a2a] p-4 flex flex-col gap-4">
+    <div>
+      <p class="text-sm font-semibold text-white mb-1">Disc not recognized</p>
+      <p id="notfound-upc" class="text-xs font-mono text-[#444]"></p>
+    </div>
+    <p class="text-xs text-[#555]">Search by title to add it manually:</p>
+    <div class="flex flex-col gap-2">
+      <input id="title-search-input" type="text" placeholder="Movie title…"
+        class="w-full px-4 py-2.5 text-sm rounded-xl bg-[#141414] border border-[#2a2a2a] text-white placeholder-[#444] focus:border-accent focus:outline-none"
+        onkeydown="if(event.key==='Enter') searchByTitle()">
+      <input id="year-search-input" type="text" inputmode="numeric" placeholder="Year (optional)"
+        class="w-full px-4 py-2.5 text-sm rounded-xl bg-[#141414] border border-[#2a2a2a] text-white placeholder-[#444] focus:border-accent focus:outline-none"
+        onkeydown="if(event.key==='Enter') searchByTitle()">
+    </div>
+    <div class="flex gap-3">
+      <button onclick="searchByTitle()"
+        class="flex-1 bg-accent hover:bg-[#0090c8] active:bg-[#007ab0] text-white py-3 rounded-xl text-sm font-semibold transition-colors">
+        Search
+      </button>
+      <button onclick="goBack()"
+        class="px-5 py-3 bg-[#222] hover:bg-[#2a2a2a] active:bg-[#303030] text-[#999] rounded-xl text-sm transition-colors">
+        Back
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ── RESULT SECTION ── -->
 <div id="section-result" class="hidden flex-1 flex flex-col px-4 py-4 gap-4 fade-in">
   <div class="bg-[#191919] rounded-2xl border border-[#2a2a2a] overflow-hidden">
@@ -242,11 +271,12 @@
 'use strict';
 
 // ── State ──────────────────────────────────────────────────────────────────
-let scanner      = null;
-let scanning     = false;
-let sessionCount = 0;
-let currentData  = null;
-let currentUpc   = null;
+let scanner              = null;
+let scanning             = false;
+let sessionCount         = 0;
+let currentData          = null;
+let currentUpc           = null;
+let currentTitleSearchUpc = null;
 
 let torchOn        = false;
 let torchSupported = false;
@@ -268,7 +298,7 @@ const BARCODE_FORMATS = [
 const $ = id => document.getElementById(id);
 
 function showSection(name) {
-  ['scanner', 'loading', 'result'].forEach(s => {
+  ['scanner', 'loading', 'notfound', 'result'].forEach(s => {
     $(`section-${s}`).classList.toggle('hidden', s !== name);
     $(`section-${s}`).classList.toggle('flex', s === name);
   });
@@ -403,10 +433,60 @@ async function handleUpc(upc) {
       throw new Error(body || `HTTP ${res.status}`);
     }
     const data = await res.json();
+    if (!data.title) {
+      showNotFound(upc);
+      return;
+    }
     showResult(data, upc);
   } catch (e) {
     showSection('scanner');
-    showError(`Disc not found: ${e.message}`);
+    showError(`Lookup failed: ${e.message}`);
+  }
+}
+
+function showNotFound(upc) {
+  currentTitleSearchUpc = upc;
+  $('notfound-upc').textContent = upc ? `UPC: ${upc}` : '';
+  $('title-search-input').value = '';
+  $('year-search-input').value  = '';
+  hideError();
+  showSection('notfound');
+  setTimeout(() => $('title-search-input').focus(), 100);
+}
+
+async function searchByTitle() {
+  const title = $('title-search-input').value.trim();
+  if (!title) return;
+  const yearStr = $('year-search-input').value.trim();
+  const year = yearStr ? parseInt(yearStr, 10) : null;
+
+  showSection('loading');
+  $('loading-text').textContent = `Searching for "${title}"…`;
+
+  try {
+    const body = { title };
+    if (year) body.year = year;
+    if (currentTitleSearchUpc) body.upc = currentTitleSearchUpc;
+
+    const res = await fetch('/releases/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      throw new Error(err || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    if (!data.title) {
+      showSection('notfound');
+      showError(`No results for "${title}". Try a different title or year.`);
+      return;
+    }
+    showResult(data, currentTitleSearchUpc || title);
+  } catch (e) {
+    showSection('notfound');
+    showError(`Search failed: ${e.message}`);
   }
 }
 
@@ -482,10 +562,21 @@ async function addDisc() {
   btn.disabled    = true;
 
   try {
+    // Build the most specific add request from available data so that
+    // re-enrichment succeeds even when UPC wasn't in UPCitemdb/Blu-ray.com.
+    const reqBody = {};
+    if (currentUpc && !/[^0-9]/.test(currentUpc)) reqBody.upc = currentUpc;
+    if (currentData?.tmdb_id) reqBody.tmdb_id = currentData.tmdb_id;
+    if (currentData?.title && !reqBody.tmdb_id) {
+      reqBody.title = currentData.title;
+      if (currentData.year) reqBody.year = currentData.year;
+    }
+    if (!reqBody.upc && !reqBody.tmdb_id && !reqBody.title) reqBody.upc = currentUpc;
+
     const res = await fetch('/releases', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ upc: currentUpc }),
+      body: JSON.stringify(reqBody),
     });
     if (!res.ok) throw new Error(await res.text().catch(() => `HTTP ${res.status}`));
 
@@ -503,8 +594,9 @@ async function addDisc() {
 
 // ── Navigation helpers ─────────────────────────────────────────────────────
 function goBack() {
-  currentData = null;
-  currentUpc  = null;
+  currentData           = null;
+  currentUpc            = null;
+  currentTitleSearchUpc = null;
   hideError();
   showSection('scanner');
 }
