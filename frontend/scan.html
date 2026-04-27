@@ -327,6 +327,8 @@ async function startScan() {
   if (!window.isSecureContext) return;
   hideError();
 
+  // Clear any previous scanner state so html5-qrcode gets a clean element
+  $('camera-view').innerHTML = '';
   scanner = new Html5Qrcode('camera-view');
   try {
     await scanner.start(
@@ -353,7 +355,12 @@ async function startScan() {
 
   } catch (e) {
     scanner = null;
-    showError('Camera access denied — tap Allow when the browser asks for permission, then try again.');
+    const name = e?.name || '';
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+      showError('Camera access denied — tap Allow when the browser asks for permission, then try again.');
+    } else {
+      showError(`Camera error: ${e?.message || e} (${name || 'unknown'})`);
+    }
   }
 }
 
