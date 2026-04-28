@@ -11,6 +11,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass, field, asdict
 from typing import Any
 
@@ -96,6 +97,25 @@ class EnrichedRelease:
         return "\n".join(l for l in lines if l)
 
 
+def _extract_component_titles(title: str) -> list[str]:
+    """Split a multi-film disc title on ' / ' and strip disc-set subtitles.
+
+    'I Walked with a Zombie / The Seventh Victim: Produced by Val Lewton'
+    → ['I Walked with a Zombie', 'The Seventh Victim']
+    """
+    parts = [p.strip() for p in title.split(" / ")]
+    cleaned = []
+    for part in parts:
+        # Strip subtitle after ": Capital..." (e.g. ": Produced by Val Lewton")
+        # but not aspect-ratio-style colons (1.37:1)
+        m = re.match(r'^(.+?)\s*:\s*[A-Z][a-z]', part)
+        if m:
+            part = m.group(1).strip()
+        if part:
+            cleaned.append(part)
+    return cleaned
+
+
 async def enrich(
     upc: str | None = None,
     title: str | None = None,
@@ -144,10 +164,9 @@ async def enrich(
         try:
             # Strip disc format indicators before searching TMDB so
             # "Blow Out 4K" finds "Blow Out", "Se7en 4K UHD" finds "Se7en", etc.
-            import re as _re
-            tmdb_title = _re.sub(
+            tmdb_title = re.sub(
                 r'\s*\b(4K|UHD|Ultra\s*HD|Blu[- ]?ray|BD)\b.*$',
-                '', title, flags=_re.IGNORECASE,
+                '', title, flags=re.IGNORECASE,
             ).strip() or title
             tmdb_data = await tmdb.lookup(tmdb_title, year)
             if tmdb_data:
@@ -226,19 +245,85 @@ async def enrich(
         if bluray_data.get("films_included"):
             result.films_included = bluray_data["films_included"]
 
+        # Use Blu-ray.com title when TMDB found nothing (preserves proper casing
+        # and avoids storing the all-caps UPCitemdb title for unrecognised discs)
+        if not tmdb_data and bluray_data.get("title"):
+            result.title = bluray_data["title"]
+
+    # ── Step 3.5: Multi-film disc enrichment ─────────────────────────────────
+    # When the disc title contains " / " (double features, curated pairs),
+    # look up each component film in TMDB to get director/genre/overview,
+    # and populate films_included with the individual film titles.
+    if result.title and " / " in result.title and not tmdb_data:
+        component_titles = _extract_component_titles(result.title)
+        if len(component_titles) >= 2:
+            directors: list[str] = []
+            genres_seen: list[str] = []
+            film_titles: list[str] = []
+
+            for film_title in component_titles:
+                try:
+                    film_data = await tmdb.lookup(film_title)
+                    if film_data is None:
+                        # Strip subtitle after ":" and retry
+                        base = film_title.split(":")[0].strip()
+                        if base != film_title:
+                            film_data = await tmdb.lookup(base)
+                    if film_data:
+                        if film_data.get("director"):
+                            directors.append(film_data["director"])
+                        for g in (film_data.get("genres") or "").split(", "):
+                            if g and g not in genres_seen:
+                                genres_seen.append(g)
+                        if not result.overview and film_data.get("overview"):
+                            result.overview = film_data["overview"]
+                        if film_data.get("year") and (
+                            result.year is None or film_data["year"] < result.year
+                        ):
+                            result.year = film_data["year"]
+                        film_titles.append(film_data.get("title") or film_title)
+                    else:
+                        film_titles.append(film_title)
+                except Exception as e:
+                    result.warnings.append(
+                        f"Multi-film TMDB lookup failed for '{film_title}': {e}"
+                    )
+                    film_titles.append(film_title)
+
+            if directors:
+                result.director = " / ".join(directors)
+            if genres_seen:
+                result.genres = ", ".join(genres_seen)
+            if film_titles:
+                result.films_included = film_titles
+
     # ── Step 4: Letterboxd personal rating ───────────────────────────────────
+    # For multi-film discs, look up each component film separately and average.
     if settings.letterboxd_username and result.title:
         try:
             lb_client = LetterboxdClient()
-            rating = await lb_client.get_rating_for_film(
-                settings.letterboxd_username,
-                result.title,
-                result.year,
-                tmdb_id=result.tmdb_id,
-            )
-            if rating is not None:
-                result.letterboxd_rating = rating
-                result.sources.append("letterboxd")
+            films_to_check = result.films_included if len(result.films_included) >= 2 else None
+            if films_to_check:
+                ratings = []
+                for film in films_to_check:
+                    r = await lb_client.get_rating_for_film(
+                        settings.letterboxd_username, film
+                    )
+                    if r is not None:
+                        ratings.append(r)
+                if ratings:
+                    result.letterboxd_rating = sum(ratings) / len(ratings)
+                    result.sources.append("letterboxd")
+            else:
+                rating = await lb_client.get_rating_for_film(
+                    settings.letterboxd_username,
+                    result.title,
+                    result.year,
+                    tmdb_id=result.tmdb_id,
+                )
+                if rating is not None:
+                    result.letterboxd_rating = rating
+                    result.sources.append("letterboxd")
         except Exception as e:
             result.warnings.append(f"Letterboxd lookup failed: {e}")
 
