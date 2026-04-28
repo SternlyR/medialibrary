@@ -631,7 +631,7 @@ createApp({
       showBack.value = false;
     }
     function closeDetail() { detail.value = null; editing.value = false; coverOptions.value = []; }
-    function startEdit()   { editing.value = true; coverOptions.value = []; coverQuery.value = ''; }
+    function startEdit()   { editing.value = true; coverOptions.value = []; coverQuery.value = form.value.title || ''; }
     function cancelEdit()  { form.value = { ...detail.value }; editing.value = false; coverOptions.value = []; coverQuery.value = ''; }
 
     async function saveEdit() {

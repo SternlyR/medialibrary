@@ -21,6 +21,7 @@ requests when doing bulk backfills.
 from __future__ import annotations
 
 import re
+import unicodedata
 import httpx
 from bs4 import BeautifulSoup
 from typing import Any
@@ -43,6 +44,15 @@ VIDEO_RESOLUTION_IDS = {
     "Blu-Ray": 278,
     "DVD": 2365,
 }
+
+
+def _ascii_title(title: str) -> str:
+    """Strip diacritics: 'Le Samouraï' → 'Le Samourai'. Blu-ray.com search
+    doesn't handle non-ASCII characters reliably."""
+    return "".join(
+        c for c in unicodedata.normalize("NFD", title)
+        if unicodedata.category(c) != "Mn"
+    )
 
 
 class BlurayClient:
@@ -92,8 +102,14 @@ class BlurayClient:
         """Search and return the best-matching release details."""
         candidates = await self.search(title, year, fmt)
         if not candidates:
-            # Retry without year filter if no results
             candidates = await self.search(title, fmt=fmt)
+        # Retry with diacritics stripped (handles titles like "Le Samouraï")
+        if not candidates:
+            ascii = _ascii_title(title)
+            if ascii != title:
+                candidates = await self.search(ascii, year, fmt)
+            if not candidates and ascii != title:
+                candidates = await self.search(ascii, fmt=fmt)
         if not candidates:
             return None
 
