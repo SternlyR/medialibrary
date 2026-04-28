@@ -51,7 +51,7 @@ class EnrichedRelease:
     aspect_ratio: str = ""
     cover_url: str = ""           # Blu-ray.com front cover
     cover_url_back: str = ""
-    films_included: list[str] = field(default_factory=list)  # titles in a box set
+    films_included: list = field(default_factory=list)  # {"title": str, "letterboxd_rating": float|None}
 
     # Personal rating (from Letterboxd)
     letterboxd_rating: float | None = None  # 0.5 – 5.0, None if not rated / not fetched
@@ -243,7 +243,11 @@ async def enrich(
             result.format = bluray_data["format"]
 
         if bluray_data.get("films_included"):
-            result.films_included = bluray_data["films_included"]
+            # Normalise to dicts so we can attach per-film Letterboxd ratings
+            result.films_included = [
+                f if isinstance(f, dict) else {"title": f, "letterboxd_rating": None}
+                for f in bluray_data["films_included"]
+            ]
 
         # Use Blu-ray.com title when TMDB found nothing (preserves proper casing
         # and avoids storing the all-caps UPCitemdb title for unrecognised discs)
@@ -253,19 +257,18 @@ async def enrich(
     # ── Step 3.5: Multi-film disc enrichment ─────────────────────────────────
     # When the disc title contains " / " (double features, curated pairs),
     # look up each component film in TMDB to get director/genre/overview,
-    # and populate films_included with the individual film titles.
+    # and populate films_included with individual film dicts.
     if result.title and " / " in result.title and not tmdb_data:
         component_titles = _extract_component_titles(result.title)
         if len(component_titles) >= 2:
             directors: list[str] = []
             genres_seen: list[str] = []
-            film_titles: list[str] = []
+            film_entries: list[dict] = []
 
             for film_title in component_titles:
                 try:
                     film_data = await tmdb.lookup(film_title)
                     if film_data is None:
-                        # Strip subtitle after ":" and retry
                         base = film_title.split(":")[0].strip()
                         if base != film_title:
                             film_data = await tmdb.lookup(base)
@@ -281,34 +284,38 @@ async def enrich(
                             result.year is None or film_data["year"] < result.year
                         ):
                             result.year = film_data["year"]
-                        film_titles.append(film_data.get("title") or film_title)
+                        resolved = film_data.get("title") or film_title
                     else:
-                        film_titles.append(film_title)
+                        resolved = film_title
+                    film_entries.append({"title": resolved, "letterboxd_rating": None})
                 except Exception as e:
                     result.warnings.append(
                         f"Multi-film TMDB lookup failed for '{film_title}': {e}"
                     )
-                    film_titles.append(film_title)
+                    film_entries.append({"title": film_title, "letterboxd_rating": None})
 
             if directors:
                 result.director = " / ".join(directors)
             if genres_seen:
                 result.genres = ", ".join(genres_seen)
-            if film_titles:
-                result.films_included = film_titles
+            if film_entries:
+                result.films_included = film_entries
 
     # ── Step 4: Letterboxd personal rating ───────────────────────────────────
-    # For multi-film discs, look up each component film separately and average.
+    # For multi-film discs look up each component film individually and store
+    # the rating on the entry dict; also compute a disc-level average.
     if settings.letterboxd_username and result.title:
         try:
             lb_client = LetterboxdClient()
-            films_to_check = result.films_included if len(result.films_included) >= 2 else None
-            if films_to_check:
+            if len(result.films_included) >= 2:
                 ratings = []
-                for film in films_to_check:
+                for entry in result.films_included:
+                    film_name = entry["title"] if isinstance(entry, dict) else entry
                     r = await lb_client.get_rating_for_film(
-                        settings.letterboxd_username, film
+                        settings.letterboxd_username, film_name
                     )
+                    if isinstance(entry, dict):
+                        entry["letterboxd_rating"] = r
                     if r is not None:
                         ratings.append(r)
                 if ratings:
