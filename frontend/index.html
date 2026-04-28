@@ -380,7 +380,7 @@
               <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-0.5">Films Included (one per line)</label>
               <textarea
                 :value="(form.films_included || []).map(filmTitle).join('\n')"
-                @input="form.films_included = $event.target.value.split('\n').map(s => s.trim()).filter(Boolean).map((t, i) => { const existing = (form.films_included || [])[i]; return typeof existing === 'object' ? {...existing, title: t} : {title: t, letterboxd_rating: null}; })"
+                @input="updateFilmsIncluded($event)"
                 rows="4" placeholder="The Wicked Go to Hell&#10;Nude in a White Car&#10;The Taste of Violence"
                 class="w-full px-2.5 py-1.5 text-sm rounded resize-none font-mono"></textarea>
             </div>
@@ -611,6 +611,14 @@ createApp({
     function filmTitle(f) { return typeof f === 'string' ? f : (f?.title || ''); }
     function filmStars(f) { return typeof f === 'string' ? '' : stars(f?.letterboxd_rating); }
 
+    function updateFilmsIncluded(e) {
+      const titles = e.target.value.split('\n').map(s => s.trim()).filter(Boolean);
+      form.value.films_included = titles.map((t, i) => {
+        const existing = (form.value.films_included || [])[i];
+        return (existing && typeof existing === 'object') ? { ...existing, title: t } : { title: t, letterboxd_rating: null };
+      });
+    }
+
     function toggleSort(key) {
       if (sortBy.value === key || sortBy.value === key + '_desc') sortBy.value = key + '_asc';
       else sortBy.value = key + '_desc';
@@ -831,7 +839,7 @@ createApp({
       showAdd, addMode, addUpc, addTitle, addYear, addLoading, addError, addPreview,
       delTarget,
       allColumns, visibleColumns, detailFields, filtered,
-      stars, toggleSort,
+      stars, toggleSort, filmTitle, filmStars, updateFilmsIncluded,
       openDetail, closeDetail, startEdit, cancelEdit, saveEdit,
       coverOptions, coversLoading, coverQuery, browseCovers, pickCover,
       ratingRefreshing, refreshRating,
