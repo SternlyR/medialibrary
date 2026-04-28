@@ -597,7 +597,9 @@ createApp({
         if (sortBy.value === 'year_asc')  return (a.year || 0) - (b.year || 0);
         if (sortBy.value === 'rating')    return (b.letterboxd_rating || 0) - (a.letterboxd_rating || 0);
         const key = sortBy.value.replace(/_asc|_desc/, '');
-        return (a[key] || '').toString().localeCompare((b[key] || '').toString());
+        const av = key === 'title' ? articleTitle(a.title) : (a[key] || '').toString();
+        const bv = key === 'title' ? articleTitle(b.title) : (b[key] || '').toString();
+        return av.localeCompare(bv);
       });
     });
 
