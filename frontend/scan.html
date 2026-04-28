@@ -332,11 +332,12 @@ async function startScan() {
   scanner = new Html5Qrcode('camera-view');
   try {
     await scanner.start(
-      { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      { facingMode: 'environment' },
       {
         fps: 20,
         formatsToSupport: BARCODE_FORMATS,
         experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+        videoConstraints: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
       },
       onDetected,
       () => {}
