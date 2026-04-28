@@ -110,6 +110,11 @@ class BlurayClient:
                 candidates = await self.search(ascii, year, fmt)
             if not candidates and ascii != title:
                 candidates = await self.search(ascii, fmt=fmt)
+        # Final fallback: drop format filter so a disc in the wrong category still resolves
+        if not candidates and fmt:
+            candidates = await self.search(title, year)
+            if not candidates:
+                candidates = await self.search(title)
         if not candidates:
             return None
 

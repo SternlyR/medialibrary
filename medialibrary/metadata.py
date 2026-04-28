@@ -212,7 +212,7 @@ async def enrich(
     if bluray_data is None and result.title:
         try:
             bluray_data = await bluray.search_and_get_best(
-                result.title, result.year, label
+                result.title, result.year, label, fmt=result.format or None
             )
             if bluray_data:
                 result.sources.append("bluray.com")
