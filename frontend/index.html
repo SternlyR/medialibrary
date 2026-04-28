@@ -153,7 +153,7 @@
           </div>
           <!-- Box set badge -->
           <div v-if="r.films_included && r.films_included.length" class="absolute bottom-1.5 right-1.5">
-            <span class="bg-black/75 text-[#aaa] text-[10px] px-1.5 py-0.5 rounded" :title="r.films_included.join(', ')">
+            <span class="bg-black/75 text-[#aaa] text-[10px] px-1.5 py-0.5 rounded" :title="r.films_included.map(filmTitle).join(', ')">
               {{ r.films_included.length }} films
             </span>
           </div>
@@ -371,15 +371,16 @@
                 <div v-for="(film, i) in form.films_included" :key="i"
                   class="flex items-center gap-2.5 px-3 py-2 border-b border-[#1e1e1e] last:border-0">
                   <span class="text-[#444] text-xs font-mono w-4 shrink-0">{{ i + 1 }}</span>
-                  <span class="text-sm text-[#ccc]">{{ film }}</span>
+                  <span class="text-sm text-[#ccc] flex-1">{{ filmTitle(film) }}</span>
+                  <span v-if="filmStars(film)" class="text-lb text-xs shrink-0">{{ filmStars(film) }}</span>
                 </div>
               </div>
             </div>
             <div v-if="editing" class="mt-4">
               <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-0.5">Films Included (one per line)</label>
               <textarea
-                :value="(form.films_included || []).join('\n')"
-                @input="form.films_included = $event.target.value.split('\n').map(s => s.trim()).filter(Boolean)"
+                :value="(form.films_included || []).map(filmTitle).join('\n')"
+                @input="form.films_included = $event.target.value.split('\n').map(s => s.trim()).filter(Boolean).map((t, i) => { const existing = (form.films_included || [])[i]; return typeof existing === 'object' ? {...existing, title: t} : {title: t, letterboxd_rating: null}; })"
                 rows="4" placeholder="The Wicked Go to Hell&#10;Nude in a White Car&#10;The Taste of Violence"
                 class="w-full px-2.5 py-1.5 text-sm rounded resize-none font-mono"></textarea>
             </div>
@@ -588,7 +589,7 @@ createApp({
           (r.director || '').toLowerCase().includes(q) ||
           (r.label || '').toLowerCase().includes(q) ||
           (r.genres || '').toLowerCase().includes(q) ||
-          (r.films_included || []).some(f => f.toLowerCase().includes(q))
+          (r.films_included || []).some(f => filmTitle(f).toLowerCase().includes(q))
         );
       }
       return [...list].sort((a, b) => {
@@ -606,6 +607,9 @@ createApp({
       const half = (r - full) >= 0.5;
       return '★'.repeat(full) + (half ? '½' : '');
     }
+
+    function filmTitle(f) { return typeof f === 'string' ? f : (f?.title || ''); }
+    function filmStars(f) { return typeof f === 'string' ? '' : stars(f?.letterboxd_rating); }
 
     function toggleSort(key) {
       if (sortBy.value === key || sortBy.value === key + '_desc') sortBy.value = key + '_asc';

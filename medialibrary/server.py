@@ -309,7 +309,8 @@ async def list_releases(
             if q_lower in (r.get("title") or "").lower():
                 return True
             for film in (r.get("films_included") or []):
-                if q_lower in film.lower():
+                film_title = film.get("title", "") if isinstance(film, dict) else film
+                if q_lower in film_title.lower():
                     return True
             return False
         results = [r for r in results if _matches(r)]
