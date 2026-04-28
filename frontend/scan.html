@@ -574,6 +574,7 @@ async function addDisc() {
     // re-enrichment succeeds even when UPC wasn't in UPCitemdb/Blu-ray.com.
     const reqBody = {};
     if (currentUpc && !/[^0-9]/.test(currentUpc)) reqBody.upc = currentUpc;
+    if (currentData?.bluray_com_id) reqBody.bluray_com_id = currentData.bluray_com_id;
     if (currentData?.tmdb_id) reqBody.tmdb_id = currentData.tmdb_id;
     if (currentData?.title && !reqBody.tmdb_id) {
       reqBody.title = currentData.title;

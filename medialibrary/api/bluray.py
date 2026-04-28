@@ -173,7 +173,13 @@ def _parse_release_page(bluray_com_id: int, html: str) -> dict:
 
     # Title — h1 inside the main content area
     title_el = soup.select_one("h1")
-    data["title"] = title_el.get_text(strip=True) if title_el else ""
+    raw_title = title_el.get_text(strip=True) if title_el else ""
+    # Strip trailing format branding appended by Blu-ray.com to the h1
+    # e.g. "...Produced by Val Lewton Blu-ray" → "...Produced by Val Lewton"
+    data["title"] = re.sub(
+        r"\s*\b(4K Ultra HD|Blu-ray|Blu ray|Bluray|UHD|DVD)\b\s*$",
+        "", raw_title, flags=re.IGNORECASE,
+    ).strip()
 
     # Release country — flag <img src=".../flags/US.png" id="countryflag">
     # The title/alt attributes may be absent; extract the 2-letter code from the filename.
