@@ -169,8 +169,10 @@ async def enrich(
             bluray_data = await bluray.search_by_upc(result.upc)
             if bluray_data:
                 result.sources.append("bluray.com")
-                # Use the film year from the search stub to anchor TMDB correctly
-                if bluray_data.get("film_year") and not year:
+                # Always prefer Blu-ray.com film year over UPCitemdb year hint —
+                # UPCitemdb often returns the disc release year (e.g. 2022) not
+                # the film year (e.g. 1968), which causes TMDB to grab the wrong film.
+                if bluray_data.get("film_year"):
                     year = bluray_data["film_year"]
         except Exception as e:
             result.warnings.append(f"Blu-ray.com UPC search failed: {e}")
