@@ -92,9 +92,13 @@ class BlurayClient:
     async def search_by_upc(self, upc: str) -> dict | None:
         """Search Blu-ray.com by UPC/barcode for an exact disc match."""
         candidates = await self.search(upc)
-        if candidates:
-            return await self.get_release(candidates[0]["bluray_com_id"])
-        return None
+        if not candidates:
+            return None
+        stub = candidates[0]
+        details = await self.get_release(stub["bluray_com_id"])
+        if details and stub.get("year"):
+            details["film_year"] = stub["year"]
+        return details
 
     async def search_and_get_best(self, title: str, year: int | None = None,
                                    label: str | None = None,

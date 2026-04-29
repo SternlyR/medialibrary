@@ -151,6 +151,30 @@ async def enrich(
         except Exception as e:
             result.warnings.append(f"UPC lookup failed: {e}")
 
+    # ── Step 1.5: Blu-ray.com UPC search (before TMDB) ──────────────────────
+    # Do this early so the film year from the Blu-ray.com search stub can be
+    # used to constrain TMDB — UPC year hints from UPCitemdb are often the
+    # disc release year (e.g. 2022) not the film year (e.g. 1968), which causes
+    # TMDB to grab the wrong film when multiple films share a title.
+    bluray_data: dict | None = None
+    if bluray_com_id:
+        try:
+            bluray_data = await bluray.get_release(bluray_com_id)
+            result.sources.append("bluray.com")
+        except Exception as e:
+            result.warnings.append(f"Blu-ray.com fetch by ID failed: {e}")
+
+    if bluray_data is None and result.upc:
+        try:
+            bluray_data = await bluray.search_by_upc(result.upc)
+            if bluray_data:
+                result.sources.append("bluray.com")
+                # Use the film year from the search stub to anchor TMDB correctly
+                if bluray_data.get("film_year") and not year:
+                    year = bluray_data["film_year"]
+        except Exception as e:
+            result.warnings.append(f"Blu-ray.com UPC search failed: {e}")
+
     # ── Step 2: TMDB movie metadata ──────────────────────────────────────────
     tmdb_data: dict | None = None
     if tmdb_id:
@@ -192,22 +216,7 @@ async def enrich(
         result.year = year
 
     # ── Step 3: Blu-ray.com physical release details ─────────────────────────
-    bluray_data: dict | None = None
-    if bluray_com_id:
-        try:
-            bluray_data = await bluray.get_release(bluray_com_id)
-            result.sources.append("bluray.com")
-        except Exception as e:
-            result.warnings.append(f"Blu-ray.com fetch by ID failed: {e}")
-
-    # UPC search finds the exact disc edition — much more reliable than title search
-    if bluray_data is None and result.upc:
-        try:
-            bluray_data = await bluray.search_by_upc(result.upc)
-            if bluray_data:
-                result.sources.append("bluray.com")
-        except Exception as e:
-            result.warnings.append(f"Blu-ray.com UPC search failed: {e}")
+    # UPC search already done in step 1.5; only title-search fallback needed here.
 
     if bluray_data is None and result.title:
         try:
