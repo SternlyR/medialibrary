@@ -96,8 +96,11 @@ class BlurayClient:
             return None
         stub = candidates[0]
         details = await self.get_release(stub["bluray_com_id"])
-        if details and stub.get("year"):
-            details["film_year"] = stub["year"]
+        if details:
+            # film_year from the detail page <title> is most reliable;
+            # fall back to the year parsed from the search result stub
+            if not details.get("film_year") and stub.get("year"):
+                details["film_year"] = stub["year"]
         return details
 
     async def search_and_get_best(self, title: str, year: int | None = None,
@@ -189,6 +192,20 @@ def _parse_release_page(bluray_com_id: int, html: str) -> dict:
         r"\s*\b(4K Ultra HD|Blu-ray|Blu ray|Bluray|UHD|DVD)\b\s*$",
         "", raw_title, flags=re.IGNORECASE,
     ).strip()
+
+    # Film year — Blu-ray.com page <title> is typically:
+    # "Night of the Living Dead 4K Blu-ray 1968 | Blu-ray Authority"
+    # Extract the last standalone 4-digit year before the pipe/separator.
+    film_year: int | None = None
+    page_title_el = soup.find("title")
+    if page_title_el:
+        page_title_text = page_title_el.get_text()
+        # Take text before any "|" separator (the movie portion)
+        movie_portion = page_title_text.split("|")[0]
+        year_matches = re.findall(r"\b(19|20)\d{2}\b", movie_portion)
+        if year_matches:
+            film_year = int(year_matches[-1])  # last year = film year (not format year)
+    data["film_year"] = film_year
 
     # Release country — flag <img src=".../flags/US.png" id="countryflag">
     # The title/alt attributes may be absent; extract the 2-letter code from the filename.

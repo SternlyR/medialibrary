@@ -152,10 +152,10 @@ async def enrich(
             result.warnings.append(f"UPC lookup failed: {e}")
 
     # ── Step 1.5: Blu-ray.com UPC search (before TMDB) ──────────────────────
-    # Do this early so the film year from the Blu-ray.com search stub can be
-    # used to constrain TMDB — UPC year hints from UPCitemdb are often the
-    # disc release year (e.g. 2022) not the film year (e.g. 1968), which causes
-    # TMDB to grab the wrong film when multiple films share a title.
+    # Run early so the film year from the Blu-ray.com detail page <title> can
+    # constrain TMDB. UPCitemdb year hints are often the disc release year
+    # (e.g. 2022) not the film year (e.g. 1968), causing TMDB to grab the
+    # wrong film when multiple films share a title.
     bluray_data: dict | None = None
     if bluray_com_id:
         try:
