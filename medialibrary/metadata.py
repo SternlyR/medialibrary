@@ -260,21 +260,28 @@ async def enrich(
                 for f in bluray_data["films_included"]
             ]
 
-        # Use Blu-ray.com title when TMDB found nothing (preserves proper casing
-        # and avoids storing the all-caps UPCitemdb title for unrecognised discs)
-        if not tmdb_data and bluray_data.get("title"):
+        # For multi-film discs the Blu-ray.com disc title ("Police Story /
+        # Police Story 2") is the authoritative title — always use it so the
+        # " / " is preserved for step 3.5 enrichment even when TMDB matched
+        # one of the component films individually.
+        if bluray_data.get("title") and " / " in bluray_data["title"]:
+            result.title = bluray_data["title"]
+        elif not tmdb_data and bluray_data.get("title"):
             result.title = bluray_data["title"]
 
     # ── Step 3.5: Multi-film disc enrichment ─────────────────────────────────
     # When the disc title contains " / " (double features, curated pairs),
     # look up each component film in TMDB to get director/genre/overview,
     # and populate films_included with individual film dicts.
-    if result.title and " / " in result.title and not tmdb_data:
+    # Note: tmdb_data may already be set (to one component film) — we still
+    # run enrichment so all films are represented correctly.
+    if result.title and " / " in result.title:
         component_titles = _extract_component_titles(result.title)
         if len(component_titles) >= 2:
             directors: list[str] = []
             genres_seen: list[str] = []
             film_entries: list[dict] = []
+            first_film_overview: str = ""
 
             for film_title in component_titles:
                 try:
@@ -289,8 +296,8 @@ async def enrich(
                         for g in (film_data.get("genres") or "").split(", "):
                             if g and g not in genres_seen:
                                 genres_seen.append(g)
-                        if not result.overview and film_data.get("overview"):
-                            result.overview = film_data["overview"]
+                        if not first_film_overview and film_data.get("overview"):
+                            first_film_overview = film_data["overview"]
                         if film_data.get("year") and (
                             result.year is None or film_data["year"] < result.year
                         ):
@@ -309,6 +316,8 @@ async def enrich(
                 result.director = " / ".join(directors)
             if genres_seen:
                 result.genres = ", ".join(genres_seen)
+            if first_film_overview:
+                result.overview = first_film_overview
             if film_entries:
                 result.films_included = film_entries
 
