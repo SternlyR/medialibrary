@@ -95,12 +95,20 @@ class BlurayClient:
         if not candidates:
             return None
         stub = candidates[0]
-        details = await self.get_release(stub["bluray_com_id"])
+        # Always pass the detail_url from the stub — the fallback URL uses a "_"
+        # placeholder that Blu-ray.com returns 404 for on many releases.
+        details = await self.get_release(stub["bluray_com_id"], stub.get("detail_url"))
         if details:
             # film_year from the detail page <title> is most reliable;
-            # fall back to the year parsed from the search result stub
-            if not details.get("film_year") and stub.get("year"):
-                details["film_year"] = stub["year"]
+            # fall back to year in stub title e.g. "Night of the Living Dead 4K (1968)"
+            if not details.get("film_year"):
+                year = stub.get("year")
+                if not year:
+                    m = re.search(r'\((\d{4})\)', stub.get("title", ""))
+                    if m:
+                        year = int(m.group(1))
+                if year:
+                    details["film_year"] = year
         return details
 
     async def search_and_get_best(self, title: str, year: int | None = None,
