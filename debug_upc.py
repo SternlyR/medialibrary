@@ -28,9 +28,18 @@ async def main(upc: str):
     if candidates:
         stub = candidates[0]
         print(f"\nFetching detail page for id={stub['bluray_com_id']} ...")
-        bluray_data = await bluray.get_release(stub["bluray_com_id"])
-        if bluray_data and stub.get("year"):
-            bluray_data["film_year"] = stub["year"]
+        print(f"  Using URL: {stub.get('detail_url') or '(fallback _/ URL)'}")
+        bluray_data = await bluray.get_release(stub["bluray_com_id"], stub.get("detail_url"))
+        if bluray_data:
+            if not bluray_data.get("film_year"):
+                year = stub.get("year")
+                if not year:
+                    import re as _re
+                    m = _re.search(r'\((\d{4})\)', stub.get("title", ""))
+                    if m:
+                        year = int(m.group(1))
+                if year:
+                    bluray_data["film_year"] = year
         print(json.dumps(bluray_data, indent=2, default=str))
     else:
         print("  NO RESULTS from Blu-ray.com UPC search")
