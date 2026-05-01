@@ -371,7 +371,14 @@
                 <div v-for="(film, i) in form.films_included" :key="i"
                   class="flex items-center gap-2.5 px-3 py-2 border-b border-[#1e1e1e] last:border-0">
                   <span class="text-[#444] text-xs font-mono w-4 shrink-0">{{ i + 1 }}</span>
-                  <span class="text-sm text-[#ccc] flex-1">{{ filmTitle(film) }}</span>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm text-[#ccc]">{{ filmTitle(film) }}</div>
+                    <div class="flex gap-2 text-[11px] text-[#555] mt-0.5">
+                      <span v-if="filmYear(film)">{{ filmYear(film) }}</span>
+                      <span v-if="filmYear(film) && filmDirector(film)">·</span>
+                      <span v-if="filmDirector(film)">{{ filmDirector(film) }}</span>
+                    </div>
+                  </div>
                   <span v-if="filmStars(film)" class="text-lb text-xs shrink-0">{{ filmStars(film) }}</span>
                 </div>
               </div>
@@ -611,6 +618,8 @@ createApp({
     }
 
     function filmTitle(f) { return typeof f === 'string' ? f : (f?.title || ''); }
+    function filmYear(f) { return typeof f === 'string' ? null : (f?.year || null); }
+    function filmDirector(f) { return typeof f === 'string' ? '' : (f?.director || ''); }
     function filmStars(f) { return typeof f === 'string' ? '' : stars(f?.letterboxd_rating); }
 
     function updateFilmsIncluded(e) {
@@ -841,7 +850,7 @@ createApp({
       showAdd, addMode, addUpc, addTitle, addYear, addLoading, addError, addPreview,
       delTarget,
       allColumns, visibleColumns, detailFields, filtered,
-      stars, toggleSort, filmTitle, filmStars, updateFilmsIncluded,
+      stars, toggleSort, filmTitle, filmYear, filmDirector, filmStars, updateFilmsIncluded,
       openDetail, closeDetail, startEdit, cancelEdit, saveEdit,
       coverOptions, coversLoading, coverQuery, browseCovers, pickCover,
       ratingRefreshing, refreshRating,

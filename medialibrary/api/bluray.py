@@ -407,6 +407,15 @@ def _parse_release_page(bluray_com_id: int, html: str) -> dict:
 
     data["films_included"] = films_included
 
+    # Filter clearly non-film items (DigiBook, Digital Copy, etc.)
+    _NON_FILM_RE = re.compile(
+        r'^\s*(DigiBook|Digital(\s*(Copy|HD|MA|Redemption))?|UltraViolet|'
+        r'UV(\s+Digital)?\s*Copy|Bonus\s*Disc|Movies\s*Anywhere|iTunes|Vudu|'
+        r'Digital\s*Download)\s*$',
+        re.IGNORECASE,
+    )
+    data["films_included"] = [f for f in films_included if not _NON_FILM_RE.match(f)]
+
 
     # Fallback: try specs table (older page layouts)
     if not data["label"] or not data["physical_release_date"]:

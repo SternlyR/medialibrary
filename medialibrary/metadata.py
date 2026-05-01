@@ -97,6 +97,16 @@ class EnrichedRelease:
         return "\n".join(l for l in lines if l)
 
 
+_SUPERSCRIPT = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789")
+
+def _normalize_lookup_title(title: str) -> str:
+    """Normalize superscript digits for TMDB/Letterboxd lookups.
+
+    'Alien³' → 'Alien3' so API searches find the correct film.
+    """
+    return title.translate(_SUPERSCRIPT)
+
+
 def _extract_component_titles(title: str) -> list[str]:
     """Split a multi-film disc title on ' / ' and strip disc-set subtitles.
 
@@ -321,6 +331,40 @@ async def enrich(
             if film_entries:
                 result.films_included = film_entries
 
+    # ── Step 3.6: Enrich box-set films_included with TMDB director/year ──────
+    # Runs when films_included came from Blu-ray.com (box sets like Alien
+    # Anthology) rather than from " / " title splitting above. Looks up each
+    # component film to populate director, year, and genres.
+    if result.films_included and " / " not in result.title:
+        box_directors: list[str] = []
+        box_genres: list[str] = list((result.genres or "").split(", ")) if result.genres else []
+        for entry in result.films_included:
+            if not isinstance(entry, dict):
+                continue
+            film_name = entry.get("title", "")
+            if not film_name or entry.get("year"):
+                continue  # already enriched
+            normalized = _normalize_lookup_title(film_name)
+            try:
+                film_data = await tmdb.lookup(normalized)
+                if film_data is None and normalized != film_name:
+                    film_data = await tmdb.lookup(film_name)
+                if film_data:
+                    entry["year"] = film_data.get("year")
+                    entry["director"] = film_data.get("director", "")
+                    d = film_data.get("director", "")
+                    if d and d not in box_directors:
+                        box_directors.append(d)
+                    for g in (film_data.get("genres") or "").split(", "):
+                        if g and g not in box_genres:
+                            box_genres.append(g)
+            except Exception as e:
+                result.warnings.append(f"Box-set TMDB enrichment failed for '{film_name}': {e}")
+        if box_directors and not result.director:
+            result.director = " / ".join(box_directors)
+        if box_genres and not result.genres:
+            result.genres = ", ".join(box_genres)
+
     # ── Step 4: Letterboxd personal rating ───────────────────────────────────
     # For multi-film discs look up each component film individually and store
     # the rating on the entry dict; also compute a disc-level average.
@@ -331,15 +375,16 @@ async def enrich(
                 ratings = []
                 for entry in result.films_included:
                     film_name = entry["title"] if isinstance(entry, dict) else entry
+                    normalized_name = _normalize_lookup_title(film_name)
                     r = await lb_client.get_rating_for_film(
-                        settings.letterboxd_username, film_name
+                        settings.letterboxd_username, normalized_name
                     )
                     if isinstance(entry, dict):
                         entry["letterboxd_rating"] = r
                     if r is not None:
                         ratings.append(r)
                 if ratings:
-                    result.letterboxd_rating = sum(ratings) / len(ratings)
+                    result.letterboxd_rating = round(sum(ratings) / len(ratings), 2)
                     result.sources.append("letterboxd")
             else:
                 rating = await lb_client.get_rating_for_film(
