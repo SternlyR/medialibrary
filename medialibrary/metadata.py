@@ -342,7 +342,6 @@ async def enrich(
         box_directors: list[str] = []
         box_genres: list[str] = list((result.genres or "").split(", ")) if result.genres else []
         resolved_tmdb_ids: set[int] = set()
-        resolved_collections: dict[int, int] = {}  # tmdb_id → collection_id
         for entry in result.films_included:
             if not isinstance(entry, dict):
                 continue
@@ -357,26 +356,22 @@ async def enrich(
 
                 # Blu-ray.com sometimes lists box-set sequels under the same base
                 # title as the original (e.g. "Alien" for both Alien and Alien³).
-                # When a duplicate TMDB ID is detected, try appending " 2", " 3",
-                # etc. — but only accept a candidate that belongs to the same TMDB
-                # collection as the original film. This prevents unrelated films
-                # like "Alien 2: On Earth" (Italian exploitation, no collection)
-                # from being accepted when looking for Alien³ (Alien Collection).
+                # When a duplicate TMDB ID is detected, try appending 2, 3, …
+                # Accept the first result whose title starts with the same base
+                # and contains no colon-subtitle (rules out "Alien 2: On Earth").
                 if film_data and film_data.get("tmdb_id") in resolved_tmdb_ids:
-                    orig_collection = resolved_collections.get(film_data["tmdb_id"])
+                    base = normalized.rstrip("0123456789").strip()
                     for n in range(2, 8):
                         sequel_data = await tmdb.lookup(f"{normalized}{n}")
-                        if (sequel_data
-                                and sequel_data.get("tmdb_id") not in resolved_tmdb_ids
-                                and sequel_data.get("collection_id") == orig_collection):
+                        if not sequel_data or sequel_data.get("tmdb_id") in resolved_tmdb_ids:
+                            continue
+                        sq_title = _normalize_lookup_title(sequel_data.get("title", ""))
+                        if sq_title.lower().startswith(base.lower()) and ":" not in sq_title:
                             film_data = sequel_data
                             break
 
                 if film_data and film_data.get("tmdb_id"):
-                    tid = film_data["tmdb_id"]
-                    resolved_tmdb_ids.add(tid)
-                    if film_data.get("collection_id"):
-                        resolved_collections[tid] = film_data["collection_id"]
+                    resolved_tmdb_ids.add(film_data["tmdb_id"])
                 if film_data:
                     # Replace Blu-ray.com title (may have superscript chars like
                     # "Alien³") with TMDB's clean title ("Alien 3").
