@@ -365,7 +365,7 @@ async def enrich(
                 if film_data and film_data.get("tmdb_id") in resolved_tmdb_ids:
                     orig_collection = resolved_collections.get(film_data["tmdb_id"])
                     for n in range(2, 8):
-                        sequel_data = await tmdb.lookup(f"{normalized} {n}")
+                        sequel_data = await tmdb.lookup(f"{normalized}{n}")
                         if (sequel_data
                                 and sequel_data.get("tmdb_id") not in resolved_tmdb_ids
                                 and sequel_data.get("collection_id") == orig_collection):
