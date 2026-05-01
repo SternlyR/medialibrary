@@ -106,6 +106,7 @@ class TMDBClient:
         poster_path = details.get("poster_path", "")
         poster_url = f"{self.image_base}{poster_path}" if poster_path else ""
 
+        collection = details.get("belongs_to_collection") or {}
         return {
             "tmdb_id": details.get("id"),
             "imdb_id": details.get("imdb_id", ""),
@@ -118,6 +119,7 @@ class TMDBClient:
             "genres": genres,
             "poster_url": poster_url,
             "tagline": details.get("tagline", ""),
+            "collection_id": collection.get("id"),
         }
 
     async def lookup(self, title: str, year: int | None = None) -> dict | None:
