@@ -605,6 +605,29 @@ async def debug_tmdb_search(q: str = Query(...), year: Optional[int] = Query(Non
     }
 
 
+@app.get("/debug/bluray-upc", summary="Show raw Blu-ray.com data for a UPC")
+async def debug_bluray_upc(upc: str = Query(...)):
+    """Diagnostic: shows exactly what our Blu-ray.com scraper returns for a UPC,
+    including the raw films_included list before any TMDB enrichment."""
+    from medialibrary.api.bluray import BlurayClient
+    from medialibrary.metadata import _normalize_lookup_title
+    client = BlurayClient()
+    candidates = await client.search(upc)
+    if not candidates:
+        return {"upc": upc, "candidates": [], "detail": None}
+    stub = candidates[0]
+    detail = await client.get_release(stub["bluray_com_id"], stub.get("detail_url"))
+    films = (detail or {}).get("films_included", [])
+    return {
+        "upc": upc,
+        "stub": stub,
+        "detail_title": (detail or {}).get("title"),
+        "film_year": (detail or {}).get("film_year"),
+        "films_included_raw": films,
+        "films_included_normalized": [_normalize_lookup_title(f) for f in films],
+    }
+
+
 @app.get("/bluray/search-covers", summary="Search blu-ray.com and return cover art options")
 async def search_covers(
     title: str = Query(...),
