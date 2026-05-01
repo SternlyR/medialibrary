@@ -13,6 +13,35 @@ from typing import Any
 
 from medialibrary.config import settings
 
+# Superscript → space+digit mapping mirrors metadata._normalize_lookup_title
+_SUPERSCRIPT = {"⁰": " 0", "¹": " 1", "²": " 2", "³": " 3", "⁴": " 4",
+                "⁵": " 5", "⁶": " 6", "⁷": " 7", "⁸": " 8", "⁹": " 9"}
+
+
+def _norm(t: str) -> str:
+    for sup, rep in _SUPERSCRIPT.items():
+        t = t.replace(sup, rep)
+    return t.lower().strip()
+
+
+def _pick_best(results: list[dict], query: str) -> dict:
+    """Return the result whose title best matches *query*, not just the most popular.
+
+    TMDB ranks by popularity so 'Alien' (1979) outranks 'Alien³' when searching
+    'Alien 3'. We re-rank by title similarity first.
+    """
+    q = _norm(query)
+    # 1. Exact normalized match
+    for r in results:
+        if _norm(r.get("title", "")) == q:
+            return r
+    # 2. Result title starts with query (e.g. partial match)
+    for r in results:
+        if _norm(r.get("title", "")).startswith(q):
+            return r
+    # 3. Fall back to popularity (first result)
+    return results[0]
+
 
 class TMDBClient:
     def __init__(self, api_key: str | None = None):
@@ -101,7 +130,7 @@ class TMDBClient:
             results = await self.search_movie(title, None)
         if not results:
             return None
-        best = results[0]
+        best = _pick_best(results, title)
         details = await self.get_movie_details(best["id"])
         return self.parse_metadata(details)
 
