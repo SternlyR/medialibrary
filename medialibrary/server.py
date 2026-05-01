@@ -576,6 +576,35 @@ async def re_enrich_release(release_id: int):
     return _release_to_response(release)
 
 
+@app.get("/debug/tmdb-search", summary="Show raw TMDB search results for a query")
+async def debug_tmdb_search(q: str = Query(...), year: Optional[int] = Query(None)):
+    """Diagnostic: returns the raw TMDB candidate list and which result _pick_best selects."""
+    from medialibrary.api.tmdb import TMDBClient, _pick_best, _norm
+    tmdb = TMDBClient()
+    results = await tmdb.search_movie(q, year)
+    if not results and year:
+        results = await tmdb.search_movie(q, None)
+    best = _pick_best(results, q) if results else None
+    return {
+        "query": q,
+        "year": year,
+        "query_norm": _norm(q),
+        "results": [
+            {
+                "id": r.get("id"),
+                "title": r.get("title"),
+                "title_norm": _norm(r.get("title", "")),
+                "release_date": r.get("release_date", "")[:4],
+                "popularity": r.get("popularity"),
+                "exact_match": _norm(r.get("title", "")) == _norm(q),
+            }
+            for r in results[:10]
+        ],
+        "pick_best_id": best.get("id") if best else None,
+        "pick_best_title": best.get("title") if best else None,
+    }
+
+
 @app.get("/bluray/search-covers", summary="Search blu-ray.com and return cover art options")
 async def search_covers(
     title: str = Query(...),
