@@ -341,6 +341,7 @@ async def enrich(
     if result.films_included and " / " not in result.title:
         box_directors: list[str] = []
         box_genres: list[str] = list((result.genres or "").split(", ")) if result.genres else []
+        resolved_tmdb_ids: set[int] = set()
         for entry in result.films_included:
             if not isinstance(entry, dict):
                 continue
@@ -352,6 +353,20 @@ async def enrich(
                 film_data = await tmdb.lookup(normalized)
                 if film_data is None and normalized != film_name:
                     film_data = await tmdb.lookup(film_name)
+
+                # Blu-ray.com sometimes lists box-set sequels under the same base
+                # title as the original (e.g. "Alien" for both Alien and Alien³).
+                # When a duplicate TMDB ID is detected, try appending " 2", " 3",
+                # etc. to find the intended sequel.
+                if film_data and film_data.get("tmdb_id") in resolved_tmdb_ids:
+                    for n in range(2, 8):
+                        sequel_data = await tmdb.lookup(f"{normalized} {n}")
+                        if sequel_data and sequel_data.get("tmdb_id") not in resolved_tmdb_ids:
+                            film_data = sequel_data
+                            break
+
+                if film_data and film_data.get("tmdb_id"):
+                    resolved_tmdb_ids.add(film_data["tmdb_id"])
                 if film_data:
                     # Replace Blu-ray.com title (may have superscript chars like
                     # "Alien³") with TMDB's clean title ("Alien 3").
