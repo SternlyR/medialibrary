@@ -97,13 +97,13 @@ class EnrichedRelease:
         return "\n".join(l for l in lines if l)
 
 
-_SUPERSCRIPT = {"⁰": " 0", "¹": " 1", "²": " 2", "³": " 3", "⁴": " 4",
-                "⁵": " 5", "⁶": " 6", "⁷": " 7", "⁸": " 8", "⁹": " 9"}
+_SUPERSCRIPT = {"⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4",
+                "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9"}
 
 def _normalize_lookup_title(title: str) -> str:
     """Normalize superscript digits for TMDB/Letterboxd lookups.
 
-    'Alien³' → 'Alien 3' so API searches find the correct film.
+    'Alien³' → 'Alien3' so API searches find the correct film.
     """
     for sup, replacement in _SUPERSCRIPT.items():
         title = title.replace(sup, replacement)

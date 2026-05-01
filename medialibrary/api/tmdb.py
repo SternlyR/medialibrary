@@ -14,8 +14,8 @@ from typing import Any
 from medialibrary.config import settings
 
 # Superscript → space+digit mapping mirrors metadata._normalize_lookup_title
-_SUPERSCRIPT = {"⁰": " 0", "¹": " 1", "²": " 2", "³": " 3", "⁴": " 4",
-                "⁵": " 5", "⁶": " 6", "⁷": " 7", "⁸": " 8", "⁹": " 9"}
+_SUPERSCRIPT = {"⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4",
+                "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9"}
 
 
 def _norm(t: str) -> str:
