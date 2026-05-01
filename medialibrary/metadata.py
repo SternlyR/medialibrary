@@ -97,14 +97,17 @@ class EnrichedRelease:
         return "\n".join(l for l in lines if l)
 
 
-_SUPERSCRIPT = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789")
+_SUPERSCRIPT = {"⁰": " 0", "¹": " 1", "²": " 2", "³": " 3", "⁴": " 4",
+                "⁵": " 5", "⁶": " 6", "⁷": " 7", "⁸": " 8", "⁹": " 9"}
 
 def _normalize_lookup_title(title: str) -> str:
     """Normalize superscript digits for TMDB/Letterboxd lookups.
 
-    'Alien³' → 'Alien3' so API searches find the correct film.
+    'Alien³' → 'Alien 3' so API searches find the correct film.
     """
-    return title.translate(_SUPERSCRIPT)
+    for sup, replacement in _SUPERSCRIPT.items():
+        title = title.replace(sup, replacement)
+    return title.strip()
 
 
 def _extract_component_titles(title: str) -> list[str]:
@@ -350,6 +353,9 @@ async def enrich(
                 if film_data is None and normalized != film_name:
                     film_data = await tmdb.lookup(film_name)
                 if film_data:
+                    # Replace Blu-ray.com title (may have superscript chars like
+                    # "Alien³") with TMDB's clean title ("Alien 3").
+                    entry["title"] = film_data.get("title") or film_name
                     entry["year"] = film_data.get("year")
                     entry["director"] = film_data.get("director", "")
                     d = film_data.get("director", "")
