@@ -503,6 +503,79 @@ async def refresh_letterboxd_rating(release_id: int):
     return _release_to_response(release)
 
 
+@app.post("/releases/{release_id}/re-enrich", summary="Re-run full enrichment pipeline for an existing release")
+async def re_enrich_release(release_id: int):
+    """Re-fetch all metadata (TMDB, Blu-ray.com, Letterboxd) and overwrite the record.
+
+    Useful after enrichment bug-fixes so existing entries don't need to be
+    deleted and re-scanned.
+    """
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        stmt = select(PhysicalRelease).where(
+            PhysicalRelease.id == release_id
+        ).options(joinedload(PhysicalRelease.movie))
+        release = (await session.execute(stmt)).scalar_one_or_none()
+        if not release:
+            raise HTTPException(404, f"Release {release_id} not found")
+        movie = release.movie
+
+    result = await enrich(
+        upc=release.upc or None,
+        title=movie.title if movie else None,
+        year=movie.year if movie else None,
+        label=release.label or None,
+        bluray_com_id=release.bluray_com_id or None,
+        tmdb_id=movie.tmdb_id if movie else None,
+    )
+
+    async with await get_session(engine) as session:
+        stmt = select(PhysicalRelease).where(
+            PhysicalRelease.id == release_id
+        ).options(joinedload(PhysicalRelease.movie))
+        release = (await session.execute(stmt)).scalar_one_or_none()
+        movie = release.movie
+
+        # Update movie fields
+        movie.title = result.title or movie.title
+        movie.year = result.year or movie.year
+        movie.director = result.director or movie.director
+        movie.runtime_minutes = result.runtime_minutes or movie.runtime_minutes
+        movie.mpaa_rating = result.mpaa_rating or movie.mpaa_rating
+        movie.genres = result.genres or movie.genres
+        movie.overview = result.overview or movie.overview
+        if result.tmdb_id:
+            movie.tmdb_id = result.tmdb_id
+        if result.imdb_id:
+            movie.imdb_id = result.imdb_id
+        if result.letterboxd_rating is not None:
+            movie.letterboxd_rating = result.letterboxd_rating
+
+        # Update release fields
+        release.format = result.format or release.format
+        release.label = result.label or release.label
+        release.region = result.region or release.region
+        release.physical_release_date = result.physical_release_date or release.physical_release_date
+        release.edition = result.edition or release.edition
+        release.disc_count = result.disc_count or release.disc_count
+        release.aspect_ratio = result.aspect_ratio or release.aspect_ratio
+        if result.cover_url:
+            release.cover_url = result.cover_url
+        if result.cover_url_back:
+            release.cover_url_back = result.cover_url_back
+        if result.bluray_com_id:
+            release.bluray_com_id = result.bluray_com_id
+        if result.films_included:
+            release.films_included = json.dumps(result.films_included)
+
+        await session.commit()
+        await session.refresh(release)
+        await session.refresh(movie)
+        release.movie = movie
+
+    return _release_to_response(release)
+
+
 @app.get("/bluray/search-covers", summary="Search blu-ray.com and return cover art options")
 async def search_covers(
     title: str = Query(...),

@@ -276,6 +276,9 @@
               </button>
               <button @click="cancelEdit" class="text-xs bg-[#252525] hover:bg-[#2e2e2e] px-3 py-1.5 rounded-lg text-[#ccc] transition-colors">Cancel</button>
             </template>
+            <button v-if="!editing" @click="reEnrich" :disabled="reEnriching"
+              class="text-xs bg-[#252525] hover:bg-[#2e2e2e] px-3 py-1.5 rounded-lg text-[#ccc] transition-colors disabled:opacity-50"
+              title="Re-run full metadata enrichment">{{ reEnriching ? 'Re-enriching…' : 'Re-enrich' }}</button>
             <button @click="confirmDelete(detail)" class="text-xs bg-red-950/50 hover:bg-red-900/70 px-3 py-1.5 rounded-lg text-red-400 transition-colors">Delete</button>
             <button @click="closeDetail" class="text-[#555] hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#252525] transition-colors">✕</button>
           </div>
@@ -543,6 +546,9 @@ createApp({
     // Rating refresh (per-release)
     const ratingRefreshing = ref(false);
 
+    // Re-enrich
+    const reEnriching = ref(false);
+
     // Bulk Letterboxd sync
     const syncing = ref(false);
     const syncOk  = ref(null);   // null=idle, true=success, false=error
@@ -789,6 +795,25 @@ createApp({
       }
     }
 
+    // ── Re-enrich ──────────────────────────────────────────
+    async function reEnrich() {
+      if (!detail.value) return;
+      reEnriching.value = true;
+      try {
+        const res = await fetch(`/releases/${detail.value.id}/re-enrich`, { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        const updated = await res.json();
+        const idx = releases.value.findIndex(r => r.id === updated.id);
+        if (idx !== -1) releases.value[idx] = updated;
+        detail.value = updated;
+        form.value = { ...updated };
+      } catch(e) {
+        alert('Re-enrich failed: ' + e.message);
+      } finally {
+        reEnriching.value = false;
+      }
+    }
+
     // ── CSV Import ─────────────────────────────────────────
     const csvFileInput  = ref(null);
     const importLoading = ref(false);
@@ -854,6 +879,7 @@ createApp({
       openDetail, closeDetail, startEdit, cancelEdit, saveEdit,
       coverOptions, coversLoading, coverQuery, browseCovers, pickCover,
       ratingRefreshing, refreshRating,
+      reEnriching, reEnrich,
       syncing, syncOk, lastSync, syncLetterboxd,
       confirmDelete, doDelete,
       openAdd, closeAdd, lookupDisc, saveDisc,
