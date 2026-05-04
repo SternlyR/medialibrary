@@ -413,9 +413,9 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
 
     # Filter clearly non-film items (DigiBook, Digital Copy, etc.)
     _NON_FILM_RE = re.compile(
-        r'^\s*(DigiBook|Digital(\s*(Copy|HD|MA|Redemption))?|UltraViolet|'
+        r'^\s*(Digi(Book|Pack|Pak|tal(\s*(Copy|HD|MA|Redemption))?)|UltraViolet|'
         r'UV(\s+Digital)?\s*Copy|Bonus\s*Disc|Movies\s*Anywhere|iTunes|Vudu|'
-        r'Digital\s*Download)\s*$',
+        r'Digital\s*(Copy|Download|HD|MA))\s*$',
         re.IGNORECASE,
     )
     data["films_included"] = [f for f in films_included if not _NON_FILM_RE.match(f)]
