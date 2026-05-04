@@ -419,9 +419,10 @@
         <div class="p-5">
           <!-- Mode tabs -->
           <div class="flex bg-[#141414] rounded-lg p-0.5 mb-5 border border-[#222]">
-            <button @click="addMode='upc'" :class="['flex-1 py-1.5 text-sm rounded-md transition-colors font-medium', addMode==='upc' ? 'bg-accent text-white' : 'text-[#666] hover:text-[#aaa]']">UPC Barcode</button>
-            <button @click="addMode='title'" :class="['flex-1 py-1.5 text-sm rounded-md transition-colors font-medium', addMode==='title' ? 'bg-accent text-white' : 'text-[#666] hover:text-[#aaa]']">Title / Manual</button>
-            <button @click="addMode='bluray'" :class="['flex-1 py-1.5 text-sm rounded-md transition-colors font-medium', addMode==='bluray' ? 'bg-accent text-white' : 'text-[#666] hover:text-[#aaa]']">Blu-ray.com</button>
+            <button @click="addMode='upc'" :class="['flex-1 py-1.5 text-xs rounded-md transition-colors font-medium', addMode==='upc' ? 'bg-accent text-white' : 'text-[#666] hover:text-[#aaa]']">UPC</button>
+            <button @click="addMode='title'" :class="['flex-1 py-1.5 text-xs rounded-md transition-colors font-medium', addMode==='title' ? 'bg-accent text-white' : 'text-[#666] hover:text-[#aaa]']">Title</button>
+            <button @click="addMode='bluray'" :class="['flex-1 py-1.5 text-xs rounded-md transition-colors font-medium', addMode==='bluray' ? 'bg-accent text-white' : 'text-[#666] hover:text-[#aaa]']">Blu-ray.com</button>
+            <button @click="addMode='search'" :class="['flex-1 py-1.5 text-xs rounded-md transition-colors font-medium', addMode==='search' ? 'bg-accent text-white' : 'text-[#666] hover:text-[#aaa]']">Search</button>
           </div>
 
           <!-- UPC input -->
@@ -441,6 +442,49 @@
             <p class="text-[11px] text-[#444] mt-1.5">Paste the full URL or just the numeric ID from any Blu-ray.com release page.</p>
           </div>
 
+          <!-- Search inputs -->
+          <div v-else-if="addMode==='search'" class="mb-4">
+            <div class="flex gap-2.5 mb-3">
+              <div class="flex-1">
+                <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-1.5">Movie Title</label>
+                <input v-model="addSearchTitle" type="text" placeholder="e.g. Audition"
+                  @keyup.enter="searchBluray"
+                  class="w-full px-3 py-2.5 text-sm rounded-lg">
+              </div>
+              <div class="w-24">
+                <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-1.5">Year</label>
+                <input v-model.number="addSearchYear" type="number" placeholder="1999" class="w-full px-3 py-2.5 text-sm rounded-lg">
+              </div>
+            </div>
+            <button @click="searchBluray" :disabled="searchLoading"
+              class="w-full bg-[#252525] hover:bg-[#2e2e2e] border border-[#333] text-[#ccc] py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              <svg v-if="searchLoading" class="animate-spin w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              {{ searchLoading ? 'Searching…' : '🔍 Search Blu-ray.com' }}
+            </button>
+            <!-- Results grid -->
+            <div v-if="searchResults.length" class="mt-3">
+              <p class="text-[10px] text-[#555] mb-2">{{ searchResults.length }} results — click a cover to look up:</p>
+              <div class="max-h-52 overflow-y-auto">
+                <div class="grid grid-cols-5 gap-1.5">
+                  <div v-for="c in searchResults" :key="c.bluray_com_id"
+                    @click="selectSearchResult(c)"
+                    :class="['cursor-pointer rounded overflow-hidden border-2 transition-all group relative',
+                      selectedSearchId === c.bluray_com_id ? 'border-accent' : 'border-transparent hover:border-[#555]']">
+                    <img :src="c.cover_url" :alt="c.title"
+                      @error="e => e.target.style.display='none'"
+                      class="w-full object-cover" style="aspect-ratio: 2/3;">
+                    <div class="absolute inset-0 bg-black/75 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-1">
+                      <p class="text-[8px] text-white leading-tight line-clamp-2">{{ c.title }}<br><span class="text-[#aaa]">{{ c.year }}</span></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Title input -->
           <div v-else class="flex gap-2.5 mb-4">
             <div class="flex-1">
@@ -453,8 +497,8 @@
             </div>
           </div>
 
-          <!-- Lookup button -->
-          <button @click="lookupDisc" :disabled="addLoading"
+          <!-- Lookup button (hidden in search mode — search has its own button) -->
+          <button v-if="addMode !== 'search'" @click="lookupDisc" :disabled="addLoading"
             class="w-full bg-[#252525] hover:bg-[#2e2e2e] border border-[#333] text-[#ccc] py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 mb-4">
             <span v-if="addLoading" class="flex items-center justify-center gap-2">
               <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
@@ -548,6 +592,13 @@ createApp({
     const addLoading = ref(false);
     const addError  = ref('');
     const addPreview = ref(null);
+
+    // Search tab
+    const addSearchTitle  = ref('');
+    const addSearchYear   = ref(null);
+    const searchResults   = ref([]);
+    const searchLoading   = ref(false);
+    const selectedSearchId = ref(null);
 
     // Cover browser
     const coverOptions  = ref([]);
@@ -708,8 +759,34 @@ createApp({
     }
 
     // ── Add disc ───────────────────────────────────────────
-    function openAdd()  { showAdd.value = true; addPreview.value = null; addError.value = ''; }
-    function closeAdd() { showAdd.value = false; addPreview.value = null; addError.value = ''; addUpc.value = ''; addTitle.value = ''; addYear.value = null; addBlurayUrl.value = ''; }
+    function openAdd()  { showAdd.value = true; addPreview.value = null; addError.value = ''; searchResults.value = []; selectedSearchId.value = null; }
+    function closeAdd() { showAdd.value = false; addPreview.value = null; addError.value = ''; addUpc.value = ''; addTitle.value = ''; addYear.value = null; addBlurayUrl.value = ''; addSearchTitle.value = ''; addSearchYear.value = null; searchResults.value = []; selectedSearchId.value = null; }
+
+    async function searchBluray() {
+      if (!addSearchTitle.value.trim()) return;
+      searchLoading.value = true;
+      searchResults.value = [];
+      addPreview.value = null;
+      addError.value = '';
+      selectedSearchId.value = null;
+      try {
+        const params = new URLSearchParams({ title: addSearchTitle.value.trim() });
+        if (addSearchYear.value) params.set('year', addSearchYear.value);
+        const res = await fetch(`/bluray/search-covers?${params}`);
+        if (!res.ok) throw new Error('Search failed');
+        searchResults.value = await res.json();
+        if (!searchResults.value.length) addError.value = 'No results found. Try a different title or year.';
+      } catch(e) {
+        addError.value = e.message;
+      } finally {
+        searchLoading.value = false;
+      }
+    }
+
+    async function selectSearchResult(c) {
+      selectedSearchId.value = c.bluray_com_id;
+      await lookupDisc();
+    }
 
     function parseBlurayId(url) {
       const m = url.match(/blu-ray\.com\/movies\/[^/]+\/(\d+)\/?/i) || url.match(/^(\d+)$/);
@@ -729,6 +806,9 @@ createApp({
           const bid = parseBlurayId(raw);
           if (!bid) { addError.value = 'Could not parse a Blu-ray.com ID from that URL.'; addLoading.value = false; return; }
           body = { bluray_com_id: bid, bluray_com_url: raw.startsWith('http') ? raw : null };
+        } else if (addMode.value === 'search') {
+          if (!selectedSearchId.value) { addError.value = 'Select a release from the results first.'; addLoading.value = false; return; }
+          body = { bluray_com_id: selectedSearchId.value };
         } else {
           body = { title: addTitle.value.trim(), year: addYear.value || undefined };
         }
@@ -755,6 +835,8 @@ createApp({
         } else if (addMode.value === 'bluray') {
           const raw2 = addBlurayUrl.value.trim();
           body = { bluray_com_id: parseBlurayId(raw2), bluray_com_url: raw2.startsWith('http') ? raw2 : null };
+        } else if (addMode.value === 'search') {
+          body = { bluray_com_id: selectedSearchId.value };
         } else {
           body = { title: addTitle.value.trim(), year: addYear.value || undefined };
         }
@@ -903,6 +985,7 @@ createApp({
       releases, loading, view, searchQuery, sortBy,
       detail, editing, saving, showBack, form,
       showAdd, addMode, addUpc, addTitle, addYear, addBlurayUrl, addLoading, addError, addPreview, parseBlurayId,
+      addSearchTitle, addSearchYear, searchResults, searchLoading, selectedSearchId, searchBluray, selectSearchResult,
       delTarget,
       allColumns, visibleColumns, detailFields, filtered,
       stars, toggleSort, filmTitle, filmYear, filmDirector, filmStars, updateFilmsIncluded,
