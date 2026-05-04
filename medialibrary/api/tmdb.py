@@ -140,3 +140,21 @@ class TMDBClient:
             raise ValueError("TMDB_API_KEY not set.")
         details = await self.get_movie_details(tmdb_id)
         return self.parse_metadata(details)
+
+    async def search_collection(self, title: str) -> list[dict]:
+        """Search TMDB for a collection by name (e.g. 'The Before Trilogy')."""
+        params = self._params(query=title, language="en-US")
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get(f"{self.base}/search/collection", params=params)
+            r.raise_for_status()
+            return r.json().get("results", [])
+
+    async def get_collection_parts(self, collection_id: int) -> list[str]:
+        """Return film titles from a TMDB collection, sorted by release date."""
+        params = self._params(language="en-US")
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get(f"{self.base}/collection/{collection_id}", params=params)
+            r.raise_for_status()
+            parts = r.json().get("parts", [])
+        parts.sort(key=lambda p: p.get("release_date") or "")
+        return [p["title"] for p in parts if p.get("title")]
