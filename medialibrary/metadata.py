@@ -138,6 +138,7 @@ async def enrich(
     year: int | None = None,
     label: str | None = None,
     bluray_com_id: int | None = None,
+    bluray_com_url: str | None = None,
     tmdb_id: int | None = None,
 ) -> EnrichedRelease:
     """Main entry point. Provide at least one of: upc, title, bluray_com_id, tmdb_id."""
@@ -175,7 +176,7 @@ async def enrich(
     bluray_data: dict | None = None
     if bluray_com_id:
         try:
-            bluray_data = await bluray.get_release(bluray_com_id)
+            bluray_data = await bluray.get_release(bluray_com_id, bluray_com_url)
             result.sources.append("bluray.com")
         except Exception as e:
             result.warnings.append(f"Blu-ray.com fetch by ID failed: {e}")

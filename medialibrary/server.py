@@ -68,6 +68,7 @@ class LookupRequest(BaseModel):
     year: Optional[int] = None
     label: Optional[str] = None
     bluray_com_id: Optional[int] = None
+    bluray_com_url: Optional[str] = None
     tmdb_id: Optional[int] = None
 
 
@@ -192,6 +193,7 @@ async def lookup_release(req: LookupRequest):
         year=req.year,
         label=req.label,
         bluray_com_id=req.bluray_com_id,
+        bluray_com_url=req.bluray_com_url,
         tmdb_id=req.tmdb_id,
     )
     return result.to_dict()
@@ -209,6 +211,7 @@ async def add_release(req: AddReleaseRequest):
         year=req.year,
         label=req.label,
         bluray_com_id=req.bluray_com_id,
+        bluray_com_url=req.bluray_com_url,
         tmdb_id=req.tmdb_id,
     )
     if req.set_name:

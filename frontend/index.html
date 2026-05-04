@@ -725,9 +725,10 @@ createApp({
         if (addMode.value === 'upc') {
           body = { upc: addUpc.value.trim() };
         } else if (addMode.value === 'bluray') {
-          const bid = parseBlurayId(addBlurayUrl.value.trim());
+          const raw = addBlurayUrl.value.trim();
+          const bid = parseBlurayId(raw);
           if (!bid) { addError.value = 'Could not parse a Blu-ray.com ID from that URL.'; addLoading.value = false; return; }
-          body = { bluray_com_id: bid };
+          body = { bluray_com_id: bid, bluray_com_url: raw.startsWith('http') ? raw : null };
         } else {
           body = { title: addTitle.value.trim(), year: addYear.value || undefined };
         }
@@ -752,7 +753,8 @@ createApp({
         if (addMode.value === 'upc') {
           body = { upc: addUpc.value.trim() };
         } else if (addMode.value === 'bluray') {
-          body = { bluray_com_id: parseBlurayId(addBlurayUrl.value.trim()) };
+          const raw2 = addBlurayUrl.value.trim();
+          body = { bluray_com_id: parseBlurayId(raw2), bluray_com_url: raw2.startsWith('http') ? raw2 : null };
         } else {
           body = { title: addTitle.value.trim(), year: addYear.value || undefined };
         }

@@ -469,7 +469,7 @@ async function lookupBlurayUrl() {
     const res = await fetch('/releases/lookup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ bluray_com_id: bid }),
+      body: JSON.stringify({ bluray_com_id: bid, bluray_com_url: input.startsWith('http') ? input : null }),
     });
     if (!res.ok) throw new Error(await res.text().catch(() => `HTTP ${res.status}`));
     const data = await res.json();
