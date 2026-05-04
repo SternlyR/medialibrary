@@ -148,6 +148,12 @@ async def enrich(
     upc_client = UPCClient()
     bluray = BlurayClient()
 
+    # Preserve the caller-supplied title for collection-keyword checks later.
+    # result.title may be overridden by a TMDB match to an individual film
+    # (e.g. re-enrich with stored tmdb_id=Before Sunrise on a "The Before
+    # Trilogy" box set), which would hide the "trilogy" keyword.
+    _input_title = title
+
     # ── Step 1: UPC lookup ───────────────────────────────────────────────────
     if upc:
         result.upc = upc
@@ -412,15 +418,23 @@ async def enrich(
     # When films_included is still empty (Blu-ray.com page had no slash-list,
     # e.g. Criterion box sets like "The Before Trilogy"), try TMDB's collection
     # search. If a matching collection is found, seed films_included from its
-    # parts so step 3.6 logic can still run for director/genre/overview.
+    # parts so the enrichment loop below can populate director/genre/overview.
+    #
+    # Use _input_title (original caller-supplied title) not result.title — the
+    # latter may have been overridden by a TMDB lookup to an individual film
+    # (e.g. re-enrich with stored tmdb_id maps to "Before Sunrise", hiding the
+    # "trilogy" keyword that would trigger the collection search).
     _COLLECTION_WORDS = re.compile(
         r'\b(trilogy|collection|box\s*set|films?|series|quadrilogy|anthology)\b',
         re.IGNORECASE,
     )
-    if not result.films_included and " / " not in result.title and result.title:
-        if _COLLECTION_WORDS.search(result.title):
+    _bluray_title = (bluray_data or {}).get("title", "")
+    _check_title = _bluray_title or _input_title or result.title or ""
+
+    if not result.films_included and " / " not in _check_title and _check_title:
+        if _COLLECTION_WORDS.search(_check_title):
             try:
-                coll_results = await tmdb.search_collection(result.title)
+                coll_results = await tmdb.search_collection(_check_title)
                 if coll_results:
                     parts = await tmdb.get_collection_parts(coll_results[0]["id"])
                     if len(parts) >= 2:
@@ -428,45 +442,50 @@ async def enrich(
                             {"title": t, "letterboxd_rating": None} for t in parts
                         ]
                         result.sources.append("tmdb-collection")
+                        # The stored tmdb_id likely points to an individual film
+                        # in the set (wrong match). Clear it so the box set is
+                        # not incorrectly linked to one component film's record.
+                        result.tmdb_id = None
+                        result.imdb_id = ""
             except Exception as e:
                 result.warnings.append(f"TMDB collection fallback failed: {e}")
 
-        # Re-run box-set enrichment now that we have films from the collection.
-        if result.films_included:
-            box_directors: list[str] = []
-            box_genres: list[str] = list((result.genres or "").split(", ")) if result.genres else []
-            resolved_tmdb_ids: set[int] = set()
-            for entry in result.films_included:
-                if not isinstance(entry, dict):
-                    continue
-                film_name = entry.get("title", "")
-                if not film_name or entry.get("year"):
-                    continue
-                normalized = _normalize_lookup_title(film_name)
-                try:
-                    film_data = await tmdb.lookup(normalized)
-                    if film_data is None and normalized != film_name:
-                        film_data = await tmdb.lookup(film_name)
-                    if film_data and film_data.get("tmdb_id"):
-                        resolved_tmdb_ids.add(film_data["tmdb_id"])
-                    if film_data:
-                        entry["title"] = film_data.get("title") or film_name
-                        entry["year"] = film_data.get("year")
-                        entry["director"] = film_data.get("director", "")
-                        d = film_data.get("director", "")
-                        if d and d not in box_directors:
-                            box_directors.append(d)
-                        for g in (film_data.get("genres") or "").split(", "):
-                            if g and g not in box_genres:
-                                box_genres.append(g)
-                        if not result.overview and film_data.get("overview"):
-                            result.overview = film_data["overview"]
-                except Exception as e:
-                    result.warnings.append(f"Collection TMDB enrichment failed for '{film_name}': {e}")
-            if box_directors and not result.director:
-                result.director = " / ".join(box_directors)
-            if box_genres and not result.genres:
-                result.genres = ", ".join(box_genres)
+    # Re-run box-set enrichment now that we have films from the collection.
+    if result.films_included and not any(e.get("year") for e in result.films_included if isinstance(e, dict)):
+        box_directors: list[str] = []
+        box_genres: list[str] = list((result.genres or "").split(", ")) if result.genres else []
+        resolved_tmdb_ids: set[int] = set()
+        for entry in result.films_included:
+            if not isinstance(entry, dict):
+                continue
+            film_name = entry.get("title", "")
+            if not film_name or entry.get("year"):
+                continue
+            normalized = _normalize_lookup_title(film_name)
+            try:
+                film_data = await tmdb.lookup(normalized)
+                if film_data is None and normalized != film_name:
+                    film_data = await tmdb.lookup(film_name)
+                if film_data and film_data.get("tmdb_id"):
+                    resolved_tmdb_ids.add(film_data["tmdb_id"])
+                if film_data:
+                    entry["title"] = film_data.get("title") or film_name
+                    entry["year"] = film_data.get("year")
+                    entry["director"] = film_data.get("director", "")
+                    d = film_data.get("director", "")
+                    if d and d not in box_directors:
+                        box_directors.append(d)
+                    for g in (film_data.get("genres") or "").split(", "):
+                        if g and g not in box_genres:
+                            box_genres.append(g)
+                    if not result.overview and film_data.get("overview"):
+                        result.overview = film_data["overview"]
+            except Exception as e:
+                result.warnings.append(f"Collection TMDB enrichment failed for '{film_name}': {e}")
+        if box_directors and not result.director:
+            result.director = " / ".join(box_directors)
+        if box_genres and not result.genres:
+            result.genres = ", ".join(box_genres)
 
     # ── Step 4: Letterboxd personal rating ───────────────────────────────────
     # For multi-film discs look up each component film individually and store
