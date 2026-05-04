@@ -163,6 +163,17 @@
     </button>
   </div>
 
+  <!-- Blu-ray.com URL entry -->
+  <div class="flex gap-2">
+    <input id="manual-bluray-url" type="text" inputmode="url" placeholder="Blu-ray.com URL or ID…"
+      class="flex-1 px-4 py-2.5 text-sm rounded-xl bg-[#1c1c1c] border border-[#2a2a2a] text-white placeholder-[#444] focus:border-accent focus:outline-none"
+      onkeydown="if(event.key==='Enter') lookupBlurayUrl()">
+    <button onclick="lookupBlurayUrl()"
+      class="px-4 py-2.5 bg-[#1c1c1c] border border-[#2a2a2a] text-[#777] hover:text-white rounded-xl text-sm transition-colors">
+      Go
+    </button>
+  </div>
+
 </div>
 
 <!-- ── LOADING SECTION ── -->
@@ -181,7 +192,7 @@
       <p class="text-sm font-semibold text-white mb-1">Disc not recognized</p>
       <p id="notfound-upc" class="text-xs font-mono text-[#444]"></p>
     </div>
-    <p class="text-xs text-[#555]">Search by title to add it manually:</p>
+    <p class="text-xs text-[#555]">Search by title or paste a Blu-ray.com URL:</p>
     <div class="flex flex-col gap-2">
       <input id="title-search-input" type="text" placeholder="Movie title…"
         class="w-full px-4 py-2.5 text-sm rounded-xl bg-[#141414] border border-[#2a2a2a] text-white placeholder-[#444] focus:border-accent focus:outline-none"
@@ -189,11 +200,18 @@
       <input id="year-search-input" type="text" inputmode="numeric" placeholder="Year (optional)"
         class="w-full px-4 py-2.5 text-sm rounded-xl bg-[#141414] border border-[#2a2a2a] text-white placeholder-[#444] focus:border-accent focus:outline-none"
         onkeydown="if(event.key==='Enter') searchByTitle()">
+      <input id="notfound-bluray-url" type="text" placeholder="Blu-ray.com URL or ID (for international releases)"
+        class="w-full px-4 py-2.5 text-sm rounded-xl bg-[#141414] border border-[#2a2a2a] text-white placeholder-[#444] focus:border-accent focus:outline-none"
+        onkeydown="if(event.key==='Enter') lookupBlurayUrl()">
     </div>
     <div class="flex gap-3">
       <button onclick="searchByTitle()"
         class="flex-1 bg-accent hover:bg-[#0090c8] active:bg-[#007ab0] text-white py-3 rounded-xl text-sm font-semibold transition-colors">
         Search
+      </button>
+      <button onclick="lookupBlurayUrl()"
+        class="flex-1 bg-[#222] hover:bg-[#2a2a2a] active:bg-[#303030] text-white py-3 rounded-xl text-sm font-semibold transition-colors">
+        Blu-ray.com
       </button>
       <button onclick="goBack()"
         class="px-5 py-3 bg-[#222] hover:bg-[#2a2a2a] active:bg-[#303030] text-[#999] rounded-xl text-sm transition-colors">
@@ -423,6 +441,44 @@ async function lookupManual() {
   $('manual-upc').value = '';
   hideError();
   await handleUpc(upc);
+}
+
+function parseBlurayId(raw) {
+  const m = raw.match(/blu-ray\.com\/movies\/[^/]+\/(\d+)\/?/i) || raw.match(/^(\d+)$/);
+  return m ? parseInt(m[1]) : null;
+}
+
+async function lookupBlurayUrl() {
+  const raw = ($('manual-bluray-url') || $('notfound-bluray-url'))?.value?.trim()
+    || $('manual-bluray-url')?.value?.trim()
+    || $('notfound-bluray-url')?.value?.trim()
+    || '';
+  // Check both inputs
+  const urlA = $('manual-bluray-url')?.value?.trim() || '';
+  const urlB = $('notfound-bluray-url')?.value?.trim() || '';
+  const input = urlA || urlB;
+  if (!input) return;
+  const bid = parseBlurayId(input);
+  if (!bid) { showError('Could not parse a Blu-ray.com ID from that URL.'); return; }
+  if ($('manual-bluray-url')) $('manual-bluray-url').value = '';
+  if ($('notfound-bluray-url')) $('notfound-bluray-url').value = '';
+  hideError();
+  showSection('loading');
+  $('loading-text').textContent = `Fetching Blu-ray.com release ${bid}…`;
+  try {
+    const res = await fetch('/releases/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bluray_com_id: bid }),
+    });
+    if (!res.ok) throw new Error(await res.text().catch(() => `HTTP ${res.status}`));
+    const data = await res.json();
+    if (!data.title) { showSection('notfound'); showError('No metadata found for that release.'); return; }
+    showResult(data, String(bid));
+  } catch(e) {
+    showSection('scanner');
+    showError(`Lookup failed: ${e.message}`);
+  }
 }
 
 // ── Lookup + display ───────────────────────────────────────────────────────
