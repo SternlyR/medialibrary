@@ -167,9 +167,11 @@ class TMDBClient:
           then without trailing collection word.
 
         Strategy 2 — movie belongs_to_collection:
-          Strip collection words to get a core series name (e.g. "Before"),
-          search movies, and check each result's belongs_to_collection field.
-          This works even when TMDB has no collection named after the disc.
+          Search for the title without the leading article (e.g. "Before Trilogy"),
+          check each result's belongs_to_collection field, and return parts from
+          the first collection whose size matches the expected count.
+          Using "Before Trilogy" (not just "Before") avoids false positives like
+          "The Land Before Time" (14 films) when we expect exactly 3.
         """
         import re
 
@@ -178,6 +180,18 @@ class TMDBClient:
             r'\s+(Trilogy|Collection|Box\s*Set|Series|Anthology|Films?|Quadrilogy)\s*$',
             re.IGNORECASE,
         )
+
+        # Expected film count from collection keyword ("Trilogy" → 3, "Quadrilogy" → 4)
+        expected_count: int | None = None
+        if re.search(r'\btrilogy\b', title, re.IGNORECASE):
+            expected_count = 3
+        elif re.search(r'\bquadrilogy\b', title, re.IGNORECASE):
+            expected_count = 4
+
+        def _parts_ok(parts: list[str]) -> bool:
+            if len(parts) < 2:
+                return False
+            return expected_count is None or len(parts) == expected_count
 
         # Build title variants for collection search
         variants: list[str] = [title]
@@ -195,30 +209,33 @@ class TMDBClient:
         for variant in variants:
             try:
                 results = await self.search_collection(variant)
-                if results:
-                    parts = await self.get_collection_parts(results[0]["id"])
-                    if len(parts) >= 2:
+                for c in results[:5]:
+                    parts = await self.get_collection_parts(c["id"])
+                    if _parts_ok(parts):
                         return parts
             except Exception:
                 pass
 
         # Strategy 2: movie search → belongs_to_collection
-        # Core title = strip article + suffix (e.g. "The Before Trilogy" → "Before")
-        core = _ARTICLE_RE.sub('', _SUFFIX_RE.sub('', title)).strip()
-        if not core:
-            return []
-        try:
-            movie_results = await self.search_movie(core)
-            seen_coll: set[int] = set()
-            for movie in movie_results[:8]:
-                details = await self.get_movie_details(movie["id"])
-                coll = details.get("belongs_to_collection")
-                if coll and coll.get("id") and coll["id"] not in seen_coll:
+        # Use title-without-article ("Before Trilogy") as the search term so
+        # TMDB returns more relevant results than the bare core word ("Before").
+        # The expected_count filter then rejects wrong-sized collections even if
+        # an unrelated franchise (e.g. The Land Before Time, 14 films) appears first.
+        search_terms = [t for t in [no_article, _ARTICLE_RE.sub('', no_suffix).strip()] if t]
+        seen_coll: set[int] = set()
+        for term in search_terms:
+            try:
+                movie_results = await self.search_movie(term)
+                for movie in movie_results[:10]:
+                    details = await self.get_movie_details(movie["id"])
+                    coll = details.get("belongs_to_collection")
+                    if not coll or not coll.get("id") or coll["id"] in seen_coll:
+                        continue
                     seen_coll.add(coll["id"])
                     parts = await self.get_collection_parts(coll["id"])
-                    if len(parts) >= 2:
+                    if _parts_ok(parts):
                         return parts
-        except Exception:
-            pass
+            except Exception:
+                pass
 
         return []
