@@ -87,7 +87,11 @@ class BlurayClient:
             if r.status_code == 404:
                 return None
             r.raise_for_status()
-        return _parse_release_page(bluray_com_id, r.text)
+        # Pass raw bytes so BeautifulSoup reads the page's declared charset.
+        # httpx decodes as UTF-8 by default, turning Latin-1 bytes like 0xB3 (³)
+        # into U+FFFD replacement characters. Passing bytes lets bs4 detect the
+        # correct encoding from the <meta charset> tag.
+        return _parse_release_page(bluray_com_id, r.content)
 
     async def search_by_upc(self, upc: str) -> dict | None:
         """Search Blu-ray.com by UPC/barcode for an exact disc match."""
@@ -186,7 +190,7 @@ def _parse_search_results(html: str) -> list[dict]:
     return results
 
 
-def _parse_release_page(bluray_com_id: int, html: str) -> dict:
+def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
     """Parse a blu-ray.com movie details page into structured release metadata."""
     soup = BeautifulSoup(html, "html.parser")
     data: dict[str, Any] = {"bluray_com_id": bluray_com_id}

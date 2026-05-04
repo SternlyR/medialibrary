@@ -104,7 +104,10 @@ def _normalize_lookup_title(title: str) -> str:
     """Normalize superscript digits for TMDB/Letterboxd lookups.
 
     'Alien³' → 'Alien3' so API searches find the correct film.
+    Strips U+FFFD replacement characters that appear when a scraper
+    mis-decodes Latin-1 bytes (e.g. 0xB3 for ³) as UTF-8.
     """
+    title = title.replace('�', '')
     for sup, replacement in _SUPERSCRIPT.items():
         title = title.replace(sup, replacement)
     return title.strip()
