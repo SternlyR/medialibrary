@@ -648,6 +648,7 @@ async def debug_bluray_id(id: int = Query(...), url: Optional[str] = Query(None)
         "url_used": url or f"https://www.blu-ray.com/movies/_/{id}/",
         "title": detail.get("title"),
         "film_year": detail.get("film_year"),
+        "director": detail.get("director"),
         "label": detail.get("label"),
         "region": detail.get("region"),
         "format": detail.get("format"),
