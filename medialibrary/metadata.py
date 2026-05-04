@@ -281,6 +281,10 @@ async def enrich(
         if not result.runtime_minutes and bluray_data.get("runtime_minutes"):
             result.runtime_minutes = bluray_data["runtime_minutes"]
 
+        # Use Blu-ray.com director as fallback (box-set pages carry it directly)
+        if not result.director and bluray_data.get("director"):
+            result.director = bluray_data["director"]
+
         # Use Blu-ray.com UPC if we don't have one from scan
         if not result.upc and bluray_data.get("upc"):
             result.upc = bluray_data["upc"]
