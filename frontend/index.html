@@ -763,7 +763,7 @@ createApp({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
-        if (!res.ok) throw new Error('Failed to save.');
+        if (!res.ok) throw new Error(await res.text().catch(() => 'Failed to save.'));
         const saved = await res.json();
         releases.value.push(saved);
         closeAdd();

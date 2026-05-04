@@ -194,6 +194,19 @@ async def enrich(
         except Exception as e:
             result.warnings.append(f"Blu-ray.com UPC search failed: {e}")
 
+    # When bluray_com_id was given directly (e.g. international release pasted by
+    # URL), there may be no UPC and no title input. Extract title/year from the
+    # Blu-ray.com page so TMDB lookup can proceed.
+    if bluray_data and not title:
+        raw_bluray_title = bluray_data.get("title", "")
+        # Strip format suffixes so TMDB finds the film, not the disc variant
+        title = re.sub(
+            r'\s*\b(4K|UHD|Ultra\s*HD|Blu[- ]?ray|BD)\b.*$',
+            '', raw_bluray_title, flags=re.IGNORECASE,
+        ).strip() or raw_bluray_title
+    if bluray_data and not year and bluray_data.get("film_year"):
+        year = bluray_data["film_year"]
+
     # ── Step 2: TMDB movie metadata ──────────────────────────────────────────
     tmdb_data: dict | None = None
     if tmdb_id:
