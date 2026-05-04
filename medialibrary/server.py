@@ -252,11 +252,14 @@ async def add_release(req: AddReleaseRequest):
         if result.upc:
             stmt = select(PhysicalRelease).where(PhysicalRelease.upc == result.upc)
             release = (await session.execute(stmt)).scalar_one_or_none()
+        if not release and result.bluray_com_id:
+            stmt = select(PhysicalRelease).where(PhysicalRelease.bluray_com_id == result.bluray_com_id)
+            release = (await session.execute(stmt)).scalar_one_or_none()
 
         if not release:
             release = PhysicalRelease(
                 movie_id=movie.id,
-                upc=result.upc,
+                upc=result.upc or None,
                 bluray_com_id=result.bluray_com_id,
                 format=result.format,
                 label=result.label,

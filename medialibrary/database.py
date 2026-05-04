@@ -85,6 +85,12 @@ async def init_db():
         # Migrations: add new columns to existing databases
         for col_sql in [
             "ALTER TABLE physical_releases ADD COLUMN films_included TEXT",
+            "ALTER TABLE physical_releases ADD COLUMN owned TEXT DEFAULT 'yes'",
+            "ALTER TABLE physical_releases ADD COLUMN condition TEXT",
+            "ALTER TABLE movies ADD COLUMN letterboxd_synced_at DATETIME",
+            # Convert empty-string UPCs to NULL so the unique constraint allows
+            # multiple no-UPC releases (SQLite permits multiple NULLs in a unique column).
+            "UPDATE physical_releases SET upc = NULL WHERE upc = ''",
         ]:
             try:
                 await conn.execute(text(col_sql))
