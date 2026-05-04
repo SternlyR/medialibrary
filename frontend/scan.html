@@ -370,7 +370,7 @@ async function startScan() {
     $('btn-scan').classList.add('text-[#aaa]');
     $('btn-scan').classList.remove('text-white');
 
-    setTimeout(checkCameraCapabilities, 700);
+    setTimeout(checkCameraCapabilities, 250);
 
   } catch (e) {
     scanner = null;
@@ -714,9 +714,20 @@ async function checkCameraCapabilities() {
       zoomSupported = true;
       zoomMin = caps.zoom.min ?? 1.0;
       zoomMax = caps.zoom.max;
-      zoomCurrent = 1.0;
       $('zoom-controls').style.display = 'flex';
       anyControl = true;
+
+      // If the device has a wide/macro lens (zoom min < 1.0, e.g. 0.5× ultrawide
+      // on iPhone Pro), engage it immediately so the camera starts in close-focus
+      // mode rather than waiting for the auto-switch when held near a barcode.
+      if (zoomMin < 1.0) {
+        zoomCurrent = zoomMin;
+        const track = getCameraTrack();
+        await track?.applyConstraints({ advanced: [{ zoom: zoomMin }] });
+      } else {
+        zoomCurrent = 1.0;
+      }
+      $('zoom-label').textContent = `${zoomCurrent.toFixed(1)}×`;
     }
 
     if (anyControl) {
