@@ -634,6 +634,90 @@ async def debug_bluray_upc(upc: str = Query(...)):
     }
 
 
+@app.get("/debug/bluray-id", summary="Show raw Blu-ray.com data for a release ID")
+async def debug_bluray_id(id: int = Query(...), url: Optional[str] = Query(None)):
+    """Diagnostic: fetches the Blu-ray.com detail page directly by ID (+ optional URL)
+    and shows what the scraper extracts — title, films_included, year, etc."""
+    from medialibrary.api.bluray import BlurayClient
+    client = BlurayClient()
+    detail = await client.get_release(id, url)
+    if not detail:
+        return {"bluray_com_id": id, "detail": None, "error": "404 or fetch failed"}
+    return {
+        "bluray_com_id": id,
+        "url_used": url or f"https://www.blu-ray.com/movies/_/{id}/",
+        "title": detail.get("title"),
+        "film_year": detail.get("film_year"),
+        "label": detail.get("label"),
+        "region": detail.get("region"),
+        "format": detail.get("format"),
+        "films_included": detail.get("films_included", []),
+    }
+
+
+@app.get("/debug/tmdb-collection", summary="Show TMDB collection search results")
+async def debug_tmdb_collection(q: str = Query(...)):
+    """Diagnostic: searches TMDB /search/collection and shows matching collections
+    and their parts. Used to verify the collection fallback will find the right set."""
+    from medialibrary.api.tmdb import TMDBClient
+    tmdb = TMDBClient()
+    results = await tmdb.search_collection(q)
+    out = []
+    for c in results[:5]:
+        try:
+            parts = await tmdb.get_collection_parts(c["id"])
+        except Exception as e:
+            parts = [f"ERROR: {e}"]
+        out.append({
+            "id": c.get("id"),
+            "name": c.get("name"),
+            "parts": parts,
+        })
+    return {"query": q, "collections_found": len(results), "results": out}
+
+
+@app.get("/debug/enrich-trace", summary="Trace full enrichment pipeline step by step")
+async def debug_enrich_trace(
+    upc: Optional[str] = Query(None),
+    bluray_com_id: Optional[int] = Query(None),
+    bluray_com_url: Optional[str] = Query(None),
+    title: Optional[str] = Query(None),
+    year: Optional[int] = Query(None),
+    tmdb_id: Optional[int] = Query(None),
+):
+    """Diagnostic: runs enrich() and returns the full result dict plus warnings.
+    Useful for checking what each pipeline step actually produced."""
+    from medialibrary.metadata import enrich
+    if not any([upc, bluray_com_id, title, tmdb_id]):
+        return {"error": "Provide at least one of: upc, bluray_com_id, title, tmdb_id"}
+    result = await enrich(
+        upc=upc,
+        title=title,
+        year=year,
+        bluray_com_id=bluray_com_id,
+        bluray_com_url=bluray_com_url,
+        tmdb_id=tmdb_id,
+    )
+    d = result.to_dict()
+    return {
+        "title": d.get("title"),
+        "year": d.get("year"),
+        "director": d.get("director"),
+        "genres": d.get("genres"),
+        "overview": d.get("overview", "")[:200] if d.get("overview") else None,
+        "tmdb_id": d.get("tmdb_id"),
+        "upc": d.get("upc"),
+        "bluray_com_id": d.get("bluray_com_id"),
+        "format": d.get("format"),
+        "label": d.get("label"),
+        "region": d.get("region"),
+        "films_included": d.get("films_included", []),
+        "letterboxd_rating": d.get("letterboxd_rating"),
+        "sources": d.get("sources", []),
+        "warnings": d.get("warnings", []),
+    }
+
+
 @app.get("/bluray/search-covers", summary="Search blu-ray.com and return cover art options")
 async def search_covers(
     title: str = Query(...),
