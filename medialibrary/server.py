@@ -657,23 +657,21 @@ async def debug_bluray_id(id: int = Query(...), url: Optional[str] = Query(None)
 
 @app.get("/debug/tmdb-collection", summary="Show TMDB collection search results")
 async def debug_tmdb_collection(q: str = Query(...)):
-    """Diagnostic: searches TMDB /search/collection and shows matching collections
-    and their parts. Used to verify the collection fallback will find the right set."""
+    """Diagnostic: tries all collection-search strategies for a disc title.
+    Shows which variant (if any) resolves to a collection and its film list."""
     from medialibrary.api.tmdb import TMDBClient
     tmdb = TMDBClient()
-    results = await tmdb.search_collection(q)
-    out = []
-    for c in results[:5]:
-        try:
-            parts = await tmdb.get_collection_parts(c["id"])
-        except Exception as e:
-            parts = [f"ERROR: {e}"]
-        out.append({
-            "id": c.get("id"),
-            "name": c.get("name"),
-            "parts": parts,
-        })
-    return {"query": q, "collections_found": len(results), "results": out}
+    # Show raw collection search results for the query as-is
+    raw_results = await tmdb.search_collection(q)
+    raw_out = [{"id": c.get("id"), "name": c.get("name")} for c in raw_results[:5]]
+    # Run the full multi-strategy finder
+    parts = await tmdb.find_collection_for_title(q)
+    return {
+        "query": q,
+        "raw_collection_search": raw_out,
+        "find_collection_result": parts,
+        "found": len(parts) >= 2,
+    }
 
 
 @app.get("/debug/enrich-trace", summary="Trace full enrichment pipeline step by step")

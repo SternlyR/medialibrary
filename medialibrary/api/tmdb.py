@@ -158,3 +158,67 @@ class TMDBClient:
             parts = r.json().get("parts", [])
         parts.sort(key=lambda p: p.get("release_date") or "")
         return [p["title"] for p in parts if p.get("title")]
+
+    async def find_collection_for_title(self, title: str) -> list[str]:
+        """Best-effort: return collection film titles for a box-set disc title.
+
+        Strategy 1 — collection search with title variants:
+          "The Before Trilogy" → try as-is, then without leading article,
+          then without trailing collection word.
+
+        Strategy 2 — movie belongs_to_collection:
+          Strip collection words to get a core series name (e.g. "Before"),
+          search movies, and check each result's belongs_to_collection field.
+          This works even when TMDB has no collection named after the disc.
+        """
+        import re
+
+        _ARTICLE_RE = re.compile(r'^(The|A|An)\s+', re.IGNORECASE)
+        _SUFFIX_RE = re.compile(
+            r'\s+(Trilogy|Collection|Box\s*Set|Series|Anthology|Films?|Quadrilogy)\s*$',
+            re.IGNORECASE,
+        )
+
+        # Build title variants for collection search
+        variants: list[str] = [title]
+        no_article = _ARTICLE_RE.sub('', title).strip()
+        if no_article != title:
+            variants.append(no_article)
+        no_suffix = _SUFFIX_RE.sub('', title).strip()
+        if no_suffix and no_suffix not in variants:
+            variants.append(no_suffix)
+            no_art_no_suf = _ARTICLE_RE.sub('', no_suffix).strip()
+            if no_art_no_suf not in variants:
+                variants.append(no_art_no_suf)
+
+        # Strategy 1: collection search
+        for variant in variants:
+            try:
+                results = await self.search_collection(variant)
+                if results:
+                    parts = await self.get_collection_parts(results[0]["id"])
+                    if len(parts) >= 2:
+                        return parts
+            except Exception:
+                pass
+
+        # Strategy 2: movie search → belongs_to_collection
+        # Core title = strip article + suffix (e.g. "The Before Trilogy" → "Before")
+        core = _ARTICLE_RE.sub('', _SUFFIX_RE.sub('', title)).strip()
+        if not core:
+            return []
+        try:
+            movie_results = await self.search_movie(core)
+            seen_coll: set[int] = set()
+            for movie in movie_results[:8]:
+                details = await self.get_movie_details(movie["id"])
+                coll = details.get("belongs_to_collection")
+                if coll and coll.get("id") and coll["id"] not in seen_coll:
+                    seen_coll.add(coll["id"])
+                    parts = await self.get_collection_parts(coll["id"])
+                    if len(parts) >= 2:
+                        return parts
+        except Exception:
+            pass
+
+        return []

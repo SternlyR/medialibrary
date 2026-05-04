@@ -434,19 +434,16 @@ async def enrich(
     if not result.films_included and " / " not in _check_title and _check_title:
         if _COLLECTION_WORDS.search(_check_title):
             try:
-                coll_results = await tmdb.search_collection(_check_title)
-                if coll_results:
-                    parts = await tmdb.get_collection_parts(coll_results[0]["id"])
-                    if len(parts) >= 2:
-                        result.films_included = [
-                            {"title": t, "letterboxd_rating": None} for t in parts
-                        ]
-                        result.sources.append("tmdb-collection")
-                        # The stored tmdb_id likely points to an individual film
-                        # in the set (wrong match). Clear it so the box set is
-                        # not incorrectly linked to one component film's record.
-                        result.tmdb_id = None
-                        result.imdb_id = ""
+                parts = await tmdb.find_collection_for_title(_check_title)
+                if len(parts) >= 2:
+                    result.films_included = [
+                        {"title": t, "letterboxd_rating": None} for t in parts
+                    ]
+                    result.sources.append("tmdb-collection")
+                    # Clear any wrong tmdb_id that may point to an individual
+                    # film rather than the box set itself.
+                    result.tmdb_id = None
+                    result.imdb_id = ""
             except Exception as e:
                 result.warnings.append(f"TMDB collection fallback failed: {e}")
 
