@@ -421,6 +421,7 @@
           <div class="flex bg-[#141414] rounded-lg p-0.5 mb-5 border border-[#222]">
             <button @click="addMode='upc'" :class="['flex-1 py-1.5 text-sm rounded-md transition-colors font-medium', addMode==='upc' ? 'bg-accent text-white' : 'text-[#666] hover:text-[#aaa]']">UPC Barcode</button>
             <button @click="addMode='title'" :class="['flex-1 py-1.5 text-sm rounded-md transition-colors font-medium', addMode==='title' ? 'bg-accent text-white' : 'text-[#666] hover:text-[#aaa]']">Title / Manual</button>
+            <button @click="addMode='bluray'" :class="['flex-1 py-1.5 text-sm rounded-md transition-colors font-medium', addMode==='bluray' ? 'bg-accent text-white' : 'text-[#666] hover:text-[#aaa]']">Blu-ray.com</button>
           </div>
 
           <!-- UPC input -->
@@ -429,6 +430,15 @@
             <input v-model="addUpc" type="text" placeholder="e.g. 843501637036"
               @keyup.enter="lookupDisc"
               class="w-full px-4 py-3 text-lg tracking-widest rounded-lg">
+          </div>
+
+          <!-- Blu-ray.com URL input -->
+          <div v-else-if="addMode==='bluray'" class="mb-4">
+            <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-1.5">Blu-ray.com URL or ID</label>
+            <input v-model="addBlurayUrl" type="text" placeholder="https://www.blu-ray.com/movies/…/351514/"
+              @keyup.enter="lookupDisc"
+              class="w-full px-3 py-2.5 text-sm rounded-lg">
+            <p class="text-[11px] text-[#444] mt-1.5">Paste the full URL or just the numeric ID from any Blu-ray.com release page.</p>
           </div>
 
           <!-- Title input -->
@@ -534,6 +544,7 @@ createApp({
     const addUpc    = ref('');
     const addTitle  = ref('');
     const addYear   = ref(null);
+    const addBlurayUrl = ref('');
     const addLoading = ref(false);
     const addError  = ref('');
     const addPreview = ref(null);
@@ -698,16 +709,28 @@ createApp({
 
     // ── Add disc ───────────────────────────────────────────
     function openAdd()  { showAdd.value = true; addPreview.value = null; addError.value = ''; }
-    function closeAdd() { showAdd.value = false; addPreview.value = null; addError.value = ''; addUpc.value = ''; addTitle.value = ''; addYear.value = null; }
+    function closeAdd() { showAdd.value = false; addPreview.value = null; addError.value = ''; addUpc.value = ''; addTitle.value = ''; addYear.value = null; addBlurayUrl.value = ''; }
+
+    function parseBlurayId(url) {
+      const m = url.match(/blu-ray\.com\/movies\/[^/]+\/(\d+)\/?/i) || url.match(/^(\d+)$/);
+      return m ? parseInt(m[1]) : null;
+    }
 
     async function lookupDisc() {
       addError.value   = '';
       addPreview.value = null;
       addLoading.value = true;
       try {
-        const body = addMode.value === 'upc'
-          ? { upc: addUpc.value.trim() }
-          : { title: addTitle.value.trim(), year: addYear.value || undefined };
+        let body;
+        if (addMode.value === 'upc') {
+          body = { upc: addUpc.value.trim() };
+        } else if (addMode.value === 'bluray') {
+          const bid = parseBlurayId(addBlurayUrl.value.trim());
+          if (!bid) { addError.value = 'Could not parse a Blu-ray.com ID from that URL.'; addLoading.value = false; return; }
+          body = { bluray_com_id: bid };
+        } else {
+          body = { title: addTitle.value.trim(), year: addYear.value || undefined };
+        }
         const res = await fetch('/releases/lookup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -725,9 +748,14 @@ createApp({
     async function saveDisc() {
       addLoading.value = true;
       try {
-        const body = addMode.value === 'upc'
-          ? { upc: addUpc.value.trim() }
-          : { title: addTitle.value.trim(), year: addYear.value || undefined };
+        let body;
+        if (addMode.value === 'upc') {
+          body = { upc: addUpc.value.trim() };
+        } else if (addMode.value === 'bluray') {
+          body = { bluray_com_id: parseBlurayId(addBlurayUrl.value.trim()) };
+        } else {
+          body = { title: addTitle.value.trim(), year: addYear.value || undefined };
+        }
         const res = await fetch('/releases', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -872,7 +900,7 @@ createApp({
     return {
       releases, loading, view, searchQuery, sortBy,
       detail, editing, saving, showBack, form,
-      showAdd, addMode, addUpc, addTitle, addYear, addLoading, addError, addPreview,
+      showAdd, addMode, addUpc, addTitle, addYear, addBlurayUrl, addLoading, addError, addPreview, parseBlurayId,
       delTarget,
       allColumns, visibleColumns, detailFields, filtered,
       stars, toggleSort, filmTitle, filmYear, filmDirector, filmStars, updateFilmsIncluded,
