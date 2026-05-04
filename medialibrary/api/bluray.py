@@ -420,32 +420,33 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
     )
     data["films_included"] = [f for f in films_included if not _NON_FILM_RE.match(f)]
 
-    # Fallback: bundle-film links in div#movie_info
-    # Box sets like "The Before Trilogy" don't use subheadingtitle for film listing.
-    # Instead the page has hoverlink anchors with title="Film Name (YEAR)" inside
-    # a "This Blu-ray bundle includes the following titles" section.
-    if not data["films_included"]:
-        _TITLE_YEAR_RE = re.compile(r'^(.+?)\s*\(\d{4}\)\s*$')
-        bundle = []
-        for link in soup.select("a.hoverlink[data-productid]"):
-            t = link.get("title", "")
-            m = _TITLE_YEAR_RE.match(t)
-            if m:
-                film_title = m.group(1).strip()
-                if film_title and film_title not in bundle:
-                    bundle.append(film_title)
-        if len(bundle) >= 2:
-            data["films_included"] = bundle
-
-    # Director from div#movie_info (present on bundle/box-set pages)
-    # e.g. "Director: Richard Linklater\nWriters: ..."
+    # Fallback: bundle-film links and director from div#movie_info.
+    # Box sets like "The Before Trilogy" list films as hoverlink anchors inside
+    # div#movie_info (title="Before Sunrise (1995)") rather than in subheadingtitle.
+    # Restrict search to div#movie_info — the "Similar titles you might also like"
+    # section outside that div uses the same hoverlink class and must be excluded.
     data["director"] = ""
     movie_info_div = soup.find("div", id="movie_info")
     if movie_info_div:
+        # Director: first link after "Director:" text node
         info_text = movie_info_div.get_text(" ", strip=True)
         d_m = re.search(r'Director:\s*(.+?)(?=\s+\w+:|$)', info_text)
         if d_m:
             data["director"] = d_m.group(1).strip()
+
+        # Bundle films — only if subheadingtitle parsing found nothing
+        if not data["films_included"]:
+            _TITLE_YEAR_RE = re.compile(r'^(.+?)\s*\(\d{4}\)\s*$')
+            bundle = []
+            for link in movie_info_div.select("a.hoverlink[data-productid]"):
+                t = link.get("title", "")
+                m = _TITLE_YEAR_RE.match(t)
+                if m:
+                    film_title = m.group(1).strip()
+                    if film_title and film_title not in bundle:
+                        bundle.append(film_title)
+            if len(bundle) >= 2:
+                data["films_included"] = bundle
 
     # Fallback: try specs table (older page layouts)
     if not data["label"] or not data["physical_release_date"]:
