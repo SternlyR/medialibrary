@@ -538,6 +538,9 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
     # Restrict search to div#movie_info — the "Similar titles you might also like"
     # section outside that div uses the same hoverlink class and must be excluded.
     _TITLE_YEAR_RE = re.compile(r'^(.+?)\s*\(\d{4}\)\s*$')
+    _FORMAT_SUFFIX_RE = re.compile(
+        r'\s*\b(4K|UHD|Ultra\s*HD|Blu[- ]?ray|BD)\b.*$', re.IGNORECASE
+    )
 
     data["director"] = ""
     movie_info_div = soup.find("div", id="movie_info")
@@ -556,7 +559,7 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
                 t = link.get("title", "")
                 m = _TITLE_YEAR_RE.match(t)
                 if m:
-                    film_title = m.group(1).strip()
+                    film_title = _FORMAT_SUFFIX_RE.sub("", m.group(1)).strip()
                     if film_title and film_title not in bundle:
                         bundle.append(film_title)
             if len(bundle) >= 2:
@@ -585,7 +588,7 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
                     t = link.get("title", "")
                     m = _TITLE_YEAR_RE.match(t)
                     if m:
-                        film_title = m.group(1).strip()
+                        film_title = _FORMAT_SUFFIX_RE.sub("", m.group(1)).strip()
                         if film_title and film_title not in bundle:
                             bundle.append(film_title)
                 break
