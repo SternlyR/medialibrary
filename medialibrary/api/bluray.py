@@ -549,7 +549,10 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
         info_text = movie_info_div.get_text(" ", strip=True)
         d_m = re.search(r'Directors?:\s*(.+?)(?=\s+\w+:|$)', info_text)
         if d_m:
-            data["director"] = d_m.group(1).strip()
+            director = d_m.group(1).strip()
+            # Normalize comma-separated names to " / " (consistent with TMDB enrichment)
+            director = re.sub(r',\s*', ' / ', director)
+            data["director"] = director
 
         # Bundle films from div#movie_info hoverlinks — only if subheadingtitle
         # parsing found nothing (e.g. "The Before Trilogy" lists films this way).
