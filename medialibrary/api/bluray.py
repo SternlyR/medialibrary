@@ -117,7 +117,12 @@ class BlurayClient:
         return await self._quicksearch_by_barcode(upc)
 
     async def _quicksearch_by_barcode(self, barcode: str) -> dict | None:
-        """Use Blu-ray.com's quicksearch (autocomplete) endpoint for barcode lookup."""
+        """Use Blu-ray.com's quicksearch (autocomplete) endpoint for barcode lookup.
+
+        Blu-ray.com redirects to the exact release page on an EAN match, so we
+        detect the redirect and parse the page directly rather than treating it
+        as a search-results list (which would pick up 'Similar titles' hoverlinks).
+        """
         qs_headers = {
             **HEADERS,
             "Referer": "https://www.blu-ray.com/",
@@ -133,22 +138,15 @@ class BlurayClient:
             r = await client.get(f"{self.base}/search/", params=params)
             if r.status_code != 200:
                 return None
+            final_url = str(r.url)
 
-        # Response is HTML containing <a class="hoverlink" data-productid="...">
-        candidates = _parse_search_results(r.text)
-        if not candidates:
-            return None
-        stub = candidates[0]
-        details = await self.get_release(stub["bluray_com_id"], stub.get("detail_url"))
-        if details and not details.get("film_year"):
-            year = stub.get("year")
-            if not year:
-                m = re.search(r'\((\d{4})\)', stub.get("title", ""))
-                if m:
-                    year = int(m.group(1))
-            if year:
-                details["film_year"] = year
-        return details
+        # Redirect to a release detail page — parse it directly.
+        id_match = re.search(r'/movies/[^/]+/(\d+)/?$', final_url)
+        if id_match and "search" not in final_url:
+            bluray_id = int(id_match.group(1))
+            return _parse_release_page(bluray_id, r.content)
+
+        return None
 
     async def _fetch_by_barcode(self, barcode: str) -> dict | None:
         """Search Blu-ray.com for a single barcode string.
