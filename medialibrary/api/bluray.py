@@ -94,8 +94,57 @@ class BlurayClient:
         return _parse_release_page(bluray_com_id, r.content)
 
     async def search_by_upc(self, upc: str) -> dict | None:
-        """Search Blu-ray.com by UPC/barcode for an exact disc match."""
-        candidates = await self.search(upc)
+        """Search Blu-ray.com by UPC/barcode. Handles UPC-A (12-digit) and EAN-13.
+
+        Blu-ray.com sometimes redirects directly to the release page on an exact
+        barcode match rather than returning a search-results list. We detect that
+        by inspecting the final URL of the search response.
+
+        For EAN-13 codes (13 digits) that Blu-ray.com has indexed under their
+        UPC-A equivalent, we also retry with the leading digit stripped.
+        """
+        result = await self._fetch_by_barcode(upc)
+        if result:
+            return result
+
+        # EAN-13 fallback: strip the leading digit to get UPC-A (12 digits).
+        # Many international EAN-13 codes are stored on Blu-ray.com as their
+        # UPC-A equivalent (e.g. 5050582123456 → 050582123456).
+        if len(upc) == 13 and upc.isdigit():
+            result = await self._fetch_by_barcode(upc[1:])
+            if result:
+                return result
+
+        return None
+
+    async def _fetch_by_barcode(self, barcode: str) -> dict | None:
+        """Search Blu-ray.com for a single barcode string.
+
+        Handles two Blu-ray.com behaviours:
+          a) Returns a search-results HTML page  → parse hoverlinks
+          b) Redirects straight to a release page → parse as release detail
+        """
+        params = {
+            "keyword": barcode,
+            "submit": "Search",
+            "action": "search",
+        }
+        async with httpx.AsyncClient(headers=HEADERS, timeout=20, follow_redirects=True) as client:
+            r = await client.get(f"{self.base}/movies/search.php", params=params)
+            if r.status_code == 404:
+                return None
+            r.raise_for_status()
+            final_url = str(r.url)
+
+        # Case (b): Blu-ray.com redirected to a release detail page directly.
+        # The URL changes from search.php to /movies/<slug>/<id>/
+        id_match = re.search(r'/movies/[^/]+/(\d+)/?$', final_url)
+        if id_match and "search.php" not in final_url:
+            bluray_id = int(id_match.group(1))
+            return _parse_release_page(bluray_id, r.content)
+
+        # Case (a): normal search-results page.
+        candidates = _parse_search_results(r.text)
         if not candidates:
             return None
         stub = candidates[0]

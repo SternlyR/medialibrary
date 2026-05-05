@@ -155,6 +155,7 @@ async def enrich(
     _input_title = title
 
     # ── Step 1: UPC lookup ───────────────────────────────────────────────────
+    _upc_db_miss = False  # track miss without adding warning yet
     if upc:
         result.upc = upc
         try:
@@ -170,7 +171,7 @@ async def enrich(
                 if not label:
                     label = upc_data.get("brand", "")
             else:
-                result.warnings.append(f"UPC {upc} not found in UPCitemdb")
+                _upc_db_miss = True  # defer — Blu-ray.com may still find it
         except Exception as e:
             result.warnings.append(f"UPC lookup failed: {e}")
 
@@ -197,8 +198,15 @@ async def enrich(
                 # the film year (e.g. 1968), which causes TMDB to grab the wrong film.
                 if bluray_data.get("film_year"):
                     year = bluray_data["film_year"]
+            elif _upc_db_miss:
+                # Neither UPCitemdb nor Blu-ray.com recognised this barcode.
+                # Only surface the warning now — international EANs found via
+                # Blu-ray.com should not produce a confusing "not found" notice.
+                result.warnings.append(f"UPC {upc} not found in any barcode database")
         except Exception as e:
             result.warnings.append(f"Blu-ray.com UPC search failed: {e}")
+            if _upc_db_miss:
+                result.warnings.append(f"UPC {upc} not found in UPCitemdb")
 
     # When bluray_com_id was given directly (e.g. international release pasted by
     # URL), there may be no UPC and no title input. Extract title/year from the

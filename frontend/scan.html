@@ -186,38 +186,51 @@
 </div>
 
 <!-- ── NOT FOUND SECTION ── -->
-<div id="section-notfound" class="hidden flex-1 flex flex-col px-4 py-4 gap-4 fade-in">
-  <div class="bg-[#191919] rounded-2xl border border-[#2a2a2a] p-4 flex flex-col gap-4">
+<div id="section-notfound" class="hidden flex-1 flex flex-col px-4 py-4 gap-4 fade-in overflow-y-auto">
+  <div class="bg-[#191919] rounded-2xl border border-[#2a2a2a] p-4 flex flex-col gap-3">
     <div>
       <p class="text-sm font-semibold text-white mb-1">Disc not recognized</p>
       <p id="notfound-upc" class="text-xs font-mono text-[#444]"></p>
     </div>
-    <p class="text-xs text-[#555]">Search by title or paste a Blu-ray.com URL:</p>
-    <div class="flex flex-col gap-2">
+    <p class="text-xs text-[#555]">Search Blu-ray.com to find this release:</p>
+    <div class="flex gap-2">
       <input id="title-search-input" type="text" placeholder="Movie title…"
-        class="w-full px-4 py-2.5 text-sm rounded-xl bg-[#141414] border border-[#2a2a2a] text-white placeholder-[#444] focus:border-accent focus:outline-none"
-        onkeydown="if(event.key==='Enter') searchByTitle()">
-      <input id="year-search-input" type="text" inputmode="numeric" placeholder="Year (optional)"
-        class="w-full px-4 py-2.5 text-sm rounded-xl bg-[#141414] border border-[#2a2a2a] text-white placeholder-[#444] focus:border-accent focus:outline-none"
-        onkeydown="if(event.key==='Enter') searchByTitle()">
-      <input id="notfound-bluray-url" type="text" placeholder="Blu-ray.com URL or ID (for international releases)"
-        class="w-full px-4 py-2.5 text-sm rounded-xl bg-[#141414] border border-[#2a2a2a] text-white placeholder-[#444] focus:border-accent focus:outline-none"
-        onkeydown="if(event.key==='Enter') lookupBlurayUrl()">
+        class="flex-1 px-3 py-2.5 text-sm rounded-xl bg-[#141414] border border-[#2a2a2a] text-white placeholder-[#444] focus:border-accent focus:outline-none"
+        onkeydown="if(event.key==='Enter') searchBlurayCovers()">
+      <input id="year-search-input" type="text" inputmode="numeric" placeholder="Year"
+        class="w-20 px-3 py-2.5 text-sm rounded-xl bg-[#141414] border border-[#2a2a2a] text-white placeholder-[#444] focus:border-accent focus:outline-none"
+        onkeydown="if(event.key==='Enter') searchBlurayCovers()">
     </div>
-    <div class="flex gap-3">
-      <button onclick="searchByTitle()"
-        class="flex-1 bg-accent hover:bg-[#0090c8] active:bg-[#007ab0] text-white py-3 rounded-xl text-sm font-semibold transition-colors">
-        Search
-      </button>
-      <button onclick="lookupBlurayUrl()"
-        class="flex-1 bg-[#222] hover:bg-[#2a2a2a] active:bg-[#303030] text-white py-3 rounded-xl text-sm font-semibold transition-colors">
-        Blu-ray.com
+    <div class="flex gap-2">
+      <button onclick="searchBlurayCovers()"
+        class="flex-1 bg-accent hover:bg-[#0090c8] active:bg-[#007ab0] text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
+        🔍 Search Blu-ray.com
       </button>
       <button onclick="goBack()"
-        class="px-5 py-3 bg-[#222] hover:bg-[#2a2a2a] active:bg-[#303030] text-[#999] rounded-xl text-sm transition-colors">
+        class="px-4 py-2.5 bg-[#222] hover:bg-[#2a2a2a] active:bg-[#303030] text-[#999] rounded-xl text-sm transition-colors">
         Back
       </button>
     </div>
+
+    <!-- Cover grid -->
+    <div id="cover-search-results" class="hidden flex-col gap-2">
+      <p id="cover-search-status" class="text-[10px] text-[#555]"></p>
+      <div id="cover-grid" class="grid gap-1.5" style="grid-template-columns: repeat(4, 1fr)"></div>
+    </div>
+
+    <!-- Blu-ray.com URL fallback -->
+    <details class="mt-1">
+      <summary class="text-[11px] text-[#444] cursor-pointer select-none hover:text-[#777] transition-colors">Paste a Blu-ray.com URL instead</summary>
+      <div class="flex gap-2 mt-2">
+        <input id="notfound-bluray-url" type="text" placeholder="https://www.blu-ray.com/movies/…/351514/"
+          class="flex-1 px-3 py-2 text-sm rounded-xl bg-[#141414] border border-[#2a2a2a] text-white placeholder-[#444] focus:border-accent focus:outline-none"
+          onkeydown="if(event.key==='Enter') lookupBlurayUrl()">
+        <button onclick="lookupBlurayUrl()"
+          class="px-3 py-2 bg-[#222] hover:bg-[#2a2a2a] text-[#777] hover:text-white rounded-xl text-sm transition-colors">
+          Go
+        </button>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -295,6 +308,7 @@ let sessionCount         = 0;
 let currentData          = null;
 let currentUpc           = null;
 let currentTitleSearchUpc = null;
+let coverSearchResults   = [];
 
 let torchOn        = false;
 let torchSupported = false;
@@ -513,44 +527,83 @@ function showNotFound(upc) {
   $('notfound-upc').textContent = upc ? `UPC: ${upc}` : '';
   $('title-search-input').value = '';
   $('year-search-input').value  = '';
+  coverSearchResults = [];
+  $('cover-grid').innerHTML = '';
+  $('cover-search-results').classList.add('hidden');
+  $('cover-search-results').classList.remove('flex');
   hideError();
   showSection('notfound');
   setTimeout(() => $('title-search-input').focus(), 100);
 }
 
-async function searchByTitle() {
+
+// ── Blu-ray.com cover search (not-found fallback) ──────────────────────────
+async function searchBlurayCovers() {
   const title = $('title-search-input').value.trim();
   if (!title) return;
-  const yearStr = $('year-search-input').value.trim();
-  const year = yearStr ? parseInt(yearStr, 10) : null;
+  const year = $('year-search-input').value.trim();
 
-  showSection('loading');
-  $('loading-text').textContent = `Searching for "${title}"…`;
+  const resultsEl = $('cover-search-results');
+  const gridEl    = $('cover-grid');
+  const statusEl  = $('cover-search-status');
+
+  coverSearchResults = [];
+  gridEl.innerHTML = '';
+  statusEl.textContent = 'Searching…';
+  resultsEl.classList.remove('hidden');
+  resultsEl.classList.add('flex');
 
   try {
-    const body = { title };
-    if (year) body.year = year;
-    if (currentTitleSearchUpc) body.upc = currentTitleSearchUpc;
+    const params = new URLSearchParams({ title });
+    if (year) params.set('year', year);
+    const res = await fetch(`/bluray/search-covers?${params}`);
+    if (!res.ok) throw new Error('Search failed');
+    coverSearchResults = await res.json();
 
+    if (!coverSearchResults.length) {
+      statusEl.textContent = 'No results — try a different title.';
+      return;
+    }
+
+    statusEl.textContent = `${coverSearchResults.length} results — tap a cover:`;
+    gridEl.innerHTML = coverSearchResults.map((c, i) => `
+      <div onclick="pickCoverResult(${i})"
+        class="cursor-pointer rounded overflow-hidden border-2 border-transparent active:border-accent transition-all relative group"
+        style="aspect-ratio:2/3">
+        <img src="${c.cover_url}" alt="${c.title || ''}"
+          onerror="this.parentElement.style.background='#1c1c1c'"
+          class="w-full h-full object-cover">
+        <div class="absolute inset-0 bg-black/80 opacity-0 active:opacity-100 group-hover:opacity-100 transition-opacity flex items-end p-1">
+          <p class="text-[9px] text-white leading-tight">${c.title || ''}<br><span class="text-[#aaa]">${c.year || ''}</span></p>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    statusEl.textContent = `Search failed: ${e.message}`;
+  }
+}
+
+async function pickCoverResult(i) {
+  const c = coverSearchResults[i];
+  if (!c) return;
+  hideError();
+  showSection('loading');
+  $('loading-text').textContent = 'Fetching release metadata…';
+  try {
+    const body = { bluray_com_id: c.bluray_com_id };
+    if (currentTitleSearchUpc) body.upc = currentTitleSearchUpc;
     const res = await fetch('/releases/lookup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
-    if (!res.ok) {
-      const err = await res.text().catch(() => '');
-      throw new Error(err || `HTTP ${res.status}`);
-    }
+    if (!res.ok) throw new Error(await res.text().catch(() => `HTTP ${res.status}`));
     const data = await res.json();
-    if (!data.title) {
-      showSection('notfound');
-      showError(`No results for "${title}". Try a different title or year.`);
-      return;
-    }
-    showResult(data, currentTitleSearchUpc || title);
-  } catch (e) {
+    if (!data.title) { showSection('notfound'); showError('No metadata found for that release.'); return; }
+    showResult(data, currentTitleSearchUpc || String(c.bluray_com_id));
+  } catch(e) {
     showSection('notfound');
-    showError(`Search failed: ${e.message}`);
+    showError(`Lookup failed: ${e.message}`);
   }
 }
 
@@ -662,6 +715,7 @@ function goBack() {
   currentData           = null;
   currentUpc            = null;
   currentTitleSearchUpc = null;
+  coverSearchResults    = [];
   hideError();
   showSection('scanner');
 }
