@@ -33,9 +33,9 @@
   <!-- ── HEADER ── -->
   <header class="sticky top-0 z-40 bg-[#101010]/95 backdrop-blur-sm border-b border-[#222] px-5 py-3 flex items-center gap-3">
     <div class="flex items-center gap-2 font-bold text-white shrink-0 mr-2">
-      <span class="text-xl">📀</span>
+      <img src="/static/logo.png" class="w-7 h-7 rounded-md" alt="Media Library">
       <span class="text-base">Media Library</span>
-      <span class="text-[#555] text-xs font-normal ml-1">{{ releases.length }} titles</span>
+      <span class="text-[#555] text-xs font-normal ml-1">{{ totalFilmCount }} titles</span>
     </div>
 
     <!-- Search -->
@@ -69,7 +69,6 @@
         <svg :class="['w-3.5 h-3.5', syncing ? 'animate-spin' : '']" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4 9a8 8 0 0114.93-2M20 15a8 8 0 01-14.93 2"/>
         </svg>
-        <span class="text-lb font-medium hidden sm:inline">{{ syncing ? 'Syncing…' : syncOk === true ? 'Synced' : 'Sync Ratings' }}</span>
       </button>
 
       <!-- View toggle -->
@@ -82,36 +81,45 @@
         </button>
       </div>
 
-      <!-- Scan link -->
-      <a href="/scan"
-        class="text-xs px-2.5 py-1.5 rounded-lg border border-[#2a2a2a] bg-[#1c1c1c] text-[#666] hover:text-[#aaa] transition-colors flex items-center gap-1.5"
-        title="Open disc scanner">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M3 9V6a1 1 0 011-1h3M21 9V6a1 1 0 00-1-1h-3M3 15v3a1 1 0 001 1h3M21 15v3a1 1 0 01-1 1h-3M8 12h8"/>
-        </svg>
-        <span class="hidden sm:inline">Scan</span>
-      </a>
-
-      <!-- Import CSV -->
-      <button @click="triggerImport" :disabled="importLoading"
-        :class="['text-xs px-2.5 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5',
-          importLoading ? 'bg-[#1c1c1c] border-[#2a2a2a] text-[#555] cursor-not-allowed' :
-          'bg-[#1c1c1c] border-[#2a2a2a] text-[#666] hover:text-[#aaa]']"
-        title="Bulk import from CSV">
-        <svg :class="['w-3.5 h-3.5', importLoading ? 'animate-spin' : '']" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path v-if="!importLoading" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-          <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 9a8 8 0 0114.93-2M20 15a8 8 0 01-14.93 2"/>
-        </svg>
-        <span class="hidden sm:inline">{{ importLoading ? 'Importing…' : 'Import CSV' }}</span>
-      </button>
       <input ref="csvFileInput" type="file" accept=".csv" class="hidden" @change="importCsv">
 
-      <!-- Add -->
-      <button @click="openAdd" class="bg-accent hover:bg-[#0090c8] text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-        Add Disc
-      </button>
+      <!-- Add Disc dropdown -->
+      <div class="relative">
+        <div class="flex">
+          <a href="/scan" class="bg-accent hover:bg-[#0090c8] text-white pl-3 pr-2.5 py-1.5 rounded-l-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+            Add Disc
+          </a>
+          <button @click="showAddMenu = !showAddMenu"
+            class="bg-accent hover:bg-[#0090c8] text-white px-1.5 py-1.5 rounded-r-lg text-sm font-medium border-l border-[#0090c8]/60 transition-colors">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+        </div>
+        <div v-if="showAddMenu" class="absolute right-0 top-full mt-1 bg-[#252525] border border-[#333] rounded-lg shadow-xl z-50 min-w-[150px] py-0.5">
+          <a href="/scan" @click="showAddMenu=false"
+            class="flex items-center gap-2.5 px-3 py-2.5 text-xs text-white font-medium hover:bg-[#2e2e2e] rounded-t-lg transition-colors">
+            <svg class="w-3.5 h-3.5 shrink-0 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9V6a1 1 0 011-1h3M21 9V6a1 1 0 00-1-1h-3M3 15v3a1 1 0 001 1h3M21 15v3a1 1 0 01-1 1h-3M8 12h8"/>
+            </svg>
+            Scan Barcode
+          </a>
+          <div class="border-t border-[#333] mx-2"></div>
+          <button @click="openAdd(); showAddMenu=false"
+            class="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#ccc] hover:bg-[#2e2e2e] transition-colors">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Add Manually
+          </button>
+          <button @click="triggerImport(); showAddMenu=false" :disabled="importLoading"
+            class="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#ccc] hover:bg-[#2e2e2e] rounded-b-lg transition-colors disabled:opacity-50">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+            </svg>
+            {{ importLoading ? 'Importing…' : 'Import CSV' }}
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -129,7 +137,7 @@
 
     <!-- Empty -->
     <div v-else-if="filtered.length === 0 && !loading" class="flex flex-col items-center justify-center h-64 text-[#555]">
-      <span class="text-5xl mb-3">📀</span>
+      <img src="/static/logo.png" class="w-12 h-12 rounded-xl mb-3 opacity-40" alt="">
       <p class="text-base">{{ searchQuery ? 'No results for "' + searchQuery + '"' : 'Your library is empty' }}</p>
       <button v-if="!searchQuery" @click="openAdd" class="mt-4 bg-accent text-white text-sm px-4 py-2 rounded-lg">Add your first disc</button>
     </div>
@@ -269,18 +277,37 @@
         <div class="sticky top-0 bg-[#191919] flex items-center justify-between px-5 py-3.5 border-b border-[#222] z-10">
           <h2 class="font-semibold text-white text-base">{{ editing ? 'Edit Release' : 'Release Details' }}</h2>
           <div class="flex items-center gap-2">
-            <button v-if="!editing" @click="startEdit" class="text-xs bg-[#252525] hover:bg-[#2e2e2e] px-3 py-1.5 rounded-lg text-[#ccc] transition-colors">Edit</button>
             <template v-if="editing">
               <button @click="saveEdit" :disabled="saving" class="text-xs bg-accent hover:bg-[#0090c8] px-3 py-1.5 rounded-lg text-white transition-colors disabled:opacity-50">
                 {{ saving ? 'Saving…' : 'Save' }}
               </button>
               <button @click="cancelEdit" class="text-xs bg-[#252525] hover:bg-[#2e2e2e] px-3 py-1.5 rounded-lg text-[#ccc] transition-colors">Cancel</button>
             </template>
-            <button v-if="!editing" @click="reEnrich" :disabled="reEnriching"
-              class="text-xs bg-[#252525] hover:bg-[#2e2e2e] px-3 py-1.5 rounded-lg text-[#ccc] transition-colors disabled:opacity-50"
-              title="Re-run full metadata enrichment">{{ reEnriching ? 'Re-enriching…' : 'Re-enrich' }}</button>
-            <button @click="confirmDelete(detail)" class="text-xs bg-red-950/50 hover:bg-red-900/70 px-3 py-1.5 rounded-lg text-red-400 transition-colors">Delete</button>
-            <button @click="closeDetail" class="text-[#555] hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#252525] transition-colors">✕</button>
+            <!-- Edit split-button with Re-enrich / Delete nested in dropdown -->
+            <div v-if="!editing" class="relative">
+              <div class="flex">
+                <button @click="startEdit" class="text-xs bg-[#252525] hover:bg-[#2e2e2e] px-3 py-1.5 rounded-l-lg text-[#ccc] transition-colors border-r border-[#333]">Edit</button>
+                <button @click="showEditMenu = !showEditMenu" class="text-xs bg-[#252525] hover:bg-[#2e2e2e] px-1.5 py-1.5 rounded-r-lg text-[#555] hover:text-[#aaa] transition-colors">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+              </div>
+              <div v-if="showEditMenu" class="absolute right-0 top-full mt-1 bg-[#252525] border border-[#333] rounded-lg shadow-xl z-20 min-w-[130px] py-0.5">
+                <button @click="reEnrich(); showEditMenu=false" :disabled="reEnriching"
+                  class="w-full text-left px-3 py-2 text-xs text-[#ccc] hover:bg-[#2e2e2e] transition-colors disabled:opacity-50 flex items-center gap-2">
+                  <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4 9a8 8 0 0114.93-2M20 15a8 8 0 01-14.93 2"/></svg>
+                  {{ reEnriching ? 'Re-enriching…' : 'Re-enrich' }}
+                </button>
+                <div class="border-t border-[#333] mx-2"></div>
+                <button @click="confirmDelete(detail); showEditMenu=false"
+                  class="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-[#2e2e2e] transition-colors flex items-center gap-2">
+                  <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  Delete
+                </button>
+              </div>
+            </div>
+            <button @click="closeDetail; showEditMenu=false" class="text-[#555] hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#252525] transition-colors">✕</button>
           </div>
         </div>
 
@@ -610,11 +637,15 @@ createApp({
 
     // Re-enrich
     const reEnriching = ref(false);
+    const showEditMenu = ref(false);
 
     // Bulk Letterboxd sync
     const syncing = ref(false);
     const syncOk  = ref(null);   // null=idle, true=success, false=error
     const lastSync = ref('');
+
+    // Add menu (header dropdown)
+    const showAddMenu = ref(false);
 
     // Delete
     const delTarget = ref(null);
@@ -654,6 +685,13 @@ createApp({
     ];
 
     const visibleColumns = computed(() => allColumns.filter(c => c.visible));
+
+    const totalFilmCount = computed(() =>
+      releases.value.reduce((sum, r) => {
+        const n = (r.films_included || []).length;
+        return sum + (n > 0 ? n : 1);
+      }, 0)
+    );
 
     const filtered = computed(() => {
       let list = releases.value;
@@ -721,7 +759,7 @@ createApp({
       editing.value = false;
       showBack.value = false;
     }
-    function closeDetail() { detail.value = null; editing.value = false; coverOptions.value = []; }
+    function closeDetail() { detail.value = null; editing.value = false; coverOptions.value = []; showEditMenu.value = false; }
     function startEdit()   { editing.value = true; coverOptions.value = []; coverQuery.value = form.value.title || ''; }
     function cancelEdit()  { form.value = { ...detail.value }; editing.value = false; coverOptions.value = []; coverQuery.value = ''; }
 
@@ -987,15 +1025,15 @@ createApp({
       showAdd, addMode, addUpc, addTitle, addYear, addBlurayUrl, addLoading, addError, addPreview, parseBlurayId,
       addSearchTitle, addSearchYear, searchResults, searchLoading, selectedSearchId, searchBluray, selectSearchResult,
       delTarget,
-      allColumns, visibleColumns, detailFields, filtered,
+      allColumns, visibleColumns, detailFields, filtered, totalFilmCount,
       stars, toggleSort, filmTitle, filmYear, filmDirector, filmStars, updateFilmsIncluded,
       openDetail, closeDetail, startEdit, cancelEdit, saveEdit,
       coverOptions, coversLoading, coverQuery, browseCovers, pickCover,
       ratingRefreshing, refreshRating,
-      reEnriching, reEnrich,
+      reEnriching, reEnrich, showEditMenu,
       syncing, syncOk, lastSync, syncLetterboxd,
       confirmDelete, doDelete,
-      openAdd, closeAdd, lookupDisc, saveDisc,
+      showAddMenu, openAdd, closeAdd, lookupDisc, saveDisc,
       articleTitle,
       csvFileInput, importLoading, importResult, triggerImport, importCsv,
     };
