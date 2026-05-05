@@ -315,11 +315,16 @@ async def enrich(
             result.format = bluray_data["format"]
 
         if bluray_data.get("films_included"):
-            # Normalise to dicts so we can attach per-film Letterboxd ratings
-            result.films_included = [
-                f if isinstance(f, dict) else {"title": f, "letterboxd_rating": None}
-                for f in bluray_data["films_included"]
-            ]
+            # Normalise to dicts; preserve year_hint from hoverlink extraction
+            entries = []
+            for f in bluray_data["films_included"]:
+                if isinstance(f, dict):
+                    e = dict(f)
+                    e.setdefault("letterboxd_rating", None)
+                else:
+                    e = {"title": f, "letterboxd_rating": None}
+                entries.append(e)
+            result.films_included = entries
 
         # For multi-film discs the Blu-ray.com disc title ("Police Story /
         # Police Story 2") is the authoritative title — always use it so the
@@ -407,10 +412,11 @@ async def enrich(
             ):
                 continue
             normalized = _normalize_lookup_title(film_name)
+            year_hint = entry.get("year_hint")
             try:
-                film_data = await tmdb.lookup(normalized)
+                film_data = await tmdb.lookup(normalized, year_hint)
                 if film_data is None and normalized != film_name:
-                    film_data = await tmdb.lookup(film_name)
+                    film_data = await tmdb.lookup(film_name, year_hint)
 
                 # Blu-ray.com sometimes lists box-set sequels under the same base
                 # title as the original (e.g. "Alien" for both Alien and Alien³).

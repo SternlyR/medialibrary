@@ -520,7 +520,10 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
         r')\s*$',
         re.IGNORECASE,
     )
-    data["films_included"] = [f for f in films_included if not _NON_FILM_RE.match(f)]
+    data["films_included"] = [
+        f for f in films_included
+        if not _NON_FILM_RE.match(f.get("title") if isinstance(f, dict) else f)
+    ]
 
     # IMDb ID — Blu-ray.com detail pages link to IMDb for the film.
     # This gives us an unambiguous key for TMDB when title alone is ambiguous
@@ -537,7 +540,7 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
     # div#movie_info (title="Before Sunrise (1995)") rather than in subheadingtitle.
     # Restrict search to div#movie_info — the "Similar titles you might also like"
     # section outside that div uses the same hoverlink class and must be excluded.
-    _TITLE_YEAR_RE = re.compile(r'^(.+?)\s*\(\d{4}\)\s*$')
+    _TITLE_YEAR_RE = re.compile(r'^(.+?)\s*\((\d{4})\)\s*$')  # groups: title, year
     _FORMAT_SUFFIX_RE = re.compile(
         r'\s*\b(4K|UHD|Ultra\s*HD|Blu[- ]?ray|BD)\b.*$', re.IGNORECASE
     )
@@ -563,8 +566,11 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
                 m = _TITLE_YEAR_RE.match(t)
                 if m:
                     film_title = _FORMAT_SUFFIX_RE.sub("", m.group(1)).strip()
-                    if film_title and film_title not in bundle:
-                        bundle.append(film_title)
+                    if film_title and not any(
+                        (b.get("title") if isinstance(b, dict) else b) == film_title
+                        for b in bundle
+                    ):
+                        bundle.append({"title": film_title, "year_hint": int(m.group(2))})
             if len(bundle) >= 2:
                 data["films_included"] = bundle
 
@@ -592,8 +598,11 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
                     m = _TITLE_YEAR_RE.match(t)
                     if m:
                         film_title = _FORMAT_SUFFIX_RE.sub("", m.group(1)).strip()
-                        if film_title and film_title not in bundle:
-                            bundle.append(film_title)
+                        if film_title and not any(
+                            (b.get("title") if isinstance(b, dict) else b) == film_title
+                            for b in bundle
+                        ):
+                            bundle.append({"title": film_title, "year_hint": int(m.group(2))})
                 break
             if len(bundle) >= 2:
                 break
