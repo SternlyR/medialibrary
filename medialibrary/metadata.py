@@ -230,6 +230,19 @@ async def enrich(
         except Exception as e:
             result.warnings.append(f"TMDB lookup by ID failed: {e}")
 
+    # IMDb ID from Blu-ray.com → direct, unambiguous TMDB match.
+    # Avoids wrong-film matches when title alone is ambiguous
+    # (e.g. "Tenebrae" 1982 Argento vs "Tenebrae" 2018).
+    if tmdb_data is None and bluray_data and bluray_data.get("imdb_id"):
+        try:
+            stub = await tmdb.find_by_imdb_id(bluray_data["imdb_id"])
+            if stub:
+                tmdb_data = await tmdb.lookup_by_tmdb_id(stub["id"])
+                if tmdb_data:
+                    result.sources.append("tmdb")
+        except Exception as e:
+            result.warnings.append(f"TMDB IMDb lookup failed: {e}")
+
     if tmdb_data is None and title:
         try:
             # Strip disc format indicators before searching TMDB so

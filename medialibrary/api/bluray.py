@@ -297,6 +297,17 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
         year_matches = re.findall(r"\b(19|20)\d{2}\b", movie_portion)
         if year_matches:
             film_year = int(year_matches[-1])  # last year = film year (not format year)
+    # Year fallback for international release pages whose <title> has no year
+    # (e.g. "Tenebrae 4K Blu-ray (Standard Edition) (United Kingdom)").
+    # Blu-ray.com links year-browser pages as /year/YYYY/ — grab first valid hit.
+    if not film_year:
+        for link in soup.find_all("a", href=re.compile(r"/year/\d{4}/")):
+            m = re.search(r"/year/(\d{4})/", link.get("href", ""))
+            if m:
+                y = int(m.group(1))
+                if 1900 <= y <= 2030:
+                    film_year = y
+                    break
     data["film_year"] = film_year
 
     # Release country — flag <img src=".../flags/US.png" id="countryflag">
@@ -499,6 +510,16 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
         re.IGNORECASE,
     )
     data["films_included"] = [f for f in films_included if not _NON_FILM_RE.match(f)]
+
+    # IMDb ID — Blu-ray.com detail pages link to IMDb for the film.
+    # This gives us an unambiguous key for TMDB when title alone is ambiguous
+    # (e.g. "Tenebrae" 1982 Argento vs "Tenebrae" 2018).
+    data["imdb_id"] = ""
+    for a in soup.find_all("a", href=re.compile(r"imdb\.com/title/tt\d+")):
+        m = re.search(r"(tt\d+)", a.get("href", ""))
+        if m:
+            data["imdb_id"] = m.group(1)
+            break
 
     # Fallback: bundle-film links and director from div#movie_info.
     # Box sets like "The Before Trilogy" list films as hoverlink anchors inside
