@@ -444,7 +444,9 @@ async def enrich(
                             box_genres.append(g)
             except Exception as e:
                 result.warnings.append(f"Box-set TMDB enrichment failed for '{film_name}': {e}")
-        if box_directors and not result.director:
+        if box_directors:
+            # TMDB-derived order follows films_included order (chronological),
+            # which is more reliable than the arbitrary order on Blu-ray.com pages.
             result.director = " / ".join(box_directors)
         if box_genres and not result.genres:
             result.genres = ", ".join(box_genres)
