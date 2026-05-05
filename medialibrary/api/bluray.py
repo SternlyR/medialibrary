@@ -96,26 +96,59 @@ class BlurayClient:
     async def search_by_upc(self, upc: str) -> dict | None:
         """Search Blu-ray.com by UPC/barcode. Handles UPC-A (12-digit) and EAN-13.
 
-        Blu-ray.com sometimes redirects directly to the release page on an exact
-        barcode match rather than returning a search-results list. We detect that
-        by inspecting the final URL of the search response.
-
-        For EAN-13 codes (13 digits) that Blu-ray.com has indexed under their
-        UPC-A equivalent, we also retry with the leading digit stripped.
+        Tries three strategies in order:
+          1. Main search with full barcode (works for most UPC-A codes)
+          2. Main search with leading digit stripped (EAN-13 → UPC-A fallback)
+          3. Quicksearch endpoint (autocomplete API — finds international EAN-13
+             codes that the main search misses, e.g. UK Arrow/Eureka releases)
         """
         result = await self._fetch_by_barcode(upc)
         if result:
             return result
 
         # EAN-13 fallback: strip the leading digit to get UPC-A (12 digits).
-        # Many international EAN-13 codes are stored on Blu-ray.com as their
-        # UPC-A equivalent (e.g. 5050582123456 → 050582123456).
         if len(upc) == 13 and upc.isdigit():
             result = await self._fetch_by_barcode(upc[1:])
             if result:
                 return result
 
-        return None
+        # Quicksearch fallback: Blu-ray.com's autocomplete endpoint finds
+        # international EAN-13 barcodes that the main keyword search misses.
+        return await self._quicksearch_by_barcode(upc)
+
+    async def _quicksearch_by_barcode(self, barcode: str) -> dict | None:
+        """Use Blu-ray.com's quicksearch (autocomplete) endpoint for barcode lookup."""
+        qs_headers = {
+            **HEADERS,
+            "Referer": "https://www.blu-ray.com/",
+            "X-Requested-With": "XMLHttpRequest",
+        }
+        params = {
+            "quicksearch": "1",
+            "quicksearch_keyword": barcode,
+            "section": "bluraymovies",
+            "quicksearch_country": "ALL",
+        }
+        async with httpx.AsyncClient(headers=qs_headers, timeout=20, follow_redirects=True) as client:
+            r = await client.get(f"{self.base}/search/", params=params)
+            if r.status_code != 200:
+                return None
+
+        # Response is HTML containing <a class="hoverlink" data-productid="...">
+        candidates = _parse_search_results(r.text)
+        if not candidates:
+            return None
+        stub = candidates[0]
+        details = await self.get_release(stub["bluray_com_id"], stub.get("detail_url"))
+        if details and not details.get("film_year"):
+            year = stub.get("year")
+            if not year:
+                m = re.search(r'\((\d{4})\)', stub.get("title", ""))
+                if m:
+                    year = int(m.group(1))
+            if year:
+                details["film_year"] = year
+        return details
 
     async def _fetch_by_barcode(self, barcode: str) -> dict | None:
         """Search Blu-ray.com for a single barcode string.
