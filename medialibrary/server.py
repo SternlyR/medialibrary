@@ -656,6 +656,36 @@ async def debug_bluray_id(id: int = Query(...), url: Optional[str] = Query(None)
     }
 
 
+@app.get("/debug/bluray-quicksearch", summary="Show raw quicksearch response for a barcode")
+async def debug_bluray_quicksearch(upc: str = Query(...)):
+    """Diagnostic: shows the raw HTML snippet from Blu-ray.com quicksearch and
+    what _parse_search_results extracts from it."""
+    import httpx
+    from medialibrary.api.bluray import HEADERS, _parse_search_results
+    qs_headers = {
+        **HEADERS,
+        "Referer": "https://www.blu-ray.com/",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+    params = {
+        "quicksearch": "1",
+        "quicksearch_keyword": upc,
+        "section": "bluraymovies",
+        "quicksearch_country": "ALL",
+    }
+    async with httpx.AsyncClient(headers=qs_headers, timeout=20, follow_redirects=True) as client:
+        r = await client.get("https://www.blu-ray.com/search/", params=params)
+    candidates = _parse_search_results(r.text)
+    return {
+        "upc": upc,
+        "status_code": r.status_code,
+        "final_url": str(r.url),
+        "response_length": len(r.text),
+        "response_snippet": r.text[:2000],
+        "candidates_parsed": candidates,
+    }
+
+
 @app.get("/debug/tmdb-collection", summary="Show TMDB collection search results")
 async def debug_tmdb_collection(q: str = Query(...)):
     """Diagnostic: tries all collection-search strategies for a disc title.
