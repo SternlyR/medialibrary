@@ -502,11 +502,22 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
 
     data["films_included"] = films_included
 
-    # Filter clearly non-film items (DigiBook, Digital Copy, etc.)
+    # Filter non-film items: digital copy descriptors, edition labels, packaging notes.
+    # "Arrow Video Exclusive / Limited Edition" in subheadingtitle must not become
+    # fake film titles that send step 3.6 to TMDB for "Limited Edition" (Bernard Rapp, 1997).
     _NON_FILM_RE = re.compile(
-        r'^\s*(Digi(Book|Pack|Pak|tal(\s*(Copy|HD|MA|Redemption))?)|UltraViolet|'
+        r'^\s*('
+        # Digital copy / streaming tokens
+        r'Digi(Book|Pack|Pak|tal(\s*(Copy|HD|MA|Redemption))?)|UltraViolet|'
         r'UV(\s+Digital)?\s*Copy|Bonus\s*Disc|Movies\s*Anywhere|iTunes|Vudu|'
-        r'Digital\s*(Copy|Download|HD|MA))\s*$',
+        r'Digital\s*(Copy|Download|HD|MA)|'
+        # Edition / version descriptors
+        r'(?:Limited|Special|Collector[\'s]*|Deluxe|Standard|Premium|Anniversary|'
+        r'Director[\'s]*|Ultimate|Numbered|Theatrical|Restored?|Definitive|'
+        r'Remastered|Criterion|Exclusive)\s*(?:Edition|Version|Cut|Set|Box\s*Set)?|'
+        # Label-branded exclusives ("Arrow Video Exclusive", "Criterion Exclusive")
+        r'\S+\s+(?:Video\s+)?Exclusive'
+        r')\s*$',
         re.IGNORECASE,
     )
     data["films_included"] = [f for f in films_included if not _NON_FILM_RE.match(f)]
@@ -526,18 +537,20 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
     # div#movie_info (title="Before Sunrise (1995)") rather than in subheadingtitle.
     # Restrict search to div#movie_info — the "Similar titles you might also like"
     # section outside that div uses the same hoverlink class and must be excluded.
+    _TITLE_YEAR_RE = re.compile(r'^(.+?)\s*\(\d{4}\)\s*$')
+
     data["director"] = ""
     movie_info_div = soup.find("div", id="movie_info")
     if movie_info_div:
-        # Director: first link after "Director:" text node
+        # Handle both "Director:" and "Directors:" (multi-director box sets)
         info_text = movie_info_div.get_text(" ", strip=True)
-        d_m = re.search(r'Director:\s*(.+?)(?=\s+\w+:|$)', info_text)
+        d_m = re.search(r'Directors?:\s*(.+?)(?=\s+\w+:|$)', info_text)
         if d_m:
             data["director"] = d_m.group(1).strip()
 
-        # Bundle films — only if subheadingtitle parsing found nothing
+        # Bundle films from div#movie_info hoverlinks — only if subheadingtitle
+        # parsing found nothing (e.g. "The Before Trilogy" lists films this way).
         if not data["films_included"]:
-            _TITLE_YEAR_RE = re.compile(r'^(.+?)\s*\(\d{4}\)\s*$')
             bundle = []
             for link in movie_info_div.select("a.hoverlink[data-productid]"):
                 t = link.get("title", "")
@@ -548,6 +561,38 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
                         bundle.append(film_title)
             if len(bundle) >= 2:
                 data["films_included"] = bundle
+
+    # Third fallback: "This Blu-ray bundle includes" section.
+    # Some box sets (e.g. TMNT Trilogy 4K) list individual film thumbnails in a
+    # separate bundle section that may sit outside div#movie_info.
+    if not data["films_included"]:
+        bundle = []
+        similar_titles_el = soup.find(string=re.compile(r"similar titles", re.I))
+        for bundle_text in soup.find_all(string=re.compile(r"bundle\s+includes?", re.I)):
+            container = bundle_text.parent
+            for _ in range(6):
+                if container is None:
+                    break
+                # Exclude anything inside the "Similar titles" section
+                if similar_titles_el and similar_titles_el in container.descendants:
+                    container = container.parent
+                    continue
+                links = container.select("a.hoverlink[data-productid]")
+                if not links:
+                    container = container.parent
+                    continue
+                for link in links:
+                    t = link.get("title", "")
+                    m = _TITLE_YEAR_RE.match(t)
+                    if m:
+                        film_title = m.group(1).strip()
+                        if film_title and film_title not in bundle:
+                            bundle.append(film_title)
+                break
+            if len(bundle) >= 2:
+                break
+        if len(bundle) >= 2:
+            data["films_included"] = bundle
 
     # Fallback: try specs table (older page layouts)
     if not data["label"] or not data["physical_release_date"]:

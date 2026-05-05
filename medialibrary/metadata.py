@@ -396,6 +396,16 @@ async def enrich(
             film_name = entry.get("title", "")
             if not film_name or entry.get("year"):
                 continue  # already enriched
+            # Skip edition/packaging descriptors that slipped through _NON_FILM_RE
+            # (e.g. "Limited Edition", "Arrow Video Exclusive") — searching TMDB for
+            # these returns wrong films (e.g. Bernard Rapp's "Limited Edition" 1997).
+            if re.search(
+                r'\b(exclusive|edition|version)\b|'
+                r'^(limited|special|collector|deluxe|standard|premium|'
+                r'anniversary|ultimate|remastered|restored?)\b',
+                film_name, re.IGNORECASE,
+            ):
+                continue
             normalized = _normalize_lookup_title(film_name)
             try:
                 film_data = await tmdb.lookup(normalized)
