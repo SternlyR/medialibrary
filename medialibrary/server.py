@@ -33,7 +33,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
-from medialibrary.database import init_db, get_session, Movie, PhysicalRelease
+from medialibrary.database import init_db, get_session, Movie, PhysicalRelease, AcquisitionItem
 from medialibrary.metadata import enrich
 from medialibrary.config import settings
 
@@ -952,6 +952,102 @@ async def import_csv(file: UploadFile = File(...)):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+# ── To Acquire ────────────────────────────────────────────────────────────────
+
+class AcquireRequest(BaseModel):
+    title: str
+    year: Optional[int] = None
+    director: Optional[str] = None
+    purchase_link: Optional[str] = None
+    format: Optional[str] = None
+    label: Optional[str] = None
+    notes: Optional[str] = None
+    lookup_tmdb: bool = False   # if True, fetch director/year from TMDB
+
+
+@app.get("/acquire", summary="List all items to acquire")
+async def list_acquire():
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        rows = (await session.execute(select(AcquisitionItem).order_by(AcquisitionItem.title))).scalars().all()
+        return [
+            {
+                "id": r.id, "title": r.title, "year": r.year,
+                "director": r.director, "purchase_link": r.purchase_link,
+                "format": r.format, "label": r.label,
+                "tmdb_id": r.tmdb_id, "notes": r.notes,
+            }
+            for r in rows
+        ]
+
+
+@app.post("/acquire", status_code=201, summary="Add an item to acquire")
+async def add_acquire(req: AcquireRequest):
+    director = req.director
+    year = req.year
+    tmdb_id = None
+
+    if req.lookup_tmdb and req.title:
+        from medialibrary.api.tmdb import TMDBClient
+        try:
+            tmdb = TMDBClient()
+            data = await tmdb.lookup(req.title, req.year)
+            if data:
+                director = director or data.get("director", "")
+                year = year or data.get("year")
+                tmdb_id = data.get("tmdb_id")
+        except Exception:
+            pass
+
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        item = AcquisitionItem(
+            title=req.title, year=year, director=director,
+            purchase_link=req.purchase_link, format=req.format,
+            label=req.label, notes=req.notes, tmdb_id=tmdb_id,
+        )
+        session.add(item)
+        await session.commit()
+        await session.refresh(item)
+        return {
+            "id": item.id, "title": item.title, "year": item.year,
+            "director": item.director, "purchase_link": item.purchase_link,
+            "format": item.format, "label": item.label,
+            "tmdb_id": item.tmdb_id, "notes": item.notes,
+        }
+
+
+@app.patch("/acquire/{item_id}", summary="Update an acquisition item")
+async def update_acquire(item_id: int, req: AcquireRequest):
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        item = (await session.execute(select(AcquisitionItem).where(AcquisitionItem.id == item_id))).scalar_one_or_none()
+        if not item:
+            raise HTTPException(404, "Item not found")
+        for field in ("title", "year", "director", "purchase_link", "format", "label", "notes"):
+            val = getattr(req, field)
+            if val is not None:
+                setattr(item, field, val)
+        await session.commit()
+        await session.refresh(item)
+        return {
+            "id": item.id, "title": item.title, "year": item.year,
+            "director": item.director, "purchase_link": item.purchase_link,
+            "format": item.format, "label": item.label,
+            "tmdb_id": item.tmdb_id, "notes": item.notes,
+        }
+
+
+@app.delete("/acquire/{item_id}", status_code=204, summary="Remove an acquisition item")
+async def delete_acquire(item_id: int):
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        item = (await session.execute(select(AcquisitionItem).where(AcquisitionItem.id == item_id))).scalar_one_or_none()
+        if item:
+            await session.delete(item)
+            await session.commit()
 
 
 # ── Frontend (must be last) ───────────────────────────────────────────────────

@@ -38,6 +38,12 @@
       <span class="text-[#555] text-xs font-normal ml-1">{{ totalFilmCount }} titles</span>
     </div>
 
+    <!-- View switcher -->
+    <div class="flex bg-[#1c1c1c] border border-[#2a2a2a] rounded-lg overflow-hidden shrink-0">
+      <button @click="appView='library'" :class="['px-3 py-1.5 text-xs font-medium transition-colors', appView==='library' ? 'bg-accent text-white' : 'text-[#666] hover:text-white']">Library</button>
+      <button @click="appView='acquire'" :class="['px-3 py-1.5 text-xs font-medium transition-colors', appView==='acquire' ? 'bg-accent text-white' : 'text-[#666] hover:text-white']">To Acquire</button>
+    </div>
+
     <!-- Search -->
     <div class="relative flex-1 max-w-sm">
       <input v-model="searchQuery" type="text" placeholder="Search titles, directors, labels…"
@@ -124,7 +130,7 @@
   </header>
 
   <!-- ── MAIN ── -->
-  <main class="px-5 py-5 max-w-[1800px] mx-auto">
+  <main v-if="appView==='library'" class="px-5 py-5 max-w-[1800px] mx-auto">
 
     <!-- Loading -->
     <div v-if="loading" class="flex items-center justify-center h-64 text-[#555] gap-3">
@@ -232,6 +238,135 @@
       </div>
     </div>
   </main>
+
+  <!-- ═══════════════════ TO ACQUIRE VIEW ═══════════════════ -->
+  <main v-if="appView==='acquire'" class="px-5 py-5 max-w-[1800px] mx-auto">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h2 class="text-base font-semibold text-white">To Acquire</h2>
+        <p class="text-xs text-[#555] mt-0.5">{{ acquireList.length }} disc{{ acquireList.length !== 1 ? 's' : '' }} on your list</p>
+      </div>
+      <button @click="openAcquireAdd"
+        class="bg-accent hover:bg-[#0090c8] text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+        Add to List
+      </button>
+    </div>
+
+    <!-- Loading -->
+    <div v-if="acquireLoading" class="flex items-center justify-center h-40 text-[#555] gap-3">
+      <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+      Loading…
+    </div>
+
+    <!-- Table -->
+    <div v-else class="rounded-xl border border-[#222] overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-[#181818]">
+              <th class="px-4 py-3 text-left text-[11px] font-medium text-[#555] uppercase tracking-wider">Film</th>
+              <th class="px-4 py-3 text-left text-[11px] font-medium text-[#555] uppercase tracking-wider w-16">Year</th>
+              <th class="px-4 py-3 text-left text-[11px] font-medium text-[#555] uppercase tracking-wider">Director</th>
+              <th class="px-4 py-3 text-left text-[11px] font-medium text-[#555] uppercase tracking-wider w-28">Format</th>
+              <th class="px-4 py-3 text-left text-[11px] font-medium text-[#555] uppercase tracking-wider">Label</th>
+              <th class="px-4 py-3 text-left text-[11px] font-medium text-[#555] uppercase tracking-wider">Purchase Link</th>
+              <th class="w-16"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="!acquireList.length">
+              <td colspan="7" class="px-4 py-8 text-center text-[#555] text-sm">No discs on your list yet.</td>
+            </tr>
+            <tr v-for="item in acquireList" :key="item.id"
+              class="border-t border-[#1e1e1e] hover:bg-[#181818] transition-colors">
+              <td class="px-4 py-3 text-white font-medium">{{ item.title }}</td>
+              <td class="px-4 py-3 text-[#888]">{{ item.year || '—' }}</td>
+              <td class="px-4 py-3 text-[#888]">{{ item.director || '—' }}</td>
+              <td class="px-4 py-3">
+                <span v-if="item.format" :class="['text-[11px] font-bold px-1.5 py-0.5 rounded', item.format==='UHD' ? 'bg-blue-700/40 text-blue-300' : 'bg-[#2a2a2a] text-[#aaa]']">
+                  {{ item.format === 'UHD' ? '4K UHD' : item.format }}
+                </span>
+                <span v-else class="text-[#555]">—</span>
+              </td>
+              <td class="px-4 py-3 text-[#888]">{{ item.label || '—' }}</td>
+              <td class="px-4 py-3 max-w-[260px]">
+                <a v-if="item.purchase_link" :href="item.purchase_link" target="_blank" rel="noopener"
+                  class="text-accent hover:underline text-xs truncate block max-w-[240px]"
+                  :title="item.purchase_link">{{ item.purchase_link }}</a>
+                <span v-else class="text-[#555]">—</span>
+              </td>
+              <td class="px-4 py-3 text-right whitespace-nowrap">
+                <button @click="openAcquireEdit(item)" class="text-[#555] hover:text-[#aaa] transition-colors mr-2" title="Edit">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </button>
+                <button @click="deleteAcquire(item)" class="text-[#333] hover:text-red-500 transition-colors" title="Remove">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══════════════════ ACQUIRE ADD/EDIT MODAL ═══════════════════ -->
+  <transition name="modal">
+    <div v-if="acquireModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75" @click.self="acquireModal=null">
+      <div class="bg-[#191919] rounded-2xl w-full max-w-md border border-[#2a2a2a] shadow-2xl">
+        <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#222]">
+          <h2 class="font-semibold text-white text-base">{{ acquireModal.id ? 'Edit Item' : 'Add to Acquire List' }}</h2>
+          <button @click="acquireModal=null" class="text-[#555] hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#252525] transition-colors">✕</button>
+        </div>
+        <div class="p-5 flex flex-col gap-3">
+          <div class="flex gap-2.5">
+            <div class="flex-1">
+              <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-1">Film Title</label>
+              <input v-model="acquireModal.title" type="text" placeholder="e.g. Chinatown" class="w-full px-3 py-2 text-sm rounded-lg">
+            </div>
+            <div class="w-20">
+              <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-1">Year</label>
+              <input v-model.number="acquireModal.year" type="number" placeholder="1974" class="w-full px-3 py-2 text-sm rounded-lg">
+            </div>
+          </div>
+          <!-- TMDB lookup -->
+          <button v-if="!acquireModal.id" @click="acquireLookupTmdb" :disabled="acquireSaving || !acquireModal.title"
+            class="w-full bg-[#252525] hover:bg-[#2e2e2e] border border-[#333] text-[#ccc] py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-40 flex items-center justify-center gap-2">
+            <svg v-if="acquireSaving" class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            {{ acquireSaving ? 'Looking up…' : '🎬 Fill Director & Year from TMDB' }}
+          </button>
+          <div>
+            <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-1">Director</label>
+            <input v-model="acquireModal.director" type="text" placeholder="e.g. Roman Polanski" class="w-full px-3 py-2 text-sm rounded-lg">
+          </div>
+          <div class="flex gap-2.5">
+            <div class="flex-1">
+              <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-1">Format</label>
+              <select v-model="acquireModal.format" class="w-full px-3 py-2 text-sm rounded-lg">
+                <option value="">—</option>
+                <option value="UHD">4K UHD</option>
+                <option value="Blu-Ray">Blu-ray</option>
+                <option value="DVD">DVD</option>
+              </select>
+            </div>
+            <div class="flex-1">
+              <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-1">Label</label>
+              <input v-model="acquireModal.label" type="text" placeholder="e.g. Criterion" class="w-full px-3 py-2 text-sm rounded-lg">
+            </div>
+          </div>
+          <div>
+            <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-1">Purchase Link</label>
+            <input v-model="acquireModal.purchase_link" type="url" placeholder="https://…" class="w-full px-3 py-2 text-sm rounded-lg">
+          </div>
+          <button @click="saveAcquire" :disabled="acquireSaving || !acquireModal.title"
+            class="w-full bg-accent hover:bg-[#0090c8] text-white py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 mt-1">
+            {{ acquireSaving ? 'Saving…' : (acquireModal.id ? 'Save Changes' : 'Add to List') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </transition>
 
   <!-- ═══════════════════ IMPORT RESULT MODAL ═══════════════════ -->
   <transition name="modal">
@@ -599,6 +734,13 @@ createApp({
     const releases  = ref([]);
     const loading   = ref(true);
     const view      = ref('grid');
+    const appView   = ref('library');  // 'library' | 'acquire'
+
+    // To Acquire
+    const acquireList    = ref([]);
+    const acquireLoading = ref(false);
+    const acquireModal   = ref(null);  // null | { title, year, director, purchase_link, format, label, id? }
+    const acquireSaving  = ref(false);
     const searchQuery = ref('');
     const sortBy    = ref('title');
 
@@ -1017,8 +1159,71 @@ createApp({
       }
     }
 
+    // ── To Acquire ─────────────────────────────────────────────
+    async function fetchAcquire() {
+      acquireLoading.value = true;
+      try {
+        const res = await fetch('/acquire');
+        acquireList.value = await res.json();
+      } finally {
+        acquireLoading.value = false;
+      }
+    }
+
+    function openAcquireAdd() {
+      acquireModal.value = { title: '', year: null, director: '', purchase_link: '', format: '', label: '' };
+    }
+
+    function openAcquireEdit(item) {
+      acquireModal.value = { ...item };
+    }
+
+    async function acquireLookupTmdb() {
+      if (!acquireModal.value?.title) return;
+      acquireSaving.value = true;
+      try {
+        const body = { title: acquireModal.value.title, year: acquireModal.value.year || undefined, lookup_tmdb: true };
+        const res = await fetch('/acquire', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!res.ok) throw new Error('Lookup failed');
+        const data = await res.json();
+        // Remove the temporary item, just fill the form
+        await fetch(`/acquire/${data.id}`, { method: 'DELETE' });
+        acquireModal.value.director = data.director || acquireModal.value.director;
+        acquireModal.value.year = data.year || acquireModal.value.year;
+      } catch(e) {
+        // silently fail — user can fill manually
+      } finally {
+        acquireSaving.value = false;
+      }
+    }
+
+    async function saveAcquire() {
+      if (!acquireModal.value?.title) return;
+      acquireSaving.value = true;
+      try {
+        const { id, ...body } = acquireModal.value;
+        const url = id ? `/acquire/${id}` : '/acquire';
+        const method = id ? 'PATCH' : 'POST';
+        const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!res.ok) throw new Error('Save failed');
+        acquireModal.value = null;
+        await fetchAcquire();
+      } catch(e) {
+        alert('Save failed: ' + e.message);
+      } finally {
+        acquireSaving.value = false;
+      }
+    }
+
+    async function deleteAcquire(item) {
+      if (!confirm(`Remove "${item.title}" from your list?`)) return;
+      await fetch(`/acquire/${item.id}`, { method: 'DELETE' });
+      acquireList.value = acquireList.value.filter(x => x.id !== item.id);
+    }
+
     onMounted(() => {
       fetchReleases();
+      fetchAcquire();
       document.addEventListener('click', () => {
         showAddMenu.value = false;
         showEditMenu.value = false;
@@ -1026,7 +1231,9 @@ createApp({
     });
 
     return {
-      releases, loading, view, searchQuery, sortBy,
+      releases, loading, view, appView, searchQuery, sortBy,
+      acquireList, acquireLoading, acquireModal, acquireSaving,
+      openAcquireAdd, openAcquireEdit, acquireLookupTmdb, saveAcquire, deleteAcquire,
       detail, editing, saving, showBack, form,
       showAdd, addMode, addUpc, addTitle, addYear, addBlurayUrl, addLoading, addError, addPreview, parseBlurayId,
       addSearchTitle, addSearchYear, searchResults, searchLoading, selectedSearchId, searchBluray, selectSearchResult,

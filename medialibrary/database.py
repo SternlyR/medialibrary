@@ -73,6 +73,23 @@ class PhysicalRelease(Base):
     movie = relationship("Movie", back_populates="releases")
 
 
+class AcquisitionItem(Base):
+    """A disc the user wants to buy."""
+    __tablename__ = "acquisition_items"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(500), nullable=False)
+    year = Column(Integer)
+    director = Column(String(500))
+    purchase_link = Column(Text)
+    format = Column(String(50))     # UHD, Blu-Ray, DVD
+    label = Column(String(200))
+    tmdb_id = Column(Integer)
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 async def get_engine():
     return create_async_engine(settings.database_url, echo=False)
 
@@ -96,6 +113,27 @@ async def init_db():
                 await conn.execute(text(col_sql))
             except Exception:
                 pass  # Column already exists
+    # Seed acquisition_items if empty
+    async with engine.begin() as conn:
+        count = (await conn.execute(text("SELECT count(*) FROM acquisition_items"))).scalar()
+        if count == 0:
+            seed = [
+                ("2001: A Space Odyssey", 1968, "Stanley Kubrick",  "https://www.ebay.com", "UHD", ""),
+                ("Being There",           1979, "Hal Ashby",         "https://www.criterion.com/films/29009-being-there", "Blu-Ray", "Criterion"),
+                ("Bonnie & Clyde",        1967, "Arthur Penn",       "https://gruv.com/products/bonnie-and-clyde-blu-ray-_1000122558", "Blu-Ray", ""),
+                ("Johnny Guitar",         1954, "Nicholas Ray",      "https://eurekavideo.co.uk/movie/johnny-guitar-standard-edition/", "Blu-Ray", "Eureka"),
+                ("Stalker",               1979, "Andrei Tarkovsky",  "https://www.criterion.com/films/28150-stalker", "Blu-Ray", "Criterion"),
+                ("The Devils",            1971, "Ken Russell",       "https://www.orbitdvd.com/products/thedevilsoriginalukxversionregionbdvd", "DVD", ""),
+                ("There Will Be Blood",   2007, "Paul Thomas Anderson", "https://www.amazon.com/dp/B072ZLL4M2/", "Blu-Ray", ""),
+                ("Toy Story",             1995, "John Lasseter",     "https://www.amazon.com/dp/B07PRW64DZ/", "UHD", ""),
+                ("Sinners",               2025, "",                  "", "UHD", ""),
+            ]
+            for title, year, director, link, fmt, label in seed:
+                await conn.execute(text(
+                    "INSERT INTO acquisition_items (title, year, director, purchase_link, format, label) "
+                    "VALUES (:t, :y, :d, :l, :f, :lb)"
+                ), {"t": title, "y": year, "d": director, "l": link, "f": fmt, "lb": label})
+
     return engine
 
 
