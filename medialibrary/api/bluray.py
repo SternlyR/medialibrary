@@ -336,6 +336,16 @@ def _parse_release_page(bluray_com_id: int, html: str | bytes) -> dict:
             break
     data["cover_url_back"] = back_url
 
+    # Slip covers — only present on releases with a slip case.
+    # Blu-ray.com shows a "Slip" link in #sliptrigger when slip art exists.
+    slip_url = ""
+    slipback_url = ""
+    if soup.find(id="sliptrigger"):
+        slip_url = f"{COVER_BASE}/{bluray_com_id}_slip.jpg"
+        slipback_url = f"{COVER_BASE}/{bluray_com_id}_slipback.jpg"
+    data["cover_url_slip"] = slip_url
+    data["cover_url_slipback"] = slipback_url
+
     # Info line: <span class="subheading grey"> contains label | year | runtime | rating | release date
     info_span = soup.select_one("span.subheading.grey, span.subheading[class*='grey']")
     data["label"] = ""

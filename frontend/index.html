@@ -450,12 +450,25 @@
         <div class="p-5 flex gap-5">
           <!-- Cover -->
           <div class="shrink-0 w-36">
-            <img :src="showBack && form.cover_url_back ? form.cover_url_back : form.cover_url"
+            <img :src="coverView==='back' && form.cover_url_back ? form.cover_url_back
+                      : coverView==='slip' && form.cover_url_slip ? form.cover_url_slip
+                      : coverView==='slipback' && form.cover_url_slipback ? form.cover_url_slipback
+                      : form.cover_url"
               class="w-full rounded-lg shadow-xl"
               @error="e => e.target.src = ''">
-            <div v-if="form.cover_url_back" class="flex gap-1 mt-2">
-              <button @click="showBack=false" :class="['flex-1 text-[11px] py-1 rounded transition-colors', !showBack ? 'bg-accent text-white' : 'bg-[#252525] text-[#777]']">Front</button>
-              <button @click="showBack=true" :class="['flex-1 text-[11px] py-1 rounded transition-colors', showBack ? 'bg-accent text-white' : 'bg-[#252525] text-[#777]']">Back</button>
+            <!-- Cover type selector — only show buttons for covers that exist -->
+            <div v-if="form.cover_url_back || form.cover_url_slip" class="flex flex-wrap gap-1 mt-2">
+              <button @click="coverView='front'" :class="['flex-1 text-[11px] py-1 rounded transition-colors min-w-[36px]', coverView==='front' ? 'bg-accent text-white' : 'bg-[#252525] text-[#777] hover:text-white']">Front</button>
+              <button v-if="form.cover_url_back" @click="coverView='back'" :class="['flex-1 text-[11px] py-1 rounded transition-colors min-w-[36px]', coverView==='back' ? 'bg-accent text-white' : 'bg-[#252525] text-[#777] hover:text-white']">Back</button>
+              <button v-if="form.cover_url_slip" @click="coverView='slip'" :class="['flex-1 text-[11px] py-1 rounded transition-colors min-w-[36px]', coverView==='slip' ? 'bg-accent text-white' : 'bg-[#252525] text-[#777] hover:text-white']">Slip</button>
+              <button v-if="form.cover_url_slipback" @click="coverView='slipback'" :class="['flex-1 text-[11px] py-1 rounded transition-colors min-w-[36px]', coverView==='slipback' ? 'bg-accent text-white' : 'bg-[#252525] text-[#777] hover:text-white']">S.Back</button>
+            </div>
+            <!-- In edit mode: let user set the viewed slip/back cover as the main cover_url -->
+            <div v-if="editing && coverView !== 'front' && (coverView==='back' ? form.cover_url_back : coverView==='slip' ? form.cover_url_slip : form.cover_url_slipback)" class="mt-1">
+              <button @click="form.cover_url = (coverView==='back' ? form.cover_url_back : coverView==='slip' ? form.cover_url_slip : form.cover_url_slipback); coverView='front'"
+                class="w-full text-[11px] py-1 rounded bg-[#252525] hover:bg-[#2e2e2e] text-[#aaa] transition-colors">
+                Set as Cover
+              </button>
             </div>
             <!-- Browse covers button (edit mode only) -->
             <div v-if="editing" class="mt-2 flex gap-1">
@@ -748,7 +761,7 @@ createApp({
     const detail    = ref(null);
     const editing   = ref(false);
     const saving    = ref(false);
-    const showBack  = ref(false);
+    const coverView = ref('front'); // 'front' | 'back' | 'slip' | 'slipback'
     const form      = ref({});
 
     // Add modal
@@ -899,7 +912,7 @@ createApp({
       detail.value  = r;
       form.value    = { ...r };
       editing.value = false;
-      showBack.value = false;
+      coverView.value = 'front';
     }
     function closeDetail() { detail.value = null; editing.value = false; coverOptions.value = []; showEditMenu.value = false; }
     function startEdit()   { editing.value = true; coverOptions.value = []; coverQuery.value = form.value.title || ''; }
@@ -1056,8 +1069,12 @@ createApp({
     }
 
     function pickCover(c) {
-      form.value.cover_url    = c.cover_url;
-      form.value.bluray_com_id = c.bluray_com_id;
+      form.value.cover_url      = c.cover_url;
+      form.value.bluray_com_id  = c.bluray_com_id;
+      // Slip covers are release-specific — clear them when switching releases
+      form.value.cover_url_slip     = '';
+      form.value.cover_url_slipback = '';
+      coverView.value   = 'front';
       coverOptions.value = [];
     }
 
@@ -1234,7 +1251,7 @@ createApp({
       releases, loading, view, appView, searchQuery, sortBy,
       acquireList, acquireLoading, acquireModal, acquireSaving,
       openAcquireAdd, openAcquireEdit, acquireLookupTmdb, saveAcquire, deleteAcquire,
-      detail, editing, saving, showBack, form,
+      detail, editing, saving, coverView, form,
       showAdd, addMode, addUpc, addTitle, addYear, addBlurayUrl, addLoading, addError, addPreview, parseBlurayId,
       addSearchTitle, addSearchYear, searchResults, searchLoading, selectedSearchId, searchBluray, selectSearchResult,
       delTarget,

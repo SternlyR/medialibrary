@@ -51,6 +51,8 @@ class EnrichedRelease:
     aspect_ratio: str = ""
     cover_url: str = ""           # Blu-ray.com front cover
     cover_url_back: str = ""
+    cover_url_slip: str = ""      # slip case front (if release has slip)
+    cover_url_slipback: str = ""  # slip case back
     films_included: list = field(default_factory=list)  # {"title": str, "letterboxd_rating": float|None}
 
     # Personal rating (from Letterboxd)
@@ -291,6 +293,8 @@ async def enrich(
         result.bluray_com_id = bluray_data.get("bluray_com_id")
         result.cover_url = bluray_data.get("cover_url", "")
         result.cover_url_back = bluray_data.get("cover_url_back", "")
+        result.cover_url_slip = bluray_data.get("cover_url_slip", "")
+        result.cover_url_slipback = bluray_data.get("cover_url_slipback", "")
         result.physical_release_date = bluray_data.get("physical_release_date", "")
         result.label = bluray_data.get("label", label or "")
         result.region = bluray_data.get("region", "")

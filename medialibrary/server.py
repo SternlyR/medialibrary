@@ -100,6 +100,8 @@ class UpdateReleaseRequest(BaseModel):
     upc: Optional[str] = None
     cover_url: Optional[str] = None
     cover_url_back: Optional[str] = None
+    cover_url_slip: Optional[str] = None
+    cover_url_slipback: Optional[str] = None
     notes: Optional[str] = None
     films_included: Optional[list] = None
 
@@ -128,6 +130,8 @@ class ReleaseResponse(BaseModel):
     aspect_ratio: Optional[str]
     cover_url: Optional[str]
     cover_url_back: Optional[str]
+    cover_url_slip: Optional[str] = None
+    cover_url_slipback: Optional[str] = None
     notes: Optional[str]
     overview: Optional[str]
     letterboxd_rating: Optional[float]
@@ -172,6 +176,8 @@ def _release_to_response(r: PhysicalRelease) -> dict:
         "aspect_ratio": r.aspect_ratio,
         "cover_url": r.cover_url,
         "cover_url_back": r.cover_url_back,
+        "cover_url_slip": r.cover_url_slip,
+        "cover_url_slipback": r.cover_url_slipback,
         "notes": r.notes,
         "overview": m.overview if m else None,
         "letterboxd_rating": m.letterboxd_rating if m else None,
@@ -271,6 +277,8 @@ async def add_release(req: AddReleaseRequest):
                 aspect_ratio=result.aspect_ratio,
                 cover_url=result.cover_url,
                 cover_url_back=result.cover_url_back,
+                cover_url_slip=result.cover_url_slip or None,
+                cover_url_slipback=result.cover_url_slipback or None,
                 notes=req.notes,
                 films_included=json.dumps(result.films_included) if result.films_included else None,
             )
@@ -351,7 +359,7 @@ async def update_release(release_id: int, req: UpdateReleaseRequest):
 
         movie = release.movie
         movie_fields = {"title", "year", "director", "runtime_minutes", "mpaa_rating", "genres", "overview", "letterboxd_rating"}
-        release_fields = {"format", "label", "region", "physical_release_date", "edition", "set_name", "disc_count", "aspect_ratio", "upc", "cover_url", "cover_url_back", "notes"}
+        release_fields = {"format", "label", "region", "physical_release_date", "edition", "set_name", "disc_count", "aspect_ratio", "upc", "cover_url", "cover_url_back", "cover_url_slip", "cover_url_slipback", "notes"}
 
         for field, value in req.model_dump(exclude_none=True).items():
             if field in movie_fields:
@@ -569,6 +577,10 @@ async def re_enrich_release(release_id: int):
             release.cover_url = result.cover_url
         if result.cover_url_back:
             release.cover_url_back = result.cover_url_back
+        if result.cover_url_slip:
+            release.cover_url_slip = result.cover_url_slip
+        if result.cover_url_slipback:
+            release.cover_url_slipback = result.cover_url_slipback
         if result.bluray_com_id:
             release.bluray_com_id = result.bluray_com_id
         if result.films_included:
