@@ -152,10 +152,10 @@
     <div v-else-if="view === 'grid'" class="grid gap-4" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))">
       <div v-for="r in filtered" :key="r.id" @click="openDetail(r)" class="poster-card cursor-pointer group">
         <div class="relative rounded-lg overflow-hidden bg-[#1c1c1c] shadow-lg" style="aspect-ratio: 27/38">
-          <img v-if="r.cover_url" :src="r.cover_url" :alt="r.title"
+          <img v-if="r.library_cover_url || r.cover_url" :src="r.library_cover_url || r.cover_url" :alt="r.title"
             class="w-full h-full object-contain"
             @error="e => e.target.style.display='none'">
-          <div v-if="!r.cover_url" class="w-full h-full flex flex-col items-center justify-center p-3 text-center gap-2">
+          <div v-if="!r.library_cover_url && !r.cover_url" class="w-full h-full flex flex-col items-center justify-center p-3 text-center gap-2">
             <span class="text-3xl">🎬</span>
             <span class="text-xs text-[#555] leading-tight">{{ r.title }}</span>
           </div>
@@ -216,7 +216,7 @@
             <tr v-for="r in filtered" :key="r.id" @click="openDetail(r)"
               class="border-t border-[#1e1e1e] hover:bg-[#181818] cursor-pointer transition-colors">
               <td class="px-3 py-2">
-                <img v-if="r.cover_url" :src="r.cover_url" :alt="r.title"
+                <img v-if="r.library_cover_url || r.cover_url" :src="r.library_cover_url || r.cover_url" :alt="r.title"
                   class="w-9 h-[54px] object-cover rounded shadow"
                   @error="e => e.target.style.display='none'">
                 <div v-else class="w-9 h-[54px] bg-[#1c1c1c] rounded flex items-center justify-center text-base">🎬</div>
@@ -1087,7 +1087,7 @@ createApp({
         const res = await fetch(`/releases/${form.value.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cover_url: url }),
+          body: JSON.stringify({ library_cover_url: url }),
         });
         if (!res.ok) throw new Error(await res.text());
         const updated = await res.json();

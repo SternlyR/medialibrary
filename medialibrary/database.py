@@ -62,6 +62,7 @@ class PhysicalRelease(Base):
     cover_url_back = Column(String(1000))
     cover_url_slip = Column(String(1000))    # slip case front
     cover_url_slipback = Column(String(1000))  # slip case back
+    library_cover_url = Column(String(1000)) # overrides cover_url for library card display
 
     # Ownership
     owned = Column(String(10), default="yes")  # yes, wishlist, sold
@@ -112,6 +113,7 @@ async def init_db():
             "UPDATE physical_releases SET upc = NULL WHERE upc = ''",
             "ALTER TABLE physical_releases ADD COLUMN cover_url_slip TEXT",
             "ALTER TABLE physical_releases ADD COLUMN cover_url_slipback TEXT",
+            "ALTER TABLE physical_releases ADD COLUMN library_cover_url TEXT",
         ]:
             try:
                 await conn.execute(text(col_sql))

@@ -102,6 +102,7 @@ class UpdateReleaseRequest(BaseModel):
     cover_url_back: Optional[str] = None
     cover_url_slip: Optional[str] = None
     cover_url_slipback: Optional[str] = None
+    library_cover_url: Optional[str] = None
     notes: Optional[str] = None
     films_included: Optional[list] = None
 
@@ -132,6 +133,7 @@ class ReleaseResponse(BaseModel):
     cover_url_back: Optional[str]
     cover_url_slip: Optional[str] = None
     cover_url_slipback: Optional[str] = None
+    library_cover_url: Optional[str] = None
     notes: Optional[str]
     overview: Optional[str]
     letterboxd_rating: Optional[float]
@@ -178,6 +180,7 @@ def _release_to_response(r: PhysicalRelease) -> dict:
         "cover_url_back": r.cover_url_back,
         "cover_url_slip": r.cover_url_slip,
         "cover_url_slipback": r.cover_url_slipback,
+        "library_cover_url": r.library_cover_url,
         "notes": r.notes,
         "overview": m.overview if m else None,
         "letterboxd_rating": m.letterboxd_rating if m else None,
@@ -359,7 +362,7 @@ async def update_release(release_id: int, req: UpdateReleaseRequest):
 
         movie = release.movie
         movie_fields = {"title", "year", "director", "runtime_minutes", "mpaa_rating", "genres", "overview", "letterboxd_rating"}
-        release_fields = {"format", "label", "region", "physical_release_date", "edition", "set_name", "disc_count", "aspect_ratio", "upc", "cover_url", "cover_url_back", "cover_url_slip", "cover_url_slipback", "notes"}
+        release_fields = {"format", "label", "region", "physical_release_date", "edition", "set_name", "disc_count", "aspect_ratio", "upc", "cover_url", "cover_url_back", "cover_url_slip", "cover_url_slipback", "library_cover_url", "notes"}
 
         for field, value in req.model_dump(exclude_none=True).items():
             if field in movie_fields:
