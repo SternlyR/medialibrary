@@ -463,9 +463,9 @@
               <button v-if="form.cover_url_slip" @click="coverView='slip'" :class="['flex-1 text-[11px] py-1 rounded transition-colors min-w-[36px]', coverView==='slip' ? 'bg-accent text-white' : 'bg-[#252525] text-[#777] hover:text-white']">Slip</button>
               <button v-if="form.cover_url_slipback" @click="coverView='slipback'" :class="['flex-1 text-[11px] py-1 rounded transition-colors min-w-[36px]', coverView==='slipback' ? 'bg-accent text-white' : 'bg-[#252525] text-[#777] hover:text-white']">S.Back</button>
             </div>
-            <!-- In edit mode: let user set the viewed slip/back cover as the main cover_url -->
-            <div v-if="coverView !== 'front'" class="mt-1">
-              <button @click="setMainCover(coverView==='back' ? form.cover_url_back : coverView==='slip' ? form.cover_url_slip : form.cover_url_slipback)"
+            <!-- Use as Cover — shown on all tabs when multiple cover types exist -->
+            <div v-if="form.cover_url_back || form.cover_url_slip" class="mt-1">
+              <button @click="setMainCover(coverView==='front' ? form.cover_url : coverView==='back' ? form.cover_url_back : coverView==='slip' ? form.cover_url_slip : form.cover_url_slipback)"
                 :disabled="coverSaving"
                 class="w-full text-[11px] py-1 rounded bg-[#252525] hover:bg-[#2e2e2e] text-[#aaa] transition-colors disabled:opacity-50">
                 {{ coverSaving ? 'Saving…' : 'Use as Cover' }}
