@@ -500,7 +500,18 @@
             <!-- Title + year -->
             <div class="mb-4">
               <div v-if="!editing">
-                <p class="text-xl font-bold text-white leading-tight">{{ form.title }}</p>
+                <div class="flex items-start gap-2">
+                  <p class="text-xl font-bold text-white leading-tight flex-1">{{ form.title }}</p>
+                  <button @click="loadTrailer" :disabled="trailerLoading"
+                    :class="['shrink-0 flex items-center gap-1 text-[11px] px-2 py-1 rounded transition-colors mt-0.5',
+                      trailerVideoId ? 'bg-red-700 hover:bg-red-800 text-white' : 'bg-[#1e1e1e] hover:bg-[#2a2a2a] text-[#aaa] hover:text-white',
+                      trailerLoading ? 'opacity-50 cursor-not-allowed' : '']">
+                    <svg class="w-3 h-3" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M6 3.5L12.5 8 6 12.5V3.5z"/>
+                    </svg>
+                    {{ trailerLoading ? '…' : trailerVideoId ? 'Close' : 'Trailer' }}
+                  </button>
+                </div>
                 <p class="text-[#666] text-sm mt-0.5">{{ form.year }} · {{ form.director }}</p>
               </div>
               <div v-else class="flex gap-2">
@@ -541,6 +552,19 @@
               <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-0.5">Overview</label>
               <p v-if="!editing" class="text-sm text-[#888] leading-relaxed">{{ form.overview || '—' }}</p>
               <textarea v-else v-model="form.overview" rows="3" class="w-full px-2.5 py-1.5 text-sm rounded resize-none"></textarea>
+            </div>
+
+            <!-- Trailer embed -->
+            <div v-if="trailerVideoId" class="mt-4">
+              <div class="relative w-full rounded-lg overflow-hidden bg-black" style="aspect-ratio: 16/9">
+                <iframe
+                  :src="`https://www.youtube-nocookie.com/embed/${trailerVideoId}?autoplay=1&rel=0`"
+                  class="absolute inset-0 w-full h-full"
+                  allow="autoplay; encrypted-media; picture-in-picture"
+                  allowfullscreen
+                  frameborder="0">
+                </iframe>
+              </div>
             </div>
 
             <!-- Films Included (box sets) -->
@@ -764,6 +788,10 @@ createApp({
     const saving    = ref(false);
     const coverView   = ref('front'); // 'front' | 'back' | 'slip' | 'slipback'
     const coverSaving = ref(false);
+
+    // Trailer
+    const trailerVideoId  = ref('');
+    const trailerLoading  = ref(false);
     const form      = ref({});
 
     // Add modal
@@ -914,9 +942,10 @@ createApp({
       detail.value  = r;
       form.value    = { ...r };
       editing.value = false;
-      coverView.value = 'front';
+      coverView.value  = 'front';
+      trailerVideoId.value = '';
     }
-    function closeDetail() { detail.value = null; editing.value = false; coverOptions.value = []; showEditMenu.value = false; }
+    function closeDetail() { detail.value = null; editing.value = false; coverOptions.value = []; showEditMenu.value = false; trailerVideoId.value = ''; }
     function startEdit()   { editing.value = true; coverOptions.value = []; coverQuery.value = form.value.title || ''; }
     function cancelEdit()  { form.value = { ...detail.value }; editing.value = false; coverOptions.value = []; coverQuery.value = ''; }
 
@@ -1104,6 +1133,22 @@ createApp({
     }
 
     // ── Article title sort helper ───────────────────────────
+    async function loadTrailer() {
+      if (!form.value.id) return;
+      if (trailerVideoId.value) { trailerVideoId.value = ''; return; }
+      trailerLoading.value = true;
+      try {
+        const res = await fetch(`/releases/${form.value.id}/trailer`);
+        if (!res.ok) throw new Error((await res.json()).detail || 'No trailer found');
+        const data = await res.json();
+        trailerVideoId.value = data.video_id;
+      } catch(e) {
+        alert('Trailer not found: ' + e.message);
+      } finally {
+        trailerLoading.value = false;
+      }
+    }
+
     function articleTitle(title) {
       if (!title) return '';
       const m = title.match(/^(The|A|An) (.+)$/i);
@@ -1284,6 +1329,7 @@ createApp({
       stars, toggleSort, filmTitle, filmYear, filmDirector, filmStars, updateFilmsIncluded,
       openDetail, closeDetail, startEdit, cancelEdit, saveEdit,
       coverOptions, coversLoading, coverQuery, browseCovers, pickCover, setMainCover, coverSaving,
+      trailerVideoId, trailerLoading, loadTrailer,
       ratingRefreshing, refreshRating,
       reEnriching, reEnrich, showEditMenu,
       syncing, syncOk, lastSync, syncLetterboxd,

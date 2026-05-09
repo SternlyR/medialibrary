@@ -520,6 +520,49 @@ async def refresh_letterboxd_rating(release_id: int):
     return _release_to_response(release)
 
 
+@app.get("/releases/{release_id}/trailer", summary="Get YouTube trailer video ID for a release")
+async def get_trailer(release_id: int):
+    """Fetch the official trailer YouTube video ID from TMDB for this release's movie."""
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        stmt = select(PhysicalRelease).where(
+            PhysicalRelease.id == release_id
+        ).options(joinedload(PhysicalRelease.movie))
+        release = (await session.execute(stmt)).scalar_one_or_none()
+        if not release:
+            raise HTTPException(404, f"Release {release_id} not found")
+        movie = release.movie
+
+    if not movie or not movie.tmdb_id:
+        raise HTTPException(404, "No TMDB ID for this release — re-enrich first")
+
+    if not settings.tmdb_api_key:
+        raise HTTPException(503, "TMDB API key not configured")
+
+    import httpx
+    url = f"{settings.tmdb_base_url}/movie/{movie.tmdb_id}/videos"
+    async with httpx.AsyncClient(timeout=10) as client:
+        r = await client.get(url, params={"api_key": settings.tmdb_api_key, "language": "en-US"})
+        r.raise_for_status()
+        videos = r.json().get("results", [])
+
+    # Prefer official English trailers; fall back to any trailer
+    def score(v):
+        return (v.get("site") == "YouTube") * 4 + (v.get("type") == "Trailer") * 2 + v.get("official", False) * 1
+
+    youtube_trailers = [v for v in videos if v.get("site") == "YouTube" and v.get("type") == "Trailer"]
+    if not youtube_trailers:
+        raise HTTPException(404, "No trailer found on TMDB for this film")
+
+    best = max(youtube_trailers, key=score)
+    return {
+        "video_id": best["key"],
+        "name": best.get("name", ""),
+        "title": movie.title,
+        "year": movie.year,
+    }
+
+
 @app.post("/releases/{release_id}/re-enrich", summary="Re-run full enrichment pipeline for an existing release")
 async def re_enrich_release(release_id: int):
     """Re-fetch all metadata (TMDB, Blu-ray.com, Letterboxd) and overwrite the record.
