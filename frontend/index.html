@@ -502,14 +502,14 @@
               <div v-if="!editing">
                 <div class="flex items-start gap-2">
                   <p class="text-xl font-bold text-white leading-tight flex-1">{{ form.title }}</p>
-                  <button @click="loadTrailer" :disabled="trailerLoading"
+                  <button @click="trailerVideoId ? trailerVideoId='' : loadTrailer()" :disabled="trailerLoading"
                     :class="['shrink-0 flex items-center gap-1 text-[11px] px-2 py-1 rounded transition-colors mt-0.5',
                       trailerVideoId ? 'bg-red-700 hover:bg-red-800 text-white' : 'bg-[#1e1e1e] hover:bg-[#2a2a2a] text-[#aaa] hover:text-white',
                       trailerLoading ? 'opacity-50 cursor-not-allowed' : '']">
                     <svg class="w-3 h-3" viewBox="0 0 16 16" fill="currentColor">
                       <path d="M6 3.5L12.5 8 6 12.5V3.5z"/>
                     </svg>
-                    {{ trailerLoading ? '…' : trailerVideoId ? 'Close' : 'Trailer' }}
+                    {{ trailerLoading ? '…' : trailerVideoId ? 'Hide' : 'Trailer' }}
                   </button>
                 </div>
                 <p class="text-[#666] text-sm mt-0.5">{{ form.year }} · {{ form.director }}</p>
@@ -942,8 +942,9 @@ createApp({
       detail.value  = r;
       form.value    = { ...r };
       editing.value = false;
-      coverView.value  = 'front';
+      coverView.value      = 'front';
       trailerVideoId.value = '';
+      loadTrailer();
     }
     function closeDetail() { detail.value = null; editing.value = false; coverOptions.value = []; showEditMenu.value = false; trailerVideoId.value = ''; }
     function startEdit()   { editing.value = true; coverOptions.value = []; coverQuery.value = form.value.title || ''; }
@@ -1135,7 +1136,6 @@ createApp({
     // ── Article title sort helper ───────────────────────────
     async function loadTrailer() {
       if (!form.value.id) return;
-      if (trailerVideoId.value) { trailerVideoId.value = ''; return; }
       trailerLoading.value = true;
       try {
         const res = await fetch(`/releases/${form.value.id}/trailer`);
