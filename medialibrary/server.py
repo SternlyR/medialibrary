@@ -411,6 +411,18 @@ def _is_number(s: str) -> bool:
         return False
 
 
+def _films_csv(raw: str | None) -> str:
+    parts = []
+    for f in _parse_films(raw):
+        if isinstance(f, dict):
+            title = f.get("title") or ""
+            year = f.get("year")
+            parts.append(f"{title} ({year})" if title and year else str(title))
+        else:
+            parts.append(str(f))
+    return "; ".join(p for p in parts if p)
+
+
 _EXPORT_COLUMNS = [
     ("Title",                 lambda r, m: m.title if m else ""),
     ("Year",                  lambda r, m: m.year if m else None),
@@ -425,7 +437,7 @@ _EXPORT_COLUMNS = [
     ("Region",                lambda r, m: r.region),
     ("Edition",               lambda r, m: r.edition),
     ("Set",                   lambda r, m: r.set_name),
-    ("Films Included",        lambda r, m: "; ".join(_parse_films(r.films_included) or [])),
+    ("Films Included",        lambda r, m: _films_csv(r.films_included)),
     ("Disc Count",            lambda r, m: r.disc_count),
     ("Aspect Ratio",          lambda r, m: r.aspect_ratio),
     ("Physical Release Date", lambda r, m: r.physical_release_date),
