@@ -21,6 +21,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+from datetime import datetime
 from typing import Optional
 
 from pathlib import Path
@@ -392,7 +393,59 @@ async def delete_release(release_id: int):
         await session.commit()
 
 
-@app.get("/export/csv", summary="Download CSV for Google Sheets import")
+def _csv_safe(value) -> str:
+    if value is None:
+        return ""
+    s = str(value)
+    # Prevent spreadsheet formula injection from scraped text.
+    if s and s[0] in "=+-@\t\r" and not _is_number(s):
+        return "'" + s
+    return s
+
+
+def _is_number(s: str) -> bool:
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
+_EXPORT_COLUMNS = [
+    ("Title",                 lambda r, m: m.title if m else ""),
+    ("Year",                  lambda r, m: m.year if m else None),
+    ("Director",              lambda r, m: m.director if m else None),
+    ("Genres",                lambda r, m: m.genres if m else None),
+    ("Runtime (min)",         lambda r, m: m.runtime_minutes if m else None),
+    ("MPAA Rating",           lambda r, m: m.mpaa_rating if m else None),
+    ("Letterboxd Rating",     lambda r, m: m.letterboxd_rating if m else None),
+    ("Overview",              lambda r, m: m.overview if m else None),
+    ("Format",                lambda r, m: r.format),
+    ("Label",                 lambda r, m: r.label),
+    ("Region",                lambda r, m: r.region),
+    ("Edition",               lambda r, m: r.edition),
+    ("Set",                   lambda r, m: r.set_name),
+    ("Films Included",        lambda r, m: "; ".join(_parse_films(r.films_included) or [])),
+    ("Disc Count",            lambda r, m: r.disc_count),
+    ("Aspect Ratio",          lambda r, m: r.aspect_ratio),
+    ("Physical Release Date", lambda r, m: r.physical_release_date),
+    ("Owned",                 lambda r, m: r.owned),
+    ("Condition",             lambda r, m: r.condition),
+    ("Notes",                 lambda r, m: r.notes),
+    ("UPC",                   lambda r, m: r.upc),
+    ("TMDB ID",               lambda r, m: m.tmdb_id if m else None),
+    ("IMDb ID",               lambda r, m: m.imdb_id if m else None),
+    ("Bluray.com ID",         lambda r, m: r.bluray_com_id),
+    ("Cover URL",             lambda r, m: r.cover_url),
+    ("Back Cover URL",        lambda r, m: r.cover_url_back),
+    ("Slip Cover URL",        lambda r, m: r.cover_url_slip),
+    ("Slip Back URL",         lambda r, m: r.cover_url_slipback),
+    ("Library Cover URL",     lambda r, m: r.library_cover_url),
+    ("Added",                 lambda r, m: r.created_at.strftime("%Y-%m-%d") if r.created_at else None),
+]
+
+
+@app.get("/export/csv", summary="Download all library metadata as CSV")
 async def export_csv():
     engine = await get_engine()
     async with await get_session(engine) as session:
@@ -401,39 +454,16 @@ async def export_csv():
 
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow([
-        "Film", "Box Art", "Year", "Director", "Format", "Label",
-        "Region", "Set", "MPAA Rating", "Runtime (min)",
-        "Physical Release Date", "Aspect Ratio", "UPC",
-        "TMDB ID", "IMDb ID", "Letterboxd Rating",
-    ])
-    for r in sorted(releases, key=lambda x: x.movie.title if x.movie else ""):
-        m = r.movie
-        cover = r.cover_url or ""
-        writer.writerow([
-            m.title if m else "",
-            f'=IMAGE("{cover}")' if cover else "",
-            m.year if m else "",
-            m.director if m else "",
-            r.format or "",
-            r.label or "",
-            r.region or "",
-            r.set_name or "",
-            m.mpaa_rating if m else "",
-            m.runtime_minutes if m else "",
-            r.physical_release_date or "",
-            r.aspect_ratio or "",
-            r.upc or "",
-            m.tmdb_id if m else "",
-            m.imdb_id if m else "",
-            m.letterboxd_rating if m else "",
-        ])
+    writer.writerow([name for name, _ in _EXPORT_COLUMNS])
+    for r in sorted(releases, key=lambda x: ((x.movie.title or "").lower() if x.movie else "", x.id)):
+        writer.writerow([_csv_safe(get(r, r.movie)) for _, get in _EXPORT_COLUMNS])
 
-    output.seek(0)
+    filename = f"medialibrary-{datetime.now().strftime('%Y-%m-%d')}.csv"
+    # BOM so Excel opens accented titles correctly.
     return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=medialibrary.csv"},
+        iter(["﻿" + output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
