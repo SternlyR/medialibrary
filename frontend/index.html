@@ -93,6 +93,7 @@
       </div>
 
       <input ref="csvFileInput" type="file" accept=".csv" class="hidden" @change="importCsv">
+      <input ref="lbFileInput" type="file" accept=".zip,.csv" class="hidden" @change="importLetterboxd">
 
       <!-- Add Disc dropdown -->
       <div class="relative">
@@ -128,6 +129,11 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
             </svg>
             {{ importLoading ? 'Importing…' : 'Import CSV' }}
+          </button>
+          <button @click="lbFileInput.value=''; lbFileInput.click(); showAddMenu=false" :disabled="lbImporting"
+            class="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#ccc] hover:bg-[#2e2e2e] transition-colors disabled:opacity-50">
+            <svg class="w-3.5 h-3 shrink-0 text-lb" viewBox="0 0 42 26" fill="currentColor"><path fill-rule="evenodd" d="M21 0c7.5 0 13.64 4.08 20.17 11.6l.14.16c.62.88.55 2.08-.2 2.87C33.56 22.45 28.3 26 21 26 13.4 26 9.14 23.16.94 14.55a2.25 2.25 0 0 1 .01-3.11C8.73 3.38 14.23 0 21 0m0 5.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15M21 8a5 5 0 1 1 0 10 5 5 0 0 1 0-10"/></svg>
+            {{ lbImporting ? 'Importing…' : 'Import Letterboxd Data' }}
           </button>
           <a href="/export/csv" download @click="showAddMenu=false"
             class="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-[#ccc] hover:bg-[#2e2e2e] rounded-b-lg transition-colors">
@@ -186,6 +192,11 @@
           <!-- Letterboxd rating -->
           <div v-if="r.letterboxd_rating" class="absolute bottom-1.5 left-1.5">
             <span class="bg-black/75 text-lb text-[11px] font-medium px-1.5 py-0.5 rounded">{{ stars(r.letterboxd_rating) }}</span>
+          </div>
+          <div v-else-if="r.letterboxd_watched" class="absolute bottom-1.5 left-1.5" title="Watched">
+            <span class="bg-black/75 text-lb px-1.5 py-1 rounded flex">
+              <svg class="w-3.5 h-2.5" viewBox="0 0 42 26" fill="currentColor"><path fill-rule="evenodd" d="M21 0c7.5 0 13.64 4.08 20.17 11.6l.14.16c.62.88.55 2.08-.2 2.87C33.56 22.45 28.3 26 21 26 13.4 26 9.14 23.16.94 14.55a2.25 2.25 0 0 1 .01-3.11C8.73 3.38 14.23 0 21 0m0 5.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15M21 8a5 5 0 1 1 0 10 5 5 0 0 1 0-10"/></svg>
+            </span>
           </div>
           <!-- Hover overlay -->
           <div class="poster-overlay absolute inset-0 bg-black/80 p-3 flex flex-col justify-end">
@@ -586,6 +597,14 @@
                   </button>
                 </div>
                 <p class="text-[#666] text-sm mt-0.5">{{ form.year }} · {{ form.director }}</p>
+                <button @click="toggleWatched" :disabled="watchedSaving || !!form.letterboxd_rating"
+                  :title="form.letterboxd_rating ? 'Rated on Letterboxd' : (form.letterboxd_watched ? 'Mark as not watched' : 'Mark as watched')"
+                  :class="['mt-2 inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors',
+                    form.letterboxd_watched ? 'border-lb/40 bg-lb/10 text-lb' : 'border-[#333] text-[#666] hover:text-[#aaa]',
+                    form.letterboxd_rating ? 'cursor-default' : '']">
+                  <svg class="w-4 h-3" viewBox="0 0 42 26" fill="currentColor"><path fill-rule="evenodd" d="M21 0c7.5 0 13.64 4.08 20.17 11.6l.14.16c.62.88.55 2.08-.2 2.87C33.56 22.45 28.3 26 21 26 13.4 26 9.14 23.16.94 14.55a2.25 2.25 0 0 1 .01-3.11C8.73 3.38 14.23 0 21 0m0 5.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15M21 8a5 5 0 1 1 0 10 5 5 0 0 1 0-10"/></svg>
+                  {{ form.letterboxd_watched ? 'Watched' : 'Not watched' }}
+                </button>
               </div>
               <div v-else class="flex gap-2">
                 <input v-model="form.title" placeholder="Title" class="flex-1 px-2.5 py-1.5 text-sm rounded">
@@ -1306,6 +1325,57 @@ createApp({
       }
     }
 
+    // ── Letterboxd export import ────────────────────────────
+    const lbFileInput = ref(null);
+    const lbImporting = ref(false);
+
+    async function importLetterboxd(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      lbImporting.value = true;
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/import/letterboxd', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
+        const data = await res.json();
+        await fetchReleases();
+        if (appView.value === 'watchlist') await fetchWatchlist();
+        alert(`Letterboxd import done: ${data.matched} of ${data.library_titles} library titles matched ` +
+          `(${data.films_in_export} films in the export).`);
+      } catch(e) {
+        alert('Letterboxd import failed: ' + e.message);
+      } finally {
+        lbImporting.value = false;
+      }
+    }
+
+    // ── Watched toggle ──────────────────────────────────────
+    const watchedSaving = ref(false);
+
+    async function toggleWatched() {
+      if (!detail.value || form.value.letterboxd_rating) return;
+      watchedSaving.value = true;
+      try {
+        const res = await fetch(`/releases/${detail.value.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ letterboxd_watched: !form.value.letterboxd_watched }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const updated = await res.json();
+        // The watched flag lives on the movie, so update every disc of it.
+        releases.value = releases.value.map(r =>
+          r.id === updated.id ? updated : (r.title === updated.title && r.year === updated.year ? { ...r, letterboxd_watched: updated.letterboxd_watched } : r));
+        detail.value = updated;
+        form.value = { ...form.value, letterboxd_watched: updated.letterboxd_watched };
+        if (updated.letterboxd_watched) watchlist.value = watchlist.value.filter(r => r.id !== updated.id);
+      } catch(e) {
+        alert('Could not update watched status: ' + e.message);
+      } finally {
+        watchedSaving.value = false;
+      }
+    }
+
     // ── Bulk Letterboxd sync ────────────────────────────────
     async function syncLetterboxd() {
       syncing.value = true;
@@ -1320,6 +1390,11 @@ createApp({
         lastSync.value = new Date().toLocaleTimeString();
         syncOk.value = true;
         setTimeout(() => { syncOk.value = null; }, 4000);
+        if (data.watched_error) {
+          alert('Ratings synced, but Letterboxd blocked reading your full Watched list.\n\n' +
+            'To load watched films you never rated, export your data on Letterboxd ' +
+            '(Settings → Data → Export your data) and use Add ▾ → Import Letterboxd Data.');
+        }
       } catch(e) {
         syncOk.value = false;
         alert('Sync failed: ' + e.message);
@@ -1481,6 +1556,7 @@ createApp({
       openAcquireAdd, openAcquireEdit, acquireLookupTmdb, saveAcquire, deleteAcquire,
       watchlist, watchlistLoading, watchlistEl, watchlistUndo,
       moveWatchlistToTop, removeFromWatchlist, undoWatchlistRemove,
+      lbFileInput, lbImporting, importLetterboxd, watchedSaving, toggleWatched,
       detail, editing, saving, coverView, form,
       showAdd, addMode, addUpc, addTitle, addYear, addBlurayUrl, addLoading, addError, addPreview, parseBlurayId,
       addSearchTitle, addSearchYear, searchResults, searchLoading, selectedSearchId, searchBluray, selectSearchResult,

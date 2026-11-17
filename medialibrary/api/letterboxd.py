@@ -83,6 +83,17 @@ class LetterboxdRating:
     tmdb_id: Optional[int] = field(default=None)
 
 
+@dataclass
+class WatchedFilm:
+    title: str
+    year: Optional[int]
+    slug: str
+    rating: Optional[float] = None   # None = watched but never rated
+
+
+_NAME_YEAR = re.compile(r"^(.*?)\s*\((\d{4})\)$")
+
+
 class LetterboxdClient:
     BASE = "https://letterboxd.com"
     _HEADERS = {
@@ -319,6 +330,79 @@ class LetterboxdClient:
             )
 
         return ratings
+
+    @staticmethod
+    def _parse_films_page(html: str) -> tuple[list[WatchedFilm], int]:
+        """Parse one /<user>/films/ grid page → (films, last page number)."""
+        soup = BeautifulSoup(html, "html.parser")
+        films: list[WatchedFilm] = []
+        for li in soup.select("li.griditem, li.poster-container"):
+            poster = li.select_one("[data-item-slug], [data-film-slug]")
+            if not poster:
+                continue
+            slug = poster.get("data-item-slug") or poster.get("data-film-slug") or ""
+            name = poster.get("data-item-name") or poster.get("data-film-name") or ""
+            if not name:
+                img = poster.find("img")
+                name = img.get("alt", "") if img else ""
+            m = _NAME_YEAR.match(name)
+            title, year = (m.group(1), int(m.group(2))) if m else (name, None)
+            if year is None and poster.get("data-film-release-year", "").isdigit():
+                year = int(poster["data-film-release-year"])
+            rating = None
+            rated = li.select_one("span.rating[class*='rated-']")
+            if rated:
+                cls = next((c for c in rated.get("class", []) if c.startswith("rated-")), "")
+                if cls[6:].isdigit():
+                    rating = int(cls[6:]) / 2.0
+            films.append(WatchedFilm(title=title, year=year, slug=slug, rating=rating))
+
+        last = 1
+        for a in soup.select(".paginate-page a"):
+            if a.get_text(strip=True).isdigit():
+                last = max(last, int(a.get_text(strip=True)))
+        return films, last
+
+    async def get_watched_films(self, username: str) -> list[WatchedFilm]:
+        """Every film on the user's public Films page, rated or not."""
+        import asyncio
+
+        status, html = await self._get(f"{self.BASE}/{username}/films/", timeout=20)
+        if status != 200 or not html:
+            raise RuntimeError(f"Letterboxd films page returned HTTP {status}")
+        films, last = self._parse_films_page(html)
+
+        # Sequential with backoff: Cloudflare 403s bursts of parallel requests.
+        for n in range(2, last + 1):
+            url = f"{self.BASE}/{username}/films/page/{n}/"
+            for attempt in range(4):
+                await asyncio.sleep(0.4 if attempt == 0 else 2 ** attempt)
+                st, body = await self._get(url, timeout=20)
+                if st == 200 and body:
+                    break
+            else:
+                raise RuntimeError(f"Letterboxd films page {n} returned HTTP {st}")
+            films.extend(self._parse_films_page(body)[0])
+        return films
+
+    @staticmethod
+    def match_films(films: list[WatchedFilm], title: str, year: Optional[int]) -> Optional[WatchedFilm]:
+        """Find a library movie in a watched list by title + year (±1), then slug."""
+        norm = _normalize(title)
+        alt = _normalize(re.sub(r"^(.*), (the|a|an)$", r"\2 \1", title, flags=re.I))
+        candidates = [f for f in films if _normalize(f.title) in (norm, alt)]
+        if year:
+            exact = [f for f in candidates if f.year == year]
+            near = [f for f in candidates if f.year and abs(f.year - year) <= 1]
+            candidates = exact or near or [f for f in candidates if f.year is None]
+        if candidates:
+            return candidates[0]
+        slug = _title_to_slug(title)
+        slugs = {slug, f"{slug}-{year}"} if year else {slug}
+        return next((
+            f for f in films
+            if f.slug in slugs and (not year or not f.year or abs(f.year - year) <= 1)
+        ), None)
 
     def build_index(
         self, ratings: list[LetterboxdRating]

@@ -89,6 +89,7 @@ class UpdateReleaseRequest(BaseModel):
     genres: Optional[str] = None
     overview: Optional[str] = None
     letterboxd_rating: Optional[float] = None
+    letterboxd_watched: Optional[bool] = None
     # Release fields
     format: Optional[str] = None
     label: Optional[str] = None
@@ -138,6 +139,7 @@ class ReleaseResponse(BaseModel):
     notes: Optional[str]
     overview: Optional[str]
     letterboxd_rating: Optional[float]
+    letterboxd_watched: bool = False
     films_included: Optional[list] = None
 
     model_config = {"from_attributes": True}
@@ -153,6 +155,10 @@ def _parse_films(raw: str | None) -> list:
         return result if isinstance(result, list) else []
     except Exception:
         return []
+
+
+def _is_watched(m: Optional[Movie]) -> bool:
+    return bool(m and (m.letterboxd_watched or m.letterboxd_rating))
 
 
 def _release_to_response(r: PhysicalRelease) -> dict:
@@ -185,6 +191,7 @@ def _release_to_response(r: PhysicalRelease) -> dict:
         "notes": r.notes,
         "overview": m.overview if m else None,
         "letterboxd_rating": m.letterboxd_rating if m else None,
+        "letterboxd_watched": _is_watched(m),
         "films_included": _parse_films(r.films_included),
     }
 
@@ -362,7 +369,7 @@ async def update_release(release_id: int, req: UpdateReleaseRequest):
             raise HTTPException(404, f"Release {release_id} not found")
 
         movie = release.movie
-        movie_fields = {"title", "year", "director", "runtime_minutes", "mpaa_rating", "genres", "overview", "letterboxd_rating"}
+        movie_fields = {"title", "year", "director", "runtime_minutes", "mpaa_rating", "genres", "overview", "letterboxd_rating", "letterboxd_watched"}
         release_fields = {"format", "label", "region", "physical_release_date", "edition", "set_name", "disc_count", "aspect_ratio", "upc", "cover_url", "cover_url_back", "cover_url_slip", "cover_url_slipback", "library_cover_url", "notes"}
 
         for field, value in req.model_dump(exclude_none=True).items():
@@ -431,6 +438,7 @@ _EXPORT_COLUMNS = [
     ("Runtime (min)",         lambda r, m: m.runtime_minutes if m else None),
     ("MPAA Rating",           lambda r, m: m.mpaa_rating if m else None),
     ("Letterboxd Rating",     lambda r, m: m.letterboxd_rating if m else None),
+    ("Watched",               lambda r, m: "yes" if _is_watched(m) else "no"),
     ("Overview",              lambda r, m: m.overview if m else None),
     ("Format",                lambda r, m: r.format),
     ("Label",                 lambda r, m: r.label),
@@ -500,6 +508,14 @@ async def sync_letterboxd(username: Optional[str] = Query(None)):
 
     index = lb_client.build_index(ratings)
 
+    # The full Films grid includes watched-but-unrated films; Cloudflare sometimes
+    # blocks its later pages, so a failure here shouldn't sink the rating sync.
+    watched_error = None
+    try:
+        watched = await lb_client.get_watched_films(lb_user)
+    except Exception as e:
+        watched, watched_error = [], str(e)
+
     engine = await get_engine()
     async with await get_session(engine) as session:
         movies = (await session.execute(select(Movie))).scalars().all()
@@ -511,6 +527,7 @@ async def sync_letterboxd(username: Optional[str] = Query(None)):
                 movie.letterboxd_rating = index[key]
                 movie.letterboxd_synced_at = now
                 matched += 1
+        watched_matched = _apply_watched(movies, watched, now)
         await session.commit()
 
     return {
@@ -518,7 +535,76 @@ async def sync_letterboxd(username: Optional[str] = Query(None)):
         "ratings_fetched": len(ratings),
         "library_titles": len(movies),
         "matched": matched,
+        "watched_fetched": len(watched),
+        "watched_matched": watched_matched,
+        "watched_error": watched_error,
     }
+
+
+def _apply_watched(movies, watched, now) -> int:
+    from medialibrary.api.letterboxd import LetterboxdClient
+    matched = 0
+    for movie in movies:
+        f = LetterboxdClient.match_films(watched, movie.title or "", movie.year)
+        if not f:
+            continue
+        movie.letterboxd_watched = 1
+        if f.rating is not None:
+            movie.letterboxd_rating = f.rating
+        movie.letterboxd_synced_at = now
+        matched += 1
+    return matched
+
+
+@app.post("/import/letterboxd", summary="Import watched films and ratings from a Letterboxd data export")
+async def import_letterboxd(file: UploadFile = File(...)):
+    """Accepts the export .zip (Settings → Data → Export your data) or its
+    watched.csv / ratings.csv on their own."""
+    import zipfile
+    from medialibrary.api.letterboxd import WatchedFilm
+
+    content = await file.read()
+    csvs: dict[str, str] = {}
+    if zipfile.is_zipfile(io.BytesIO(content)):
+        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+            for name in zf.namelist():
+                base = name.rsplit("/", 1)[-1].lower()
+                if base in ("watched.csv", "ratings.csv") and "/" not in name.strip("/"):
+                    csvs[base] = zf.read(name).decode("utf-8-sig", "replace")
+    else:
+        text = content.decode("utf-8-sig", "replace")
+        header = text.split("\n", 1)[0].lower()
+        csvs["ratings.csv" if "rating" in header else "watched.csv"] = text
+
+    if not csvs:
+        raise HTTPException(400, "No watched.csv or ratings.csv found — upload the Letterboxd export .zip")
+
+    films: dict[tuple, WatchedFilm] = {}
+    for base in ("watched.csv", "ratings.csv"):   # ratings last so they win
+        for row in csv.DictReader(io.StringIO(csvs.get(base, ""))):
+            name = (row.get("Name") or "").strip()
+            if not name:
+                continue
+            year_s = (row.get("Year") or "").strip()
+            year = int(year_s) if year_s.isdigit() else None
+            rating = None
+            try:
+                rating = float(row["Rating"]) if row.get("Rating") else None
+            except ValueError:
+                pass
+            prev = films.get((name, year))
+            films[(name, year)] = WatchedFilm(
+                title=name, year=year, slug="",
+                rating=rating if rating is not None else (prev.rating if prev else None),
+            )
+
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        movies = (await session.execute(select(Movie))).scalars().all()
+        matched = _apply_watched(movies, list(films.values()), datetime.utcnow())
+        await session.commit()
+
+    return {"films_in_export": len(films), "library_titles": len(movies), "matched": matched}
 
 
 @app.post("/releases/{release_id}/refresh-letterboxd", summary="Refresh Letterboxd rating for one release")
@@ -1167,14 +1253,14 @@ async def _sync_watchlist(session) -> None:
 
     for item in items:
         r = by_id.get(item.release_id)
-        if r is None or (not item.removed and r.movie and r.movie.letterboxd_rating):
+        if r is None or (not item.removed and _is_watched(r.movie)):
             await session.delete(item)
             tracked.discard(item.release_id)
 
     next_pos = max((i.position for i in items), default=-1) + 1
     unrated = sorted(
         (r for r in releases
-         if r.id not in tracked and r.movie and not r.movie.letterboxd_rating),
+         if r.id not in tracked and r.movie and not _is_watched(r.movie)),
         key=lambda r: (r.movie.title or "").lower(),
     )
     for r in unrated:

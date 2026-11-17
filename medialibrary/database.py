@@ -30,6 +30,7 @@ class Movie(Base):
     genres = Column(String(500))       # comma-separated
     letterboxd_rating = Column(Float)  # 0.5 – 5.0, null if not yet fetched or unrated
     letterboxd_synced_at = Column(DateTime)
+    letterboxd_watched = Column(Integer, default=0)  # 1 = marked watched (rated or not)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -126,6 +127,7 @@ async def init_db():
             "ALTER TABLE physical_releases ADD COLUMN cover_url_slip TEXT",
             "ALTER TABLE physical_releases ADD COLUMN cover_url_slipback TEXT",
             "ALTER TABLE physical_releases ADD COLUMN library_cover_url TEXT",
+            "ALTER TABLE movies ADD COLUMN letterboxd_watched INTEGER DEFAULT 0",
         ]:
             try:
                 await conn.execute(text(col_sql))
