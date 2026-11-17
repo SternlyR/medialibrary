@@ -1240,39 +1240,54 @@ async def delete_acquire(item_id: int):
 
 
 # ── Watchlist ─────────────────────────────────────────────────────────────────
+# Two lists: "unseen" (never watched) and "revisit" (watched, never rated).
+
+WATCHLISTS = ("unseen", "revisit")
+
 
 class WatchlistOrderRequest(BaseModel):
+    kind: str = "unseen"
     release_ids: list[int]
 
 
+def _watchlist_kind(m: Optional[Movie]) -> Optional[str]:
+    if not m or m.letterboxd_rating:
+        return None
+    return "revisit" if m.letterboxd_watched else "unseen"
+
+
 async def _sync_watchlist(session) -> None:
-    """Add unrated discs to the end of the list; drop rated or deleted ones."""
+    """Put each unrated disc on the right list; drop rated or deleted ones."""
     releases = (await session.execute(
         select(PhysicalRelease).options(joinedload(PhysicalRelease.movie))
     )).scalars().all()
     by_id = {r.id: r for r in releases}
     items = (await session.execute(select(WatchlistItem))).scalars().all()
-    tracked = {i.release_id for i in items}
+    next_pos = {k: max((i.position for i in items if i.kind == k), default=-1) + 1 for k in WATCHLISTS}
 
+    tracked = set()
     for item in items:
         r = by_id.get(item.release_id)
-        if r is None or (not item.removed and _is_watched(r.movie)):
+        kind = _watchlist_kind(r.movie) if r else None
+        if kind is None:
             await session.delete(item)
-            tracked.discard(item.release_id)
+            continue
+        if item.kind != kind:
+            # Status changed (e.g. just watched): move it, and forget any earlier removal.
+            item.kind, item.removed, item.position = kind, 0, next_pos[kind]
+            next_pos[kind] += 1
+        tracked.add(item.release_id)
 
-    next_pos = max((i.position for i in items), default=-1) + 1
-    unrated = sorted(
-        (r for r in releases
-         if r.id not in tracked and r.movie and not _is_watched(r.movie)),
-        key=lambda r: (r.movie.title or "").lower(),
-    )
-    for r in unrated:
-        session.add(WatchlistItem(release_id=r.id, position=next_pos))
-        next_pos += 1
+    for r in sorted(releases, key=lambda r: ((r.movie.title if r.movie else "") or "").lower()):
+        kind = _watchlist_kind(r.movie)
+        if r.id in tracked or kind is None:
+            continue
+        session.add(WatchlistItem(release_id=r.id, kind=kind, position=next_pos[kind]))
+        next_pos[kind] += 1
     await session.commit()
 
 
-async def _watchlist_response(session) -> list[dict]:
+async def _watchlist_response(session) -> dict:
     rows = (await session.execute(
         select(WatchlistItem, PhysicalRelease)
         .join(PhysicalRelease, PhysicalRelease.id == WatchlistItem.release_id)
@@ -1280,10 +1295,13 @@ async def _watchlist_response(session) -> list[dict]:
         .options(joinedload(PhysicalRelease.movie))
         .order_by(WatchlistItem.position, WatchlistItem.id)
     )).all()
-    return [_release_to_response(r) for _, r in rows]
+    out = {k: [] for k in WATCHLISTS}
+    for item, r in rows:
+        out.setdefault(item.kind, []).append(_release_to_response(r))
+    return out
 
 
-@app.get("/watchlist", summary="Ordered watchlist of discs not yet rated on Letterboxd")
+@app.get("/watchlist", summary="Ordered watchlists: never seen, and watched but not rated")
 async def get_watchlist():
     engine = await get_engine()
     async with await get_session(engine) as session:
@@ -1291,14 +1309,16 @@ async def get_watchlist():
         return await _watchlist_response(session)
 
 
-@app.put("/watchlist/order", summary="Save the watchlist order")
+@app.put("/watchlist/order", summary="Save one watchlist's order")
 async def reorder_watchlist(req: WatchlistOrderRequest):
+    if req.kind not in WATCHLISTS:
+        raise HTTPException(400, f"kind must be one of {WATCHLISTS}")
     engine = await get_engine()
     async with await get_session(engine) as session:
         items = {
             i.release_id: i
             for i in (await session.execute(
-                select(WatchlistItem).where(WatchlistItem.removed == 0)
+                select(WatchlistItem).where(WatchlistItem.removed == 0, WatchlistItem.kind == req.kind)
             )).scalars().all()
         }
         pos = 0
@@ -1314,36 +1334,49 @@ async def reorder_watchlist(req: WatchlistOrderRequest):
         return await _watchlist_response(session)
 
 
-@app.post("/watchlist/{release_id}", summary="Add a disc to the watchlist (or restore it)")
+@app.post("/watchlist/{release_id}", summary="Restore a disc to its watchlist")
 async def add_to_watchlist(release_id: int, top: bool = False):
     engine = await get_engine()
     async with await get_session(engine) as session:
-        if not (await session.get(PhysicalRelease, release_id)):
+        release = (await session.execute(
+            select(PhysicalRelease).where(PhysicalRelease.id == release_id)
+            .options(joinedload(PhysicalRelease.movie))
+        )).scalar_one_or_none()
+        if not release:
             raise HTTPException(404, f"Release {release_id} not found")
-        items = (await session.execute(select(WatchlistItem))).scalars().all()
+        kind = _watchlist_kind(release.movie)
+        if kind is None:
+            raise HTTPException(400, "Rated films aren't on either watchlist")
+        items = (await session.execute(select(WatchlistItem).where(WatchlistItem.kind == kind))).scalars().all()
         positions = [i.position for i in items if not i.removed]
         pos = (min(positions, default=0) - 1) if top else (max(positions, default=-1) + 1)
-        item = next((i for i in items if i.release_id == release_id), None)
+        item = (await session.execute(
+            select(WatchlistItem).where(WatchlistItem.release_id == release_id)
+        )).scalar_one_or_none()
         if item:
-            item.removed = 0
-            item.position = pos
+            item.kind, item.removed, item.position = kind, 0, pos
         else:
-            session.add(WatchlistItem(release_id=release_id, position=pos))
+            session.add(WatchlistItem(release_id=release_id, kind=kind, position=pos))
         await session.commit()
         return await _watchlist_response(session)
 
 
-@app.delete("/watchlist/{release_id}", status_code=204, summary="Remove a disc from the watchlist")
+@app.delete("/watchlist/{release_id}", status_code=204, summary="Remove a disc from its watchlist")
 async def remove_from_watchlist(release_id: int):
     engine = await get_engine()
     async with await get_session(engine) as session:
+        release = (await session.execute(
+            select(PhysicalRelease).where(PhysicalRelease.id == release_id)
+            .options(joinedload(PhysicalRelease.movie))
+        )).scalar_one_or_none()
+        kind = _watchlist_kind(release.movie if release else None) or "unseen"
         item = (await session.execute(
             select(WatchlistItem).where(WatchlistItem.release_id == release_id)
         )).scalar_one_or_none()
         if item:
             item.removed = 1
         else:
-            session.add(WatchlistItem(release_id=release_id, position=0, removed=1))
+            session.add(WatchlistItem(release_id=release_id, kind=kind, position=0, removed=1))
         await session.commit()
 
 

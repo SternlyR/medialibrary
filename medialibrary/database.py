@@ -84,6 +84,7 @@ class WatchlistItem(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     release_id = Column(Integer, ForeignKey("physical_releases.id"), nullable=False, unique=True)
     position = Column(Integer, nullable=False, default=0)
+    kind = Column(String(20), nullable=False, default="unseen")  # unseen | revisit
     # Kept as a tombstone so auto-populate doesn't re-add a disc the user removed.
     removed = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -128,6 +129,7 @@ async def init_db():
             "ALTER TABLE physical_releases ADD COLUMN cover_url_slipback TEXT",
             "ALTER TABLE physical_releases ADD COLUMN library_cover_url TEXT",
             "ALTER TABLE movies ADD COLUMN letterboxd_watched INTEGER DEFAULT 0",
+            "ALTER TABLE watchlist_items ADD COLUMN kind TEXT NOT NULL DEFAULT 'unseen'",
         ]:
             try:
                 await conn.execute(text(col_sql))

@@ -266,8 +266,16 @@
   <main v-if="appView==='watchlist'" class="px-3 sm:px-5 py-5 max-w-3xl mx-auto">
     <div class="mb-4 px-1">
       <h2 class="text-base font-semibold text-white">My Watchlist</h2>
-      <p class="text-xs text-[#555] mt-0.5">
-        {{ watchlist.length }} disc{{ watchlist.length !== 1 ? 's' : '' }} not yet watched · drag
+      <div class="flex mt-3 bg-[#1c1c1c] border border-[#2a2a2a] rounded-lg overflow-hidden">
+        <button v-for="t in watchlistTabs" :key="t.key" @click="watchlistTab = t.key"
+          :class="['flex-1 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2',
+            watchlistTab === t.key ? 'bg-accent text-white' : 'text-[#777] hover:text-white']">
+          {{ t.label }}
+          <span :class="['text-[11px] px-1.5 rounded-full tabular-nums', watchlistTab === t.key ? 'bg-white/20' : 'bg-[#2a2a2a] text-[#888]']">{{ watchlists[t.key].length }}</span>
+        </button>
+      </div>
+      <p class="text-xs text-[#555] mt-2">
+        {{ watchlistTab === 'unseen' ? 'Discs you haven’t watched yet' : 'Watched but never rated — worth a revisit' }} · drag
         <svg class="inline w-3 h-3 -mt-0.5" viewBox="0 0 20 20" fill="currentColor"><circle cx="7" cy="5" r="1.5"/><circle cx="13" cy="5" r="1.5"/><circle cx="7" cy="10" r="1.5"/><circle cx="13" cy="10" r="1.5"/><circle cx="7" cy="15" r="1.5"/><circle cx="13" cy="15" r="1.5"/></svg>
         to reorder
       </p>
@@ -280,7 +288,7 @@
 
     <div v-else-if="!watchlist.length" class="flex flex-col items-center justify-center h-48 text-[#555] text-sm text-center px-6">
       <span class="text-3xl mb-2">🍿</span>
-      Nothing left to watch — every disc has a Letterboxd rating.
+      {{ watchlistTab === 'unseen' ? 'You’ve watched every disc you own.' : 'Every watched disc has a rating.' }}
     </div>
 
     <div v-show="watchlist.length" class="rounded-xl border border-[#222] overflow-hidden">
@@ -867,7 +875,14 @@ createApp({
     const appView   = ref('library');  // 'library' | 'watchlist' | 'acquire'
 
     // Watchlist
-    const watchlist        = ref([]);
+    const watchlists       = ref({ unseen: [], revisit: [] });
+    const watchlistTab     = ref('unseen');
+    const watchlistTabs    = [{ key: 'unseen', label: 'Never Seen' }, { key: 'revisit', label: 'Not Rated' }];
+    // The open tab's list; writable so reorder/remove code can assign to it.
+    const watchlist = computed({
+      get: () => watchlists.value[watchlistTab.value],
+      set: v => { watchlists.value = { ...watchlists.value, [watchlistTab.value]: v }; },
+    });
     const watchlistLoading = ref(false);
     const watchlistEl      = ref(null);
     const watchlistUndo    = ref(null);  // { r, order } of the last removal
@@ -1079,7 +1094,7 @@ createApp({
       const r = delTarget.value;
       await fetch(`/releases/${r.id}`, { method: 'DELETE' });
       releases.value = releases.value.filter(x => x.id !== r.id);
-      watchlist.value = watchlist.value.filter(x => x.id !== r.id);
+      watchlists.value = Object.fromEntries(Object.entries(watchlists.value).map(([k, v]) => [k, v.filter(x => x.id !== r.id)]));
       delTarget.value = null;
       if (detail.value?.id === r.id) closeDetail();
     }
@@ -1368,7 +1383,7 @@ createApp({
           r.id === updated.id ? updated : (r.title === updated.title && r.year === updated.year ? { ...r, letterboxd_watched: updated.letterboxd_watched } : r));
         detail.value = updated;
         form.value = { ...form.value, letterboxd_watched: updated.letterboxd_watched };
-        if (updated.letterboxd_watched) watchlist.value = watchlist.value.filter(r => r.id !== updated.id);
+        if (appView.value === 'watchlist') fetchWatchlist();  // it may have moved between tabs
       } catch(e) {
         alert('Could not update watched status: ' + e.message);
       } finally {
@@ -1409,16 +1424,16 @@ createApp({
       watchlistLoading.value = true;
       try {
         const res = await fetch('/watchlist');
-        if (res.ok) watchlist.value = await res.json();
+        if (res.ok) watchlists.value = await res.json();
       } finally {
         watchlistLoading.value = false;
       }
     }
 
-    async function saveWatchlistOrder(ids = watchlist.value.map(r => r.id)) {
+    async function saveWatchlistOrder(ids = watchlist.value.map(r => r.id), kind = watchlistTab.value) {
       await fetch('/watchlist/order', {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ release_ids: ids }),
+        body: JSON.stringify({ kind, release_ids: ids }),
       });
     }
 
@@ -1436,7 +1451,7 @@ createApp({
       const order = watchlist.value.map(x => x.id);
       watchlist.value = watchlist.value.filter(x => x.id !== r.id);
       clearTimeout(watchlistUndoTimer);
-      watchlistUndo.value = { r, order };
+      watchlistUndo.value = { r, order, kind: watchlistTab.value };
       watchlistUndoTimer = setTimeout(() => { watchlistUndo.value = null; }, 5000);
       await fetch(`/watchlist/${r.id}`, { method: 'DELETE' });
     }
@@ -1447,9 +1462,9 @@ createApp({
       watchlistUndo.value = null;
       clearTimeout(watchlistUndoTimer);
       await fetch(`/watchlist/${u.r.id}`, { method: 'POST' });
-      const current = new Set(watchlist.value.map(x => x.id));
+      const current = new Set(watchlists.value[u.kind].map(x => x.id));
       const ids = u.order.filter(id => id === u.r.id || current.has(id));
-      await saveWatchlistOrder(ids);
+      await saveWatchlistOrder(ids, u.kind);
       await fetchWatchlist();
     }
 
@@ -1554,7 +1569,7 @@ createApp({
       releases, loading, view, appView, searchQuery, sortBy,
       acquireList, acquireLoading, acquireModal, acquireSaving,
       openAcquireAdd, openAcquireEdit, acquireLookupTmdb, saveAcquire, deleteAcquire,
-      watchlist, watchlistLoading, watchlistEl, watchlistUndo,
+      watchlist, watchlists, watchlistTab, watchlistTabs, watchlistLoading, watchlistEl, watchlistUndo,
       moveWatchlistToTop, removeFromWatchlist, undoWatchlistRemove,
       lbFileInput, lbImporting, importLetterboxd, watchedSaving, toggleWatched,
       detail, editing, saving, coverView, form,
