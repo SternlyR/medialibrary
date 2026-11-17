@@ -76,6 +76,18 @@ class PhysicalRelease(Base):
     movie = relationship("Movie", back_populates="releases")
 
 
+class WatchlistItem(Base):
+    """A disc in the user's ordered watchlist."""
+    __tablename__ = "watchlist_items"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    release_id = Column(Integer, ForeignKey("physical_releases.id"), nullable=False, unique=True)
+    position = Column(Integer, nullable=False, default=0)
+    # Kept as a tombstone so auto-populate doesn't re-add a disc the user removed.
+    removed = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class AcquisitionItem(Base):
     """A disc the user wants to buy."""
     __tablename__ = "acquisition_items"
