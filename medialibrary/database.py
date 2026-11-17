@@ -30,7 +30,7 @@ class Movie(Base):
     genres = Column(String(500))       # comma-separated
     letterboxd_rating = Column(Float)  # 0.5 – 5.0, null if not yet fetched or unrated
     letterboxd_synced_at = Column(DateTime)
-    letterboxd_watched = Column(Integer, default=0)  # 1 = marked watched (rated or not)
+    letterboxd_watched = Column(Integer, default=0)  # 0 no, 1 from Letterboxd, 2 set by hand
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

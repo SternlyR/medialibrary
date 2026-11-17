@@ -373,7 +373,9 @@ async def update_release(release_id: int, req: UpdateReleaseRequest):
         release_fields = {"format", "label", "region", "physical_release_date", "edition", "set_name", "disc_count", "aspect_ratio", "upc", "cover_url", "cover_url_back", "cover_url_slip", "cover_url_slipback", "library_cover_url", "notes"}
 
         for field, value in req.model_dump(exclude_none=True).items():
-            if field in movie_fields:
+            if field == "letterboxd_watched":
+                movie.letterboxd_watched = WATCHED_MANUAL if value else 0
+            elif field in movie_fields:
                 setattr(movie, field, value)
             elif field in release_fields:
                 setattr(release, field, value)
@@ -527,7 +529,8 @@ async def sync_letterboxd(username: Optional[str] = Query(None)):
                 movie.letterboxd_rating = index[key]
                 movie.letterboxd_synced_at = now
                 matched += 1
-        watched_matched = _apply_watched(movies, watched, now)
+        watched_matched = _apply_watched(movies, watched, now,
+                                         watched_complete=watched_error is None and bool(watched))
         await session.commit()
 
     return {
@@ -541,16 +544,27 @@ async def sync_letterboxd(username: Optional[str] = Query(None)):
     }
 
 
-def _apply_watched(movies, watched, now, ratings_complete: bool = True) -> int:
+# letterboxd_watched values: 0 = not watched, 1 = from Letterboxd, 2 = set by hand.
+WATCHED_SYNCED = 1
+WATCHED_MANUAL = 2
+
+
+def _apply_watched(movies, watched, now, ratings_complete: bool = True,
+                   watched_complete: bool = False) -> int:
     """ratings_complete: the list carries every rating, so an unrated entry
-    means "no rating" and clears any stale one."""
+    means "no rating" and clears any stale one.
+    watched_complete: the list is the user's whole watched history, so a
+    Letterboxd-sourced watched mark on a film missing from it is stale."""
     from medialibrary.api.letterboxd import LetterboxdClient
     matched = 0
     for movie in movies:
         f = LetterboxdClient.match_films(watched, movie.title or "", movie.year)
         if not f:
+            if watched_complete and movie.letterboxd_watched == WATCHED_SYNCED:
+                movie.letterboxd_watched = 0
             continue
-        movie.letterboxd_watched = 1
+        if movie.letterboxd_watched != WATCHED_MANUAL:
+            movie.letterboxd_watched = WATCHED_SYNCED
         if f.rating is not None or ratings_complete:
             movie.letterboxd_rating = f.rating
         movie.letterboxd_synced_at = now
@@ -604,7 +618,8 @@ async def import_letterboxd(file: UploadFile = File(...)):
     async with await get_session(engine) as session:
         movies = (await session.execute(select(Movie))).scalars().all()
         matched = _apply_watched(movies, list(films.values()), datetime.utcnow(),
-                                 ratings_complete="ratings.csv" in csvs)
+                                 ratings_complete="ratings.csv" in csvs,
+                                 watched_complete="watched.csv" in csvs)
         await session.commit()
 
     return {"films_in_export": len(films), "library_titles": len(movies), "matched": matched}
