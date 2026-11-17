@@ -133,6 +133,37 @@ async def init_db():
                 await conn.execute(text(col_sql))
             except Exception:
                 pass  # Column already exists
+
+        # One-time data fixes, tracked with SQLite's user_version.
+        version = (await conn.execute(text("PRAGMA user_version"))).scalar() or 0
+        if version < 1:
+            # A scraper bug read Letterboxd's hidden ½ glyph as the user's rating
+            # for watched-but-unrated films. Those films were watched, so keep that;
+            # real ½ ratings come back on the next full sync or export import.
+            await conn.execute(text(
+                "UPDATE movies SET letterboxd_watched = 1, letterboxd_rating = NULL "
+                "WHERE letterboxd_rating = 0.5"
+            ))
+            import json
+            rows = (await conn.execute(text(
+                "SELECT id, films_included FROM physical_releases WHERE films_included LIKE '%0.5%'"
+            ))).all()
+            for rid, raw in rows:
+                try:
+                    films = json.loads(raw)
+                except (TypeError, ValueError):
+                    continue
+                changed = False
+                for f in films if isinstance(films, list) else []:
+                    if isinstance(f, dict) and f.get("letterboxd_rating") == 0.5:
+                        f["letterboxd_rating"] = None
+                        changed = True
+                if changed:
+                    await conn.execute(
+                        text("UPDATE physical_releases SET films_included = :f WHERE id = :i"),
+                        {"f": json.dumps(films), "i": rid},
+                    )
+            await conn.execute(text("PRAGMA user_version = 1"))
     # Seed acquisition_items if empty
     async with engine.begin() as conn:
         count = (await conn.execute(text("SELECT count(*) FROM acquisition_items"))).scalar()

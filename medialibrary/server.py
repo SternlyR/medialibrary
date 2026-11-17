@@ -541,7 +541,9 @@ async def sync_letterboxd(username: Optional[str] = Query(None)):
     }
 
 
-def _apply_watched(movies, watched, now) -> int:
+def _apply_watched(movies, watched, now, ratings_complete: bool = True) -> int:
+    """ratings_complete: the list carries every rating, so an unrated entry
+    means "no rating" and clears any stale one."""
     from medialibrary.api.letterboxd import LetterboxdClient
     matched = 0
     for movie in movies:
@@ -549,7 +551,7 @@ def _apply_watched(movies, watched, now) -> int:
         if not f:
             continue
         movie.letterboxd_watched = 1
-        if f.rating is not None:
+        if f.rating is not None or ratings_complete:
             movie.letterboxd_rating = f.rating
         movie.letterboxd_synced_at = now
         matched += 1
@@ -601,7 +603,8 @@ async def import_letterboxd(file: UploadFile = File(...)):
     engine = await get_engine()
     async with await get_session(engine) as session:
         movies = (await session.execute(select(Movie))).scalars().all()
-        matched = _apply_watched(movies, list(films.values()), datetime.utcnow())
+        matched = _apply_watched(movies, list(films.values()), datetime.utcnow(),
+                                 ratings_complete="ratings.csv" in csvs)
         await session.commit()
 
     return {"films_in_export": len(films), "library_titles": len(movies), "matched": matched}

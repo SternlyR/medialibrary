@@ -209,15 +209,18 @@ class LetterboxdClient:
             except (ValueError, TypeError):
                 pass
 
-        # 4. Star text in span.rating (reviews page)
-        span = content.select_one("span.rating")
+        # 4. Star text in span.rating (reviews page), skipping the site-wide histogram
+        span = next((sp for sp in content.select("span.rating")
+                     if not sp.find_parent(class_="rating-histogram")), None)
         if span:
             r = _parse_stars(span.get_text(strip=True))
             if r is not None:
                 return r
 
-        # 5. SVG glyph (base film page — shows oldest entry)
-        svg = content.select_one("svg.glyph.-rating")
+        # 5. SVG glyph inside the user's own viewing/review entry. Every page also
+        # carries a hidden sprite of all ten glyphs (½ … ★★★★★) at body level;
+        # reading that gave unrated films a bogus 0.5.
+        svg = content.select_one(".film-viewing-info-wrapper svg.glyph.-rating")
         if svg:
             r = _parse_stars(svg.get("aria-label", ""))
             if r is not None:
