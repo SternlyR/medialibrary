@@ -90,6 +90,70 @@ class WatchlistItem(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class RefFilm(Base):
+    """A film named by at least one reference source (polls, awards, registries)."""
+    __tablename__ = "ref_films"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    key = Column(String(300), unique=True, index=True)   # tmdb:<id> or t:<title>|<year>
+    title = Column(String(500), nullable=False)
+    year = Column(Integer)
+    director = Column(String(500))
+    country = Column(String(200))
+    tmdb_id = Column(Integer, index=True)
+    imdb_id = Column(String(20))
+
+    entries = relationship("RefEntry", back_populates="film", cascade="all, delete-orphan")
+
+
+class RefEntry(Base):
+    """One appearance of a film in one source: a poll rank, an award, an inclusion."""
+    __tablename__ = "ref_entries"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    film_id = Column(Integer, ForeignKey("ref_films.id"), nullable=False, index=True)
+    source = Column(String(100), nullable=False, index=True)
+    rank = Column(Integer)
+    note = Column(String(200))   # award / induction year
+    url = Column(String(1000))
+
+    film = relationship("RefFilm", back_populates="entries")
+
+
+class TmdbPoster(Base):
+    """Poster paths cached from TMDB so Discover cards don't re-fetch."""
+    __tablename__ = "tmdb_posters"
+
+    tmdb_id = Column(Integer, primary_key=True)
+    poster_path = Column(String(300))
+
+
+class LetterboxdFilm(Base):
+    """Every film on the user's Letterboxd watched list (owned or not)."""
+    __tablename__ = "letterboxd_films"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(500), nullable=False)
+    year = Column(Integer)
+    slug = Column(String(300))
+    rating = Column(Float)
+
+
+class DiscoverHidden(Base):
+    """Recommendations the user dismissed, by RefFilm.key."""
+    __tablename__ = "discover_hidden"
+
+    key = Column(String(300), primary_key=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AppMeta(Base):
+    __tablename__ = "app_meta"
+
+    key = Column(String(100), primary_key=True)
+    value = Column(Text)
+
+
 class AcquisitionItem(Base):
     """A disc the user wants to buy."""
     __tablename__ = "acquisition_items"

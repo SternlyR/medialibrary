@@ -1,0 +1,105 @@
+rank,title,year,director,country,note,url,tmdb_id,imdb_id
+1,2001: A Space Odyssey,1968,Stanley Kubrick,"USA, United Kingdom",,https://www.bfi.org.uk/film/cefccdb2-b558-5623-9c17-72b4be7bd4c1/2001-a-space-odyssey,62,tt0062622
+2,Citizen Kane,1941,Orson Welles,USA,,https://www.bfi.org.uk/film/f4c92833-af39-5cd6-a41e-8df5933d0dc1/citizen-kane,15,tt0033467
+3,The Godfather,1972,Francis Ford Coppola,USA,,https://www.bfi.org.uk/film/ccc481e1-f1c2-5b60-bbe7-77ad5645fb1a/the-godfather,238,tt0068646
+4,Tokyo Story,1953,Yasujirō Ozu,Japan,tied,https://www.bfi.org.uk/film/65edaa59-6546-57b5-9fa3-9409f93d1383/tokyo-story,18148,tt0046438
+4,"Jeanne Dielman, 23 Quai du Commerce, 1080 Bruxelles",1975,Chantal Akerman,"Belgium, France",tied,https://www.bfi.org.uk/film/00638537-48d0-5522-9502-4e5ba0166194/jeanne-dielman-23-quai-du-commerce-1080-bruxelles,44012,tt0073198
+6,8½,1963,Federico Fellini,"Italy, France",tied,https://www.bfi.org.uk/film/3b1e80a4-111a-5fff-b799-7c50460d6284/812,,
+6,Vertigo,1958,Alfred Hitchcock,USA,tied,https://www.bfi.org.uk/film/489eada8-7d7e-594c-acac-5903f43f4b85/vertigo,426,tt0052357
+8,Mirror,1975,Andrei Tarkovsky,"USSR, Russian SFSR",,https://www.bfi.org.uk/film/97341aa7-c937-57bf-9011-99bb084472b9/mirror,1396,tt0072443
+9,Persona,1966,Ingmar Bergman,Sweden,tied,https://www.bfi.org.uk/film/d58fc7f8-fd9a-5f17-88e8-c87f27856486/persona,797,tt0060827
+9,Close-up,1989,Abbas Kiarostami,Iran,tied,https://www.bfi.org.uk/film/3b863389-5735-5b97-86c2-7e52217a7517/close-up,30017,tt0100234
+9,In the Mood for Love,2000,Wong Kar Wai,"Hong Kong, France",tied,https://www.bfi.org.uk/film/1b8c3bcb-842f-5ba2-90ee-39b6b40b7c21/in-the-mood-for-love,843,tt0118694
+12,Barry Lyndon,1975,Stanley Kubrick,"USA, United Kingdom",tied,https://www.bfi.org.uk/film/7232754d-299f-5b3c-9c4e-f1758809c8ed/barry-lyndon,3175,tt0072684
+12,Taxi Driver,1976,Martin Scorsese,USA,tied,https://www.bfi.org.uk/film/d964bfb7-729b-5181-85f8-35b1bd3a21a3/taxi-driver,187686,tt1442496
+14,Stalker,1979,Andrei Tarkovsky,"USSR, Russian SFSR",tied,https://www.bfi.org.uk/film/0ee193c2-080e-5ff8-9d4b-842cffd8e53a/stalker,1398,tt0079944
+14,À bout de souffle,1960,Jean-Luc Godard,France,tied,https://www.bfi.org.uk/film/6d93c801-e069-50f3-98b0-b0070e43f7a5/a-bout-de-souffle,269,tt0053472
+14,Seven Samurai,1954,Akira Kurosawa,Japan,tied,https://www.bfi.org.uk/film/01391b07-5940-5d02-aa47-1158142f2b64/seven-samurai,346,tt0047478
+14,Beau travail,1998,Claire Denis,France,tied,https://www.bfi.org.uk/film/bc9dc6fa-0761-553d-8324-f1fbd4bd2005/beau-travail,14626,tt0209933
+18,A Woman under the Influence,1974,John Cassavetes,USA,tied,https://www.bfi.org.uk/film/59ac010c-250e-5a0e-8cdf-65c3c5217634/a-woman-under-the-influence,29845,tt0072417
+18,Apocalypse Now,1979,Francis Ford Coppola,USA,tied,https://www.bfi.org.uk/film/732cc9f4-21a6-5356-bb18-9130f750f332/apocalypse-now,28,tt0078788
+20,Rashomon,1950,Akira Kurosawa,Japan,tied,https://www.bfi.org.uk/film/878cd0fa-33da-547a-b128-84cec508f7da/rashomon,548,tt0042876
+20,Bicycle Thieves,1948,Vittorio De Sica,Italy,tied,https://www.bfi.org.uk/film/594f7408-2fdd-55a0-a347-79370e42e0ed/bicycle-thieves,5156,tt0040522
+22,Raging Bull,1980,Martin Scorsese,USA,tied,https://www.bfi.org.uk/film/0caff9bf-8c22-568b-b70e-c211b22dba41/raging-bull,1578,tt0081398
+22,The Battle of Algiers,1966,Gillo Pontecorvo,"Italy, Algeria",tied,https://www.bfi.org.uk/film/6f9488ef-f914-594e-b76b-dce7143c8522/the-battle-of-algiers,17295,tt0058946
+22,Pather Panchali,1955,Satyajit Ray,India,tied,https://www.bfi.org.uk/film/bfbb9ef1-1b2c-58fd-b030-4f50c4827d91/pather-panchali,5801,tt0048473
+22,Mulholland Dr.,2001,David Lynch,"France, USA",tied,https://www.bfi.org.uk/film/784b550c-9db8-568a-8078-32b4957e2bbb/mulholland-dr,1018,tt0166924
+26,The Godfather Part II,1974,Francis Ford Coppola,USA,tied,https://www.bfi.org.uk/film/23623933-4680-5504-8e70-dcde5847c383/the-godfather-part-ii,240,tt0071562
+26,Andrei Rublev,1966,Andrei Tarkovsky,"USSR, Russian SFSR",tied,https://www.bfi.org.uk/film/f76e5f6e-6cdc-5a9e-afd9-34aa854e59a6/andrei-rublev,895,tt0060107
+28,GoodFellas,1990,Martin Scorsese,USA,,https://www.bfi.org.uk/film/b573c997-0970-5531-8f89-b193e2f8b143/goodfellas,769,tt0099685
+29,Do the Right Thing,1989,Spike Lee,USA,,https://www.bfi.org.uk/film/8e81a2c0-b1e4-51c4-b5da-93458d361dc3/do-the-right-thing,925,tt0097216
+30,Ordet,1955,Carl Th. Dreyer,Denmark,tied,https://www.bfi.org.uk/film/d06c8e31-324e-5886-bfb3-200802199b37/ordet,48035,tt0048452
+30,The Passion of Joan of Arc,1927,Carl Th. Dreyer,France,tied,https://www.bfi.org.uk/film/13d97397-0964-5331-b7f9-49fc47c79295/the-passion-of-joan-of-arc,780,tt0019254
+30,Man with a Movie Camera,1929,Dziga Vertov,"Ukrainian SSR, USSR",tied,https://www.bfi.org.uk/film/cacbb2df-be18-5e59-b5c3-f0eb9ea3a90d/man-with-a-movie-camera,26317,tt0019760
+33,The 400 Blows,1959,François Truffaut,France,tied,https://www.bfi.org.uk/film/8803865c-9135-5c8f-b36f-6e50ffcb4873/the-400-blows,147,tt0053198
+33,Sunrise A Song of Two Humans,1927,F.W. Murnau,USA,tied,https://www.bfi.org.uk/film/846a7d3b-1aee-5183-a318-903dc129dd9a/sunrise-a-song-of-two-humans,631,tt0018455
+35,La Jetée,1962,Chris Marker,France,tied,https://www.bfi.org.uk/film/e6855ee9-c56d-5914-9f9b-69307cef5b18/la-jetee,662,tt0056119
+35,La dolce vita,1960,Federico Fellini,"Italy, France",tied,https://www.bfi.org.uk/film/85387dcd-04ae-50fe-b860-89be5a907115/la-dolce-vita,439,tt0053779
+37,Au hasard Balthazar,1966,Robert Bresson,"France, Sweden",,https://www.bfi.org.uk/film/3fc31e95-d0aa-5a28-a8d4-4d3c8a3d50a9/au-hasard-balthazar,20108,tt0060138
+38,La strada,1954,Federico Fellini,Italy,tied,https://www.bfi.org.uk/film/aa551be7-dc11-50e3-9d0d-0193b8a3422e/la-strada,405,tt0047528
+38,L'avventura,1960,Michelangelo Antonioni,"Italy, France",tied,https://www.bfi.org.uk/film/3a870ce8-1558-507b-b7c3-c76915d3a994/lavventura,5165,tt0053619
+38,La Règle du jeu,1939,Jean Renoir,France,tied,https://www.bfi.org.uk/film/725ff1e4-895e-5c6e-8a6e-b03825197e99/la-regle-du-jeu,776,tt0031885
+41,Come and See,1985,Elem Klimov,"USSR, Byelorussian SSR, Russian SFSR",tied,https://www.bfi.org.uk/film/7400501f-e65d-5e1c-9ba7-847a1a680978/come-and-see,25237,tt0091251
+41,Vagabond,1985,Agnès Varda,"France, United Kingdom",tied,https://www.bfi.org.uk/film/0e5de1b5-c858-516b-a5d1-010b4184fe50/vagabond,44018,tt0089960
+41,A Man Escaped,1956,Robert Bresson,France,tied,https://www.bfi.org.uk/film/ae2f8b1c-d805-5a3a-93c1-fb37f58a319d/a-man-escaped,15244,tt0049902
+41,The Night of the Hunter,1955,Charles Laughton,USA,tied,https://www.bfi.org.uk/film/313424b8-8d3b-5180-86ef-2887a36a393a/the-night-of-the-hunter,3112,tt0048424
+41,Playtime,1967,Jacques Tati,France,tied,https://www.bfi.org.uk/film/a27e52ca-e6b6-5cd4-a2e0-1e1a30456e56/playtime,10227,tt0062136
+46,Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb,1963,Stanley Kubrick,"United Kingdom, USA",tied,https://www.bfi.org.uk/film/0f172a91-5ac3-52fc-8622-bf0ce1cce435/dr-strangelove-or-how-i-learned-to-stop-worrying-and-love-the-bomb,935,tt0057012
+46,Don't Look Now,1973,Nicolas Roeg,"United Kingdom, Italy",tied,https://www.bfi.org.uk/film/8c6c178c-b903-5e2b-b480-d43a6b21f5b4/dont-look-now,931,tt0069995
+46,Once upon a Time in the West,1968,Sergio Leone,"Italy, USA",tied,https://www.bfi.org.uk/film/f3d8c1dc-2761-5fdc-ab54-9b054daec0ee/once-upon-a-time-in-the-west,335,tt0064116
+46,Le Mépris,1963,Jean-Luc Godard,"France, Italy",tied,https://www.bfi.org.uk/film/e4a2c85e-6d21-5e57-9a58-e0374d74ec06/le-mepris,266,tt0057345
+46,L'Atalante,1934,Jean Vigo,France,tied,https://www.bfi.org.uk/film/b0682bfd-7d46-5c53-9968-d35680ee4e14/latalante,43904,tt0024844
+46,Psycho,1960,Alfred Hitchcock,USA,tied,https://www.bfi.org.uk/film/18313136-53d5-53d4-a89b-1d19d24a30f2/psycho,539,tt0054215
+52,Viridiana,1961,Luis Buñuel,"Spain, Mexico",tied,https://www.bfi.org.uk/film/909bd4b2-afe0-5a1c-a403-438fe2092eb2/viridiana,4497,tt0055601
+52,Eraserhead,1976,David Lynch,USA,tied,https://www.bfi.org.uk/film/928e9ac4-b2d0-550e-a7f2-40af6f50451f/eraserhead,985,tt0074486
+52,La notte,1961,Michelangelo Antonioni,"Italy, France",tied,https://www.bfi.org.uk/film/f16c621e-c503-543f-bdc8-07ac64b33981/la-notte,41050,tt0054130
+52,Fanny and Alexander,1982,Ingmar Bergman,"Sweden, France, Federal Republic of Germany",tied,https://www.bfi.org.uk/film/12cbf169-c5eb-5b83-9ec0-a43a34937127/fanny-and-alexander,5961,tt0083922
+52,La Maman et la Putain,1973,Jean Eustache,France,tied,https://www.bfi.org.uk/film/8fef8d40-97a8-5932-93dc-e01d1dfdcc8f/la-maman-et-la-putain,48693,tt0070359
+52,Fear Eats the Soul,1974,Rainer Werner Fassbinder,Federal Republic of Germany,tied,https://www.bfi.org.uk/film/34034fba-0e65-50d1-b5ec-c56d9ae17fd6/fear-eats-the-soul,216,tt0071141
+52,The Piano,1992,Jane Campion,"Australia, France",tied,https://www.bfi.org.uk/film/cabb66ca-3bd6-562c-8c37-e704712b8ded/the-piano,713,tt0107822
+52,City Lights,1931,Charles Chaplin,USA,tied,https://www.bfi.org.uk/film/18e7950b-fa7e-5a5e-a897-a782a40f1c5c/city-lights,901,tt0021749
+52,Cléo from 5 to 7,1962,Agnès Varda,"France, Italy",tied,https://www.bfi.org.uk/film/7463ef92-3d4f-5cba-a9a5-5bf971fd2238/cleo-from-5-to-7,499,tt0055852
+52,Singin' in the Rain,1951,"Gene Kelly, Stanley Donen",USA,tied,https://www.bfi.org.uk/film/33de2949-3ce8-5f0b-920a-311784964aec/singin-in-the-rain,872,tt0045152
+62,La ciénaga,2001,Lucrecia Martel,"Argentina, USA, Japan, France, Switzerland, Spain, Brazil",tied,https://www.bfi.org.uk/film/4975bf46-bd08-5af4-9550-cc0edd2ba278/la-cienaga,58429,tt0240419
+62,Lawrence of Arabia,1962,David Lean,United Kingdom,tied,https://www.bfi.org.uk/film/413e3331-5cbc-5245-9138-7c68b94da116/lawrence-of-arabia,947,tt0056172
+62,Jaws,1975,Steven Spielberg,USA,tied,https://www.bfi.org.uk/film/98b20662-5754-5b8a-8e69-38fbec0d85c2/jaws,578,tt0073195
+62,Tropical Malady,2004,Apichatpong Weerasethakul,"France, Thailand, Germany, Italy, Switzerland",tied,https://www.bfi.org.uk/film/b6fed05e-eca5-5924-a201-efe4f3b86d6d/tropical-malady,11534,tt0381668
+62,Sátántangó,1994,Béla Tarr,"Hungary, Germany, Switzerland",tied,https://www.bfi.org.uk/film/67205871-c042-50a8-879d-d9b1992ef8d1/satantango,31414,tt0111341
+62,Sunset Blvd.,1950,Billy Wilder,USA,tied,https://www.bfi.org.uk/film/f43ad3dd-1b5b-5f19-aa10-5f29d8f33da2/sunset-blvd,599,tt0043014
+62,Blade Runner,1982,Ridley Scott,"USA, Hong Kong",tied,https://www.bfi.org.uk/film/ec064a2a-f7a8-536a-afa2-ed076aad151f/blade-runner,78,tt0083658
+62,Some Like It Hot,1959,Billy Wilder,USA,tied,https://www.bfi.org.uk/film/b15e001b-237f-5b67-83b2-5e99fe783b01/some-like-it-hot,239,tt0053291
+62,Late Spring,1949,Yasujirō Ozu,Japan,tied,https://www.bfi.org.uk/film/797ab4f5-e457-5b07-9ca6-63d347f7da5a/late-spring,20530,tt0041154
+62,Meshes of the Afternoon,1943,"Maya Deren, Alexander Hackenschmied",USA,tied,https://www.bfi.org.uk/film/7c5a18ae-b5ba-5a7b-b43f-e9c1895e2f17/meshes-of-the-afternoon,27040,tt0036154
+72,Kes,1969,Ken Loach,United Kingdom,tied,https://www.bfi.org.uk/film/6a56af5a-24ab-5b3b-a3bc-6a64ba380994/kes,13384,tt0064541
+72,A Separation,2011,Asghar Farhadi,Iran,tied,https://www.bfi.org.uk/film/4e863895-0eb6-56b0-a218-73079fb5f057/a-separation,60243,tt1832382
+72,"Salò, or the 120 Days of Sodom",1975,Pier Paolo Pasolini,"Italy, France",tied,https://www.bfi.org.uk/film/be5e9c53-bbdb-5316-a1a5-43ea2772fe49/salo-or-the-120-days-of-sodom,5336,tt0073650
+72,The Conversation,1974,Francis Ford Coppola,USA,tied,https://www.bfi.org.uk/film/5de379cc-e583-5571-8628-f9f2698acfd7/the-conversation,592,tt0071360
+72,L'Argent,1983,Robert Bresson,"France, Switzerland",tied,https://www.bfi.org.uk/film/4ced630f-77cb-5955-9552-d6f91a84ac5a/largent,42112,tt0085180
+72,Where Is the Friend's House?,1987,Abbas Kiarostami,Iran,tied,https://www.bfi.org.uk/film/49966a7c-be06-5318-bb99-7a84988bd550/where-is-the-friends-house,49964,tt0093342
+72,Ikiru,1952,Akira Kurosawa,Japan,tied,https://www.bfi.org.uk/film/57504754-58ba-53bd-9de4-d72080579594/ikiru,3782,tt0044741
+72,Chinatown,1974,Roman Polanski,USA,tied,https://www.bfi.org.uk/film/991533a0-fad3-5d39-a5e2-9c77ba46d83f/chinatown,829,tt0071315
+72,The Seventh Seal,1957,Ingmar Bergman,Sweden,tied,https://www.bfi.org.uk/film/1d619311-3358-529c-999f-de7dffc0843c/the-seventh-seal,490,tt0050976
+72,The Ascent,1976,Larissa Shepitko,"USSR, Russian SFSR",tied,https://www.bfi.org.uk/film/e560b4da-20f1-5a08-8014-af61dd2903d9/the-ascent,50183,tt0075404
+72,Wild Strawberries,1957,Ingmar Bergman,Sweden,tied,https://www.bfi.org.uk/film/1faaf5fe-3e93-5791-9e22-80f9e8f53e84/wild-strawberries,614,tt0050986
+72,Blue Velvet,1986,David Lynch,USA,tied,https://www.bfi.org.uk/film/d05f9a29-ea02-5f5f-9336-bce54204b923/blue-velvet,793,tt0090756
+72,The Spirit of the Beehive,1973,Víctor Erice,Spain,tied,https://www.bfi.org.uk/film/351aef87-fadc-521d-aada-811575f8051d/the-spirit-of-the-beehive,4495,tt0070040
+72,A Brighter Summer Day,1991,Edward Yang,Taiwan,tied,https://www.bfi.org.uk/film/0e535956-629b-5e96-8fdc-6c6034fef935/a-brighter-summer-day,15804,tt0101985
+72,Modern Times,1936,Charles Chaplin,USA,tied,https://www.bfi.org.uk/film/4cdccc6d-f143-506d-a2b1-4c34605cb088/modern-times,3082,tt0027977
+72,The Red Shoes,1948,"Michael Powell, Emeric Pressburger",United Kingdom,tied,https://www.bfi.org.uk/film/3b330bf5-17bf-5fb6-8377-ccf367e58c15/the-red-shoes,19542,tt0040725
+72,Touki Bouki,1973,Djibril Diop Mambéty,Senegal,tied,https://www.bfi.org.uk/film/9a363fae-8f64-54e3-88f8-b07a06d2d1dd/touki-bouki,77771,tt0070820
+72,Sans soleil,1982,Chris Marker,France,tied,https://www.bfi.org.uk/film/a9bab1d5-f6df-51d3-bdda-5e1beba14602/sans-soleil,1563,tt0084628
+72,News from Home,1976,Chantal Akerman,"France, Belgium",tied,https://www.bfi.org.uk/film/5b0cea46-7c07-5707-a102-ddb7677c51b8/news-from-home,86814,tt0076452
+72,Shoah,1985,Claude Lanzmann,France,tied,https://www.bfi.org.uk/film/46732480-a60e-5db0-9467-692af02d7383/shoah,42044,tt0090015
+72,The Searchers,1956,John Ford,USA,tied,https://www.bfi.org.uk/film/cc32fc72-48ae-5450-886d-0d032a6986c5/the-searchers,3114,tt0049730
+93,Throne of Blood,1957,Akira Kurosawa,Japan,tied,https://www.bfi.org.uk/film/f92d3ebc-4414-5cc8-866a-5001a4874110/throne-of-blood,3777,tt0050613
+93,Eternal Sunshine of the Spotless Mind,2004,Michel Gondry,USA,tied,https://www.bfi.org.uk/film/6565d21a-c62c-5ffe-aac9-ffce265edbba/eternal-sunshine-of-the-spotless-mind,38,tt0338013
+93,Hidden,2004,Michael Haneke,"France, Austria, Germany, Italy",tied,https://www.bfi.org.uk/film/f05ad1b4-de98-5aac-9a69-b77822693c23/hidden,78525,tt0431955
+93,Taste of Cherry,1997,Abbas Kiarostami,Iran,tied,https://www.bfi.org.uk/film/bee435cd-f132-54a7-8180-8118f64536f2/taste-of-cherry,30020,tt0120265
+93,Pickpocket,1959,Robert Bresson,France,tied,https://www.bfi.org.uk/film/e4968156-34f1-5599-9c6e-39814a025e9b/pickpocket,690,tt0053168
+93,The Colour of Pomegranates,1968,Sergei Paradjanov,"USSR, Armenian SSR",tied,https://www.bfi.org.uk/film/b4c32df4-d6e5-5c6c-9825-208d6e80da42/the-colour-of-pomegranates,26302,tt0063555
+93,The Conformist,1970,Bernardo Bertolucci,"Italy, France, Federal Republic of Germany",tied,https://www.bfi.org.uk/film/7f8c297d-0a54-5c9a-a2bb-5fa59b50a66b/the-conformist,8416,tt0065571
+93,Parasite,2019,Bong Joon-ho,Republic of Korea,tied,https://www.bfi.org.uk/film/08462aec-21ae-5910-98e5-6e79f4dbbc4e/parasite,496243,tt6751668
+93,Yi Yi,1999,Edward Yang,"Taiwan, Japan",tied,https://www.bfi.org.uk/film/0e8f6bcd-43ed-5390-8581-2237a9708cf3/yi-yi,25538,tt0244316
+93,Moonlight,2016,Barry Jenkins,USA,tied,https://www.bfi.org.uk/film/33aa5608-df9d-502e-8815-e668954ce7d9/moonlight,376867,tt4975722
+93,Battleship Potemkin,1925,Sergei M. Eisenstein,USSR,tied,https://www.bfi.org.uk/film/9c02c20b-1487-52c8-bbfc-0849e204fe59/battleship-potemkin,643,tt0015648
+93,Wanda,1970,Barbara Loden,USA,tied,https://www.bfi.org.uk/film/82acb1a1-c6c7-5478-a27e-b0c76e0d244c/wanda,80560,tt0067961

@@ -36,6 +36,10 @@ from sqlalchemy.orm import joinedload
 
 from medialibrary.database import init_db, get_session, Movie, PhysicalRelease, AcquisitionItem, WatchlistItem
 from medialibrary.metadata import enrich
+from medialibrary.reference import (
+    SOURCES as REF_SOURCES, build_picks, ensure_reference_loaded, serialize as serialize_pick,
+    store_letterboxd_films,
+)
 from medialibrary.config import settings
 
 app = FastAPI(
@@ -531,6 +535,8 @@ async def sync_letterboxd(username: Optional[str] = Query(None)):
                 matched += 1
         watched_matched = _apply_watched(movies, watched, now,
                                          watched_complete=watched_error is None and bool(watched))
+        if watched_error is None and watched:
+            await store_letterboxd_films(session, watched)
         await session.commit()
 
     return {
@@ -620,6 +626,8 @@ async def import_letterboxd(file: UploadFile = File(...)):
         matched = _apply_watched(movies, list(films.values()), datetime.utcnow(),
                                  ratings_complete="ratings.csv" in csvs,
                                  watched_complete="watched.csv" in csvs)
+        if "watched.csv" in csvs:
+            await store_letterboxd_films(session, list(films.values()))
         await session.commit()
 
     return {"films_in_export": len(films), "library_titles": len(movies), "matched": matched}
@@ -1393,6 +1401,104 @@ async def remove_from_watchlist(release_id: int):
         else:
             session.add(WatchlistItem(release_id=release_id, kind=kind, position=0, removed=1))
         await session.commit()
+
+
+# ── Discover (reference-library recommendations) ──────────────────────────────
+
+class DiscoverKeyRequest(BaseModel):
+    key: str
+
+
+async def _poster_paths(session, tmdb_ids: list[int]) -> dict[int, str]:
+    """Poster paths for TMDB ids, fetched once and cached in tmdb_posters."""
+    from medialibrary.database import TmdbPoster
+    ids = [i for i in dict.fromkeys(tmdb_ids) if i]
+    if not ids:
+        return {}
+    cached = {
+        p.tmdb_id: p.poster_path
+        for p in (await session.execute(select(TmdbPoster).where(TmdbPoster.tmdb_id.in_(ids)))).scalars().all()
+    }
+    missing = [i for i in ids if i not in cached]
+    if missing and settings.tmdb_api_key:
+        import asyncio
+        import httpx
+        sem = asyncio.Semaphore(8)
+
+        async def one(client, tid):
+            async with sem:
+                try:
+                    r = await client.get(f"{settings.tmdb_base_url}/movie/{tid}",
+                                         params={"api_key": settings.tmdb_api_key})
+                    return tid, (r.json().get("poster_path") or "") if r.status_code == 200 else None
+                except httpx.HTTPError:
+                    return tid, None
+
+        async with httpx.AsyncClient(timeout=10) as client:
+            for tid, path in await asyncio.gather(*(one(client, t) for t in missing)):
+                if path is not None:   # don't cache transient failures
+                    cached[tid] = path
+                    session.add(TmdbPoster(tmdb_id=tid, poster_path=path))
+        await session.commit()
+    return {k: v for k, v in cached.items() if v}
+
+
+@app.get("/discover", summary="Reference-library recommendations")
+async def discover(tab: str = "blind", source: Optional[str] = None, limit: int = Query(60, le=300)):
+    """tab=blind: films you haven't seen and don't own. tab=shelf: films you've
+    watched but don't own. Every pick cites the reference entries behind it."""
+    if tab not in ("blind", "shelf"):
+        raise HTTPException(400, "tab must be 'blind' or 'shelf'")
+    from medialibrary.database import LetterboxdFilm
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        await ensure_reference_loaded(session)
+        picks, coverage = await build_picks(session)
+        lb_count = len((await session.execute(select(LetterboxdFilm.id))).all())
+
+        def in_tab(p, t):
+            return (not p.owned) and (p.watched if t == "shelf" else not p.watched)
+
+        counts = {t: sum(in_tab(p, t) for p in picks) for t in ("blind", "shelf")}
+        chosen = [p for p in picks if in_tab(p, tab)
+                  and (not source or any(e.source == source for e in p.film.entries))]
+        chosen.sort(key=lambda p: (-p.score, p.film.title))
+        chosen = chosen[:limit]
+        posters = await _poster_paths(session, [p.film.tmdb_id for p in chosen])
+
+    return {
+        "tab": tab,
+        "items": [serialize_pick(p, settings.tmdb_image_base, posters) for p in chosen],
+        "counts": counts,
+        "letterboxd_films": lb_count,
+        "sources": [
+            {"key": k, "name": s.name, "short": s.short, "url": s.url, **coverage.get(k, {})}
+            for k, s in REF_SOURCES.items() if coverage.get(k, {}).get("total")
+        ],
+    }
+
+
+@app.post("/discover/hide", summary="Hide a recommendation")
+async def discover_hide(req: DiscoverKeyRequest):
+    from medialibrary.database import DiscoverHidden
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        if not await session.get(DiscoverHidden, req.key):
+            session.add(DiscoverHidden(key=req.key))
+            await session.commit()
+    return {"hidden": req.key}
+
+
+@app.post("/discover/unhide", summary="Restore a hidden recommendation")
+async def discover_unhide(req: DiscoverKeyRequest):
+    from medialibrary.database import DiscoverHidden
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        item = await session.get(DiscoverHidden, req.key)
+        if item:
+            await session.delete(item)
+            await session.commit()
+    return {"restored": req.key}
 
 
 # ── Frontend (must be last) ───────────────────────────────────────────────────
