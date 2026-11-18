@@ -81,8 +81,18 @@ def norm_person(name: str) -> str:
 
 
 def split_directors(field_: str) -> list[str]:
-    parts = re.split(r",|&|\band\b", field_ or "")
+    parts = re.split(r",|&|/|\band\b", field_ or "")
     return [p for p in (norm_person(x) for x in parts) if p]
+
+
+def _clean_title(title: str) -> str:
+    """Drop trailing "(1960)" / "[4K]" style suffixes from library titles."""
+    t = title or ""
+    while True:
+        new = re.sub(r"\s*[\(\[][^\)\]]*[\)\]]\s*$", "", t)
+        if new == t:
+            return t
+        t = new
 
 
 class TitleYearIndex:
@@ -259,23 +269,40 @@ async def build_picks(session) -> tuple[list[Pick], dict]:
         m = r.movie
         if not m:
             continue
+        try:
+            included = json.loads(r.films_included or "[]")
+        except ValueError:
+            included = []
+        included = included if isinstance(included, list) else []
+
         if m.tmdb_id:
             owned_tmdb.add(m.tmdb_id)
             if m.letterboxd_rating:
                 library_rating[m.tmdb_id] = m.letterboxd_rating
-        owned_titles.add(m.title, m.year, True)
-        for d in split_directors(m.director):
-            owned_by_director[d] += 1
-            if m.letterboxd_rating:
-                ratings_by_director[d].append(m.letterboxd_rating)
-        try:
-            for inc in json.loads(r.films_included or "[]"):
-                if isinstance(inc, dict):
-                    owned_titles.add(inc.get("title", ""), _int(inc.get("year")), True)
-                elif isinstance(inc, str):
-                    owned_titles.add(inc, None, True)
-        except ValueError:
-            pass
+        owned_titles.add(_clean_title(m.title), m.year, True)
+        # "Police Story / Police Story 2" style sets name their films in the title.
+        if " / " in (m.title or ""):
+            for part in m.title.split(" / "):
+                owned_titles.add(_clean_title(part), None, True)
+        if not included:
+            for d in split_directors(m.director):
+                owned_by_director[d] += 1
+                if m.letterboxd_rating:
+                    ratings_by_director[d].append(m.letterboxd_rating)
+
+        # Box sets: every film inside counts as owned, and towards its director.
+        for inc in included:
+            if isinstance(inc, str):
+                inc = {"title": inc}
+            if not isinstance(inc, dict) or not inc.get("title"):
+                continue
+            if _int(inc.get("tmdb_id")):
+                owned_tmdb.add(_int(inc["tmdb_id"]))
+            owned_titles.add(_clean_title(inc["title"]), _int(inc.get("year")), True)
+            for d in split_directors(inc.get("director") or ""):
+                owned_by_director[d] += 1
+                if inc.get("letterboxd_rating"):
+                    ratings_by_director[d].append(inc["letterboxd_rating"])
 
     watched = TitleYearIndex()
     for lf in (await session.execute(select(LetterboxdFilm))).scalars().all():

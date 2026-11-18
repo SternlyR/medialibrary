@@ -446,6 +446,8 @@ async def enrich(
                     entry["title"] = film_data.get("title") or film_name
                     entry["year"] = film_data.get("year")
                     entry["director"] = film_data.get("director", "")
+                    if film_data.get("tmdb_id"):
+                        entry["tmdb_id"] = film_data["tmdb_id"]
                     d = film_data.get("director", "")
                     if d and d not in box_directors:
                         box_directors.append(d)
@@ -516,6 +518,8 @@ async def enrich(
                     entry["title"] = film_data.get("title") or film_name
                     entry["year"] = film_data.get("year")
                     entry["director"] = film_data.get("director", "")
+                    if film_data.get("tmdb_id"):
+                        entry["tmdb_id"] = film_data["tmdb_id"]
                     d = film_data.get("director", "")
                     if d and d not in box_directors:
                         box_directors.append(d)
