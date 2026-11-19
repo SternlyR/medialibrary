@@ -409,10 +409,10 @@
           </div>
           <p v-for="r in p.reasons.filter(r => !p.citations.some(c => c.label === r))" :key="r" class="text-[11px] text-accent mt-1">{{ r }}</p>
           <div class="flex flex-wrap gap-2 mt-2">
-            <button @click="discoverToAcquire(p)" :disabled="discoverAdded[p.key]"
+            <button @click="discoverToAcquire(p)" :disabled="p.on_acquire || discoverAdded[p.key] || discoverAdding[p.key]"
               :class="['text-xs px-2.5 py-1 rounded-lg border transition-colors',
-                discoverAdded[p.key] ? 'border-lb/40 text-lb' : 'border-[#333] text-[#ccc] hover:border-accent hover:text-white']">
-              {{ discoverAdded[p.key] ? 'On Acquire list ✓' : '+ Acquire list' }}
+                (p.on_acquire || discoverAdded[p.key]) ? 'border-lb/40 text-lb' : 'border-[#333] text-[#ccc] hover:border-accent hover:text-white']">
+              {{ (p.on_acquire || discoverAdded[p.key]) ? 'On Acquire list ✓' : discoverAdding[p.key] ? 'Finding the disc…' : '+ Acquire list' }}
             </button>
             <a :href="'https://www.blu-ray.com/search/?quicksearch=1&quicksearch_country=all&section=bluraymovies&quicksearch_keyword=' + encodeURIComponent(p.title)"
               target="_blank" rel="noopener" class="text-xs px-2.5 py-1 rounded-lg border border-[#333] text-[#999] hover:text-white">Find on disc</a>
@@ -436,11 +436,18 @@
         <h2 class="text-base font-semibold text-white">To Acquire</h2>
         <p class="text-xs text-[#555] mt-0.5">{{ acquireList.length }} disc{{ acquireList.length !== 1 ? 's' : '' }} on your list</p>
       </div>
-      <button @click="openAcquireAdd"
-        class="bg-accent hover:bg-[#0090c8] text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-        Add to List
-      </button>
+      <div class="flex items-center gap-2">
+        <button v-if="acquireIncomplete.length" @click="fillAllAcquire" :disabled="acquireFilling"
+          class="px-3 py-1.5 rounded-lg text-sm border border-[#333] text-[#ccc] hover:text-white hover:border-accent transition-colors disabled:opacity-60"
+          :title="'Look up format, label, link and box art on Blu-ray.com for ' + acquireIncomplete.length + ' item(s)'">
+          {{ acquireFilling ? acquireFilling : 'Fill missing details (' + acquireIncomplete.length + ')' }}
+        </button>
+        <button @click="openAcquireAdd"
+          class="bg-accent hover:bg-[#0090c8] text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+          Add to List
+        </button>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -455,6 +462,7 @@
         <table class="w-full text-sm">
           <thead>
             <tr class="bg-[#181818]">
+              <th class="pl-4 pr-1 py-3 text-left text-[11px] font-medium text-[#555] uppercase tracking-wider w-14">Cover</th>
               <th class="px-4 py-3 text-left text-[11px] font-medium text-[#555] uppercase tracking-wider">Film</th>
               <th class="px-4 py-3 text-left text-[11px] font-medium text-[#555] uppercase tracking-wider w-16">Year</th>
               <th class="px-4 py-3 text-left text-[11px] font-medium text-[#555] uppercase tracking-wider">Director</th>
@@ -466,10 +474,18 @@
           </thead>
           <tbody>
             <tr v-if="!acquireList.length">
-              <td colspan="7" class="px-4 py-8 text-center text-[#555] text-sm">No discs on your list yet.</td>
+              <td colspan="8" class="px-4 py-8 text-center text-[#555] text-sm">No discs on your list yet.</td>
             </tr>
             <tr v-for="item in acquireList" :key="item.id"
               class="border-t border-[#1e1e1e] hover:bg-[#181818] transition-colors">
+              <td class="pl-4 pr-1 py-2">
+                <img v-if="item.cover_url" :src="item.cover_url" :alt="item.title" loading="lazy"
+                  class="w-9 h-[52px] object-cover rounded shadow" @error="e => e.target.style.visibility='hidden'">
+                <div v-else-if="acquireFillingId === item.id" class="w-9 h-[52px] rounded bg-[#1c1c1c] flex items-center justify-center">
+                  <svg class="animate-spin w-3.5 h-3.5 text-[#555]" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                </div>
+                <div v-else class="w-9 h-[52px] rounded bg-[#1c1c1c] flex items-center justify-center text-sm">🎬</div>
+              </td>
               <td class="px-4 py-3 text-white font-medium">{{ item.title }}</td>
               <td class="px-4 py-3 text-[#888]">{{ item.year || '—' }}</td>
               <td class="px-4 py-3 text-[#888]">{{ item.director || '—' }}</td>
@@ -549,6 +565,17 @@
             <label class="text-[10px] text-[#555] uppercase tracking-wider block mb-1">Purchase Link</label>
             <input v-model="acquireModal.purchase_link" type="url" placeholder="https://…" class="w-full px-3 py-2 text-sm rounded-lg">
           </div>
+          <div v-if="acquireModal.id" class="flex items-center gap-3">
+            <img v-if="acquireModal.cover_url" :src="acquireModal.cover_url" alt="" class="w-12 h-[70px] object-cover rounded shadow shrink-0">
+            <button @click="fillAcquireModal" :disabled="acquireSaving"
+              class="flex-1 bg-[#252525] hover:bg-[#2e2e2e] border border-[#333] text-[#ccc] py-2 rounded-lg text-xs font-medium transition-colors disabled:opacity-40">
+              {{ acquireSaving ? 'Looking up…' : 'Fill blanks from Blu-ray.com (format, label, link, box art)' }}
+            </button>
+          </div>
+          <label v-else class="flex items-center gap-2 text-xs text-[#aaa] cursor-pointer select-none">
+            <input type="checkbox" v-model="acquireModal.lookup_bluray" class="accent-accent w-3.5 h-3.5">
+            Fill format, label, link &amp; box art from Blu-ray.com
+          </label>
           <button @click="saveAcquire" :disabled="acquireSaving || !acquireModal.title"
             class="w-full bg-accent hover:bg-[#0090c8] text-white py-2.5 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 mt-1">
             {{ acquireSaving ? 'Saving…' : (acquireModal.id ? 'Save Changes' : 'Add to List') }}
@@ -1641,13 +1668,21 @@ createApp({
       discover.value = { ...discover.value, items };
     }
 
+    const discoverAdding = ref({});
+
     async function discoverToAcquire(p) {
       const body = { title: p.title, year: p.year || undefined, director: p.director || undefined,
+                     tmdb_id: p.tmdb_id || undefined, lookup_bluray: true,
                      notes: 'From Discover: ' + p.citations.map(c => c.label).join(' · ') };
-      const res = await fetch('/acquire', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      if (!res.ok) { alert('Could not add to the Acquire list'); return; }
-      discoverAdded.value = { ...discoverAdded.value, [p.key]: true };
-      fetchAcquire();
+      discoverAdding.value = { ...discoverAdding.value, [p.key]: true };
+      try {
+        const res = await fetch('/acquire', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!res.ok) { alert('Could not add to the Acquire list'); return; }
+        discoverAdded.value = { ...discoverAdded.value, [p.key]: true };
+        fetchAcquire();
+      } finally {
+        discoverAdding.value = { ...discoverAdding.value, [p.key]: false };
+      }
     }
 
     watch(appView, v => { if (v === 'discover') fetchDiscover(); });
@@ -1664,7 +1699,7 @@ createApp({
     }
 
     function openAcquireAdd() {
-      acquireModal.value = { title: '', year: null, director: '', purchase_link: '', format: '', label: '' };
+      acquireModal.value = { title: '', year: null, director: '', purchase_link: '', format: '', label: '', lookup_bluray: true };
     }
 
     function openAcquireEdit(item) {
@@ -1708,6 +1743,51 @@ createApp({
       }
     }
 
+    // ── Fill Acquire items from Blu-ray.com ─────────────────
+    const acquireFilling   = ref('');     // progress label while bulk-filling
+    const acquireFillingId = ref(null);
+    const acquireIncomplete = computed(() =>
+      acquireList.value.filter(i => !i.cover_url || !i.format || !i.label || !i.purchase_link));
+
+    async function fillAcquireItem(item) {
+      const res = await fetch(`/acquire/${item.id}/fill`, { method: 'POST' });
+      if (!res.ok) return null;
+      const updated = await res.json();
+      acquireList.value = acquireList.value.map(x => x.id === updated.id ? updated : x);
+      return updated;
+    }
+
+    async function fillAllAcquire() {
+      const todo = [...acquireIncomplete.value];
+      let missed = 0;
+      for (let i = 0; i < todo.length; i++) {
+        acquireFilling.value = `Filling ${i + 1} of ${todo.length}…`;
+        acquireFillingId.value = todo[i].id;
+        const u = await fillAcquireItem(todo[i]);
+        if (!u || !u.found) missed++;
+      }
+      acquireFilling.value = '';
+      acquireFillingId.value = null;
+      if (missed) alert(`${missed} item(s) weren't found on Blu-ray.com — edit them to fill in by hand.`);
+    }
+
+    async function fillAcquireModal() {
+      if (!acquireModal.value?.id) return;
+      acquireSaving.value = true;
+      try {
+        const u = await fillAcquireItem(acquireModal.value);
+        if (!u) throw new Error('lookup failed');
+        // Keep anything typed in the form; take looked-up values for blanks.
+        for (const k of ['format', 'label', 'purchase_link', 'cover_url'])
+          acquireModal.value[k] = acquireModal.value[k] || u[k];
+        if (!u.found) alert('Not found on Blu-ray.com — fill in by hand.');
+      } catch (e) {
+        alert('Lookup failed: ' + e.message);
+      } finally {
+        acquireSaving.value = false;
+      }
+    }
+
     async function deleteAcquire(item) {
       if (!confirm(`Remove "${item.title}" from your list?`)) return;
       await fetch(`/acquire/${item.id}`, { method: 'DELETE' });
@@ -1727,6 +1807,7 @@ createApp({
       releases, loading, view, appView, searchQuery, sortBy,
       acquireList, acquireLoading, acquireModal, acquireSaving,
       openAcquireAdd, openAcquireEdit, acquireLookupTmdb, saveAcquire, deleteAcquire,
+      acquireFilling, acquireFillingId, acquireIncomplete, fillAllAcquire, fillAcquireModal, discoverAdding,
       watchlist, watchlists, watchlistTab, watchlistTabs, watchlistLoading, watchlistEl, watchlistUndo,
       moveWatchlistToTop, removeFromWatchlist, undoWatchlistRemove,
       lbFileInput, lbImporting, importLetterboxd, watchedSaving, toggleWatched,

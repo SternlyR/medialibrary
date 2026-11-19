@@ -166,6 +166,8 @@ class AcquisitionItem(Base):
     format = Column(String(50))     # UHD, Blu-Ray, DVD
     label = Column(String(200))
     tmdb_id = Column(Integer)
+    cover_url = Column(String(1000))
+    bluray_com_id = Column(Integer)
     notes = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -194,6 +196,8 @@ async def init_db():
             "ALTER TABLE physical_releases ADD COLUMN library_cover_url TEXT",
             "ALTER TABLE movies ADD COLUMN letterboxd_watched INTEGER DEFAULT 0",
             "ALTER TABLE watchlist_items ADD COLUMN kind TEXT NOT NULL DEFAULT 'unseen'",
+            "ALTER TABLE acquisition_items ADD COLUMN cover_url TEXT",
+            "ALTER TABLE acquisition_items ADD COLUMN bluray_com_id INTEGER",
         ]:
             try:
                 await conn.execute(text(col_sql))

@@ -24,7 +24,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 
 from medialibrary.database import (
-    AppMeta, DiscoverHidden, LetterboxdFilm, Movie, PhysicalRelease, RefEntry, RefFilm,
+    AcquisitionItem, AppMeta, DiscoverHidden, LetterboxdFilm, Movie, PhysicalRelease, RefEntry, RefFilm,
 )
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "reference"
@@ -222,6 +222,7 @@ class Pick:
     owned: bool = False
     watched: bool = False
     rating: Optional[float] = None
+    on_acquire: bool = False
     reasons: list[str] = field(default_factory=list)
     citations: list[dict] = field(default_factory=list)
 
@@ -315,6 +316,14 @@ async def build_picks(session) -> tuple[list[Pick], dict]:
 
     hidden = {h.key for h in (await session.execute(select(DiscoverHidden))).scalars().all()}
 
+    # Films already on the To Acquire list stay listed but are flagged as such.
+    acquire_tmdb: set[int] = set()
+    acquire_titles = TitleYearIndex()
+    for a in (await session.execute(select(AcquisitionItem))).scalars().all():
+        if a.tmdb_id:
+            acquire_tmdb.add(a.tmdb_id)
+        acquire_titles.add(_clean_title(a.title), a.year, True)
+
     picks: list[Pick] = []
     coverage = {k: {"total": 0, "watched": 0, "owned": 0} for k in SOURCES}
     for f in films:
@@ -341,7 +350,8 @@ async def build_picks(session) -> tuple[list[Pick], dict]:
             continue
 
         canon = sum(_entry_weight(SOURCES[e.source], e, list_sizes[e.source]) for e in entries)
-        pick = Pick(film=f, canon=canon, owned=owned, watched=is_watched, rating=rating)
+        pick = Pick(film=f, canon=canon, owned=owned, watched=is_watched, rating=rating,
+                    on_acquire=bool((f.tmdb_id and f.tmdb_id in acquire_tmdb) or acquire_titles.get(f.title, f.year)))
         for e in sorted(entries, key=lambda e: -SOURCES[e.source].weight):
             src = SOURCES[e.source]
             label = _entry_label(src, e)
@@ -378,5 +388,6 @@ def serialize(p: Pick, poster_base: str, posters: dict[int, str]) -> dict:
         "tmdb_id": f.tmdb_id, "imdb_id": f.imdb_id,
         "poster_url": f"{poster_base}{poster}" if poster else "",
         "score": p.score, "owned": p.owned, "watched": p.watched, "rating": p.rating,
+        "on_acquire": p.on_acquire,
         "reasons": p.reasons, "citations": p.citations,
     }

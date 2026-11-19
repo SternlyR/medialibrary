@@ -1176,7 +1176,88 @@ class AcquireRequest(BaseModel):
     format: Optional[str] = None
     label: Optional[str] = None
     notes: Optional[str] = None
-    lookup_tmdb: bool = False   # if True, fetch director/year from TMDB
+    tmdb_id: Optional[int] = None
+    cover_url: Optional[str] = None
+    lookup_tmdb: bool = False     # fetch director/year from TMDB
+    lookup_bluray: bool = False   # fill format/label/link/box art from Blu-ray.com
+
+
+def _acquire_dict(item: AcquisitionItem) -> dict:
+    return {
+        "id": item.id, "title": item.title, "year": item.year,
+        "director": item.director, "purchase_link": item.purchase_link,
+        "format": item.format, "label": item.label, "tmdb_id": item.tmdb_id,
+        "cover_url": item.cover_url, "bluray_com_id": item.bluray_com_id, "notes": item.notes,
+    }
+
+
+_PREFERRED_REGIONS = {"US", "A", "Free", "ABC", "AB"}
+
+
+async def _bluray_best_release(title: str, year: Optional[int],
+                               fmt: Optional[str] = None, label: Optional[str] = None) -> Optional[dict]:
+    """The release to buy. Honors a format/label the user already chose;
+    otherwise 4K UHD if one exists, else Blu-ray. Among the top results it
+    prefers the chosen label, then a US / region-A disc."""
+    from medialibrary.api.bluray import BlurayClient
+    client = BlurayClient()
+    formats = [fmt] if fmt in ("UHD", "Blu-Ray", "DVD") else ["UHD", "Blu-Ray"]
+    want_label = (label or "").lower()
+    for f in formats:
+        try:
+            results = await client.search(title, year, f)
+            if not results and year:
+                results = await client.search(title, fmt=f)
+        except Exception:
+            continue
+        details = []
+        for stub in results[:4 if want_label else 3]:
+            try:
+                d = await client.get_release(stub["bluray_com_id"], stub.get("detail_url"))
+            except Exception:
+                d = None
+            if not d:
+                continue
+            d["detail_url"] = stub.get("detail_url") or d.get("url")
+            details.append(d)
+            label_ok = not want_label or want_label in (d.get("label") or "").lower()
+            if label_ok and d.get("region") in _PREFERRED_REGIONS:
+                return d
+        if details:
+            if want_label:
+                labelled = [d for d in details if want_label in (d.get("label") or "").lower()]
+                if labelled:
+                    return labelled[0]
+            return details[0]
+    return None
+
+
+async def _tmdb_poster_url(tmdb_id: Optional[int]) -> str:
+    if not tmdb_id or not settings.tmdb_api_key:
+        return ""
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{settings.tmdb_base_url}/movie/{tmdb_id}",
+                                 params={"api_key": settings.tmdb_api_key})
+        path = r.json().get("poster_path") if r.status_code == 200 else None
+    except httpx.HTTPError:
+        path = None
+    return f"{settings.tmdb_image_base}{path}" if path else ""
+
+
+async def _fill_from_bluray(item: AcquisitionItem) -> bool:
+    """Fill blank format/label/link/box art. Never overwrites what the user set."""
+    found = await _bluray_best_release(item.title, item.year, item.format, item.label)
+    if found:
+        item.format = item.format or found.get("format") or None
+        item.label = item.label or found.get("label") or None
+        item.purchase_link = item.purchase_link or found.get("detail_url") or None
+        item.cover_url = item.cover_url or found.get("cover_url") or None
+        item.bluray_com_id = item.bluray_com_id or found.get("bluray_com_id")
+    if not item.cover_url:
+        item.cover_url = await _tmdb_poster_url(item.tmdb_id) or None
+    return bool(found)
 
 
 @app.get("/acquire", summary="List all items to acquire")
@@ -1184,22 +1265,14 @@ async def list_acquire():
     engine = await get_engine()
     async with await get_session(engine) as session:
         rows = (await session.execute(select(AcquisitionItem).order_by(AcquisitionItem.title))).scalars().all()
-        return [
-            {
-                "id": r.id, "title": r.title, "year": r.year,
-                "director": r.director, "purchase_link": r.purchase_link,
-                "format": r.format, "label": r.label,
-                "tmdb_id": r.tmdb_id, "notes": r.notes,
-            }
-            for r in rows
-        ]
+        return [_acquire_dict(r) for r in rows]
 
 
 @app.post("/acquire", status_code=201, summary="Add an item to acquire")
 async def add_acquire(req: AcquireRequest):
     director = req.director
     year = req.year
-    tmdb_id = None
+    tmdb_id = req.tmdb_id
 
     if req.lookup_tmdb and req.title:
         from medialibrary.api.tmdb import TMDBClient
@@ -1209,26 +1282,37 @@ async def add_acquire(req: AcquireRequest):
             if data:
                 director = director or data.get("director", "")
                 year = year or data.get("year")
-                tmdb_id = data.get("tmdb_id")
+                tmdb_id = tmdb_id or data.get("tmdb_id")
         except Exception:
             pass
 
+    item = AcquisitionItem(
+        title=req.title, year=year, director=director,
+        purchase_link=req.purchase_link, format=req.format,
+        label=req.label, notes=req.notes, tmdb_id=tmdb_id, cover_url=req.cover_url,
+    )
+    if req.lookup_bluray:
+        await _fill_from_bluray(item)
+
     engine = await get_engine()
     async with await get_session(engine) as session:
-        item = AcquisitionItem(
-            title=req.title, year=year, director=director,
-            purchase_link=req.purchase_link, format=req.format,
-            label=req.label, notes=req.notes, tmdb_id=tmdb_id,
-        )
         session.add(item)
         await session.commit()
         await session.refresh(item)
-        return {
-            "id": item.id, "title": item.title, "year": item.year,
-            "director": item.director, "purchase_link": item.purchase_link,
-            "format": item.format, "label": item.label,
-            "tmdb_id": item.tmdb_id, "notes": item.notes,
-        }
+        return _acquire_dict(item)
+
+
+@app.post("/acquire/{item_id}/fill", summary="Fill an item's blank details from Blu-ray.com")
+async def fill_acquire(item_id: int):
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        item = await session.get(AcquisitionItem, item_id)
+        if not item:
+            raise HTTPException(404, "Item not found")
+        found = await _fill_from_bluray(item)
+        await session.commit()
+        await session.refresh(item)
+        return {**_acquire_dict(item), "found": found}
 
 
 @app.patch("/acquire/{item_id}", summary="Update an acquisition item")
@@ -1238,18 +1322,13 @@ async def update_acquire(item_id: int, req: AcquireRequest):
         item = (await session.execute(select(AcquisitionItem).where(AcquisitionItem.id == item_id))).scalar_one_or_none()
         if not item:
             raise HTTPException(404, "Item not found")
-        for field in ("title", "year", "director", "purchase_link", "format", "label", "notes"):
+        for field in ("title", "year", "director", "purchase_link", "format", "label", "notes", "cover_url"):
             val = getattr(req, field)
             if val is not None:
                 setattr(item, field, val)
         await session.commit()
         await session.refresh(item)
-        return {
-            "id": item.id, "title": item.title, "year": item.year,
-            "director": item.director, "purchase_link": item.purchase_link,
-            "format": item.format, "label": item.label,
-            "tmdb_id": item.tmdb_id, "notes": item.notes,
-        }
+        return _acquire_dict(item)
 
 
 @app.delete("/acquire/{item_id}", status_code=204, summary="Remove an acquisition item")
