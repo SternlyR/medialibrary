@@ -1757,6 +1757,29 @@ createApp({
       return updated;
     }
 
+    // Box art is fetched automatically when the Acquire tab opens; each item is
+    // tried once per page load so a film Blu-ray.com can't find isn't retried.
+    const coverTried = new Set();
+    async function autoFillCovers() {
+      if (acquireFilling.value) return;
+      const todo = acquireList.value.filter(i => !i.cover_url && !coverTried.has(i.id));
+      for (let i = 0; i < todo.length; i++) {
+        if (appView.value !== 'acquire') break;
+        coverTried.add(todo[i].id);
+        acquireFilling.value = `Fetching box art ${i + 1} of ${todo.length}…`;
+        acquireFillingId.value = todo[i].id;
+        await fillAcquireItem(todo[i]);
+      }
+      acquireFilling.value = '';
+      acquireFillingId.value = null;
+    }
+
+    watch(appView, async v => {
+      if (v !== 'acquire') return;
+      if (!acquireList.value.length) await fetchAcquire();
+      autoFillCovers();
+    });
+
     async function fillAllAcquire() {
       const todo = [...acquireIncomplete.value];
       let missed = 0;
