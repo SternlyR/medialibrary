@@ -61,6 +61,8 @@ SOURCES: dict[str, Source] = {s.key: s for s in [
            "https://www.nationalsocietyoffilmcritics.com/"),
     Source("lafca_best_film", "Los Angeles Film Critics Association, Best Film", "LAFCA Best Film", 0.75,
            "https://www.lafca.net/"),
+    Source("peary_cult_movies", "Danny Peary, Cult Movies (vols. 1–3, 1981–88)", "Peary Cult Movies", 0.75,
+           "https://en.wikipedia.org/wiki/Cult_Movies_(book)"),
     Source("national_film_registry", "National Film Registry, Library of Congress", "Film Registry", 1.0,
            "https://www.loc.gov/programs/national-film-preservation-board/film-registry/"),
 ]}

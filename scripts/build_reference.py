@@ -270,8 +270,8 @@ def _transcribed_source(name: str, url: str):
                     "title": r["title"],
                     "year": r.get("year", ""),
                     "director": r.get("director", ""),
-                    "note": r.get("award_year", ""),
-                    "url": url,
+                    "note": r.get("award_year") or (f"Vol. {r['volume']}" if r.get("volume") else ""),
+                    "url": r.get("url") or url,
                 })
         resolve_tmdb_ids(rows)
         write(name, rows)
@@ -315,6 +315,8 @@ SOURCES = {
         "nyfcc_best_film", "https://en.wikipedia.org/wiki/New_York_Film_Critics_Circle_Award_for_Best_Film"),
     "nsfc_best_film": _transcribed_source(
         "nsfc_best_film", "https://en.wikipedia.org/wiki/National_Society_of_Film_Critics_Award_for_Best_Picture"),
+    "peary_cult_movies": _transcribed_source(
+        "peary_cult_movies", "https://en.wikipedia.org/wiki/Cult_Movies_(book)"),
     "lafca_best_film": _transcribed_source(
         "lafca_best_film", "https://en.wikipedia.org/wiki/Los_Angeles_Film_Critics_Association_Award_for_Best_Film"),
 }

@@ -5,7 +5,19 @@
   "tmdb_id": "62",
   "year": "1968"
  },
+ "42nd Street|1933": {
+  "imdb_id": "tt0024034",
+  "label": "42nd Street",
+  "tmdb_id": "3062",
+  "year": "1933"
+ },
  "8½|1963": {},
+ "A Boy and His Dog|1975": {
+  "imdb_id": "tt0072730",
+  "label": "A Boy and His Dog",
+  "tmdb_id": "4917",
+  "year": "1975"
+ },
  "A Brighter Summer Day|1991": {
   "imdb_id": "tt0101985",
   "label": "A Brighter Summer Day",
@@ -78,6 +90,12 @@
   "tmdb_id": "60243",
   "year": "2011"
  },
+ "A Star Is Born|1954": {
+  "imdb_id": "tt0047522",
+  "label": "A Star Is Born",
+  "tmdb_id": "3111",
+  "year": "1954"
+ },
  "A Streetcar Named Desire|1951": {
   "imdb_id": "tt0044081",
   "label": "A Streetcar Named Desire",
@@ -104,6 +122,12 @@
   "year": "2002"
  },
  "Aguirre, Wrath of God|1972": {
+  "imdb_id": "tt0068182",
+  "label": "Aguirre, der Zorn Gottes",
+  "tmdb_id": "2000",
+  "year": "1972"
+ },
+ "Aguirre, the Wrath of God|1972": {
   "imdb_id": "tt0068182",
   "label": "Aguirre, der Zorn Gottes",
   "tmdb_id": "2000",
@@ -157,6 +181,12 @@
   "tmdb_id": "891",
   "year": "1976"
  },
+ "Altered States|1980": {
+  "imdb_id": "tt0080360",
+  "label": "Altered States",
+  "tmdb_id": "11542",
+  "year": "1980"
+ },
  "Amadeus|1984": {
   "imdb_id": "tt0086879",
   "label": "Amadeus",
@@ -193,6 +223,12 @@
   "tmdb_id": "86837",
   "year": "2012"
  },
+ "An American Werewolf in London|1981": {
+  "imdb_id": "tt0082010",
+  "label": "An American Werewolf in London",
+  "tmdb_id": "814",
+  "year": "1981"
+ },
  "An Autumn Afternoon|1962": {
   "imdb_id": "tt0056444",
   "label": "An Autumn Afternoon",
@@ -204,6 +240,12 @@
   "label": "Andrei Rublev",
   "tmdb_id": "895",
   "year": "1966"
+ },
+ "Andy Warhol's Bad|1977": {
+  "imdb_id": "tt0075679",
+  "label": "Andy Warhol's Bad",
+  "tmdb_id": "66489",
+  "year": "1977"
  },
  "Annie Hall|1977": {
   "imdb_id": "tt0075686",
@@ -258,11 +300,29 @@
   "tmdb_id": "9598",
   "year": "1995"
  },
+ "Badlands|1973": {
+  "imdb_id": "tt0069762",
+  "label": "Badlands",
+  "tmdb_id": "3133",
+  "year": "1973"
+ },
+ "Barbarella|1968": {
+  "imdb_id": "tt0062711",
+  "label": "Barbarella",
+  "tmdb_id": "8069",
+  "year": "1968"
+ },
  "Barry Lyndon|1975": {
   "imdb_id": "tt0072684",
   "label": "Barry Lyndon",
   "tmdb_id": "3175",
   "year": "1975"
+ },
+ "Basket Case|1982": {
+  "imdb_id": "tt0083624",
+  "label": "Basket Case",
+  "tmdb_id": "27813",
+  "year": "1982"
  },
  "Battleship Potemkin|1925": {
   "imdb_id": "tt0015648",
@@ -270,10 +330,40 @@
   "tmdb_id": "643",
   "year": "1925"
  },
+ "Beat the Devil|1953": {
+  "imdb_id": "tt0046414",
+  "label": "Beat the Devil",
+  "tmdb_id": "22733",
+  "year": "1953"
+ },
  "Beau travail|1998": {
   "imdb_id": "tt0209933",
   "label": "Beau Travail",
   "tmdb_id": "14626"
+ },
+ "Beauty and the Beast|1946": {
+  "imdb_id": "tt0038348",
+  "label": "La Belle et la Bête",
+  "tmdb_id": "648",
+  "year": "1946"
+ },
+ "Bedazzled|1968": {
+  "imdb_id": "tt0061391",
+  "label": "Bedazzled",
+  "tmdb_id": "18209",
+  "year": "1967"
+ },
+ "Bedtime for Bonzo|1951": {
+  "imdb_id": "tt0043325",
+  "label": "Bedtime for Bonzo",
+  "tmdb_id": "43371",
+  "year": "1951"
+ },
+ "Behind the Green Door|1972": {
+  "imdb_id": "tt0068260",
+  "label": "Behind the Green Door",
+  "tmdb_id": "24992",
+  "year": "1972"
  },
  "Being John Malkovich|1999": {
   "imdb_id": "tt0120601",
@@ -287,11 +377,23 @@
   "tmdb_id": "665",
   "year": "1959"
  },
+ "Beyond the Valley of the Dolls|1970": {
+  "imdb_id": "tt0065466",
+  "label": "Beyond the Valley of the Dolls",
+  "tmdb_id": "5722",
+  "year": "1970"
+ },
  "Bicycle Thieves|1948": {
   "imdb_id": "tt0040522",
   "label": "Bicycle Thieves",
   "tmdb_id": "5156",
   "year": "1948"
+ },
+ "Billy Jack|1971": {
+  "imdb_id": "tt0066832",
+  "label": "Billy Jack",
+  "tmdb_id": "21142",
+  "year": "1971"
  },
  "Billy Liar|1963": {
   "imdb_id": "tt0056868",
@@ -311,11 +413,29 @@
   "tmdb_id": "16391",
   "year": "1947"
  },
+ "Black Sunday|1960": {
+  "imdb_id": "tt0054067",
+  "label": "La maschera del demonio",
+  "tmdb_id": "27632",
+  "year": "1960"
+ },
  "Blade Runner|1982": {
   "imdb_id": "tt0083658",
   "label": "Blade Runner",
   "tmdb_id": "78",
   "year": "1982"
+ },
+ "Blood Feast|1963": {
+  "imdb_id": "tt0056875",
+  "label": "Blood Feast",
+  "tmdb_id": "28172",
+  "year": "1963"
+ },
+ "Blood Money|1933": {
+  "imdb_id": "tt0023818",
+  "label": "Blood Money",
+  "tmdb_id": "29744",
+  "year": "1933"
  },
  "Blow-Up|1966": {
   "imdb_id": "tt0060176",
@@ -340,6 +460,12 @@
   "label": "Blue",
   "tmdb_id": "94794",
   "year": "1993"
+ },
+ "Body Heat|1981": {
+  "imdb_id": "tt0082089",
+  "label": "Body Heat",
+  "tmdb_id": "14412",
+  "year": "1981"
  },
  "Born in Flames|1983": {
   "imdb_id": "tt0085267",
@@ -377,6 +503,18 @@
   "tmdb_id": "145",
   "year": "1996"
  },
+ "Breathless|1960": {
+  "imdb_id": "tt0053472",
+  "label": "À bout de souffle",
+  "tmdb_id": "269",
+  "year": "1960"
+ },
+ "Bride of Frankenstein|1935": {
+  "imdb_id": "tt0026138",
+  "label": "Bride of Frankenstein",
+  "tmdb_id": "229",
+  "year": "1935"
+ },
  "Brief Encounter|1945": {
   "imdb_id": "tt0037558",
   "label": "Brief Encounter",
@@ -413,6 +551,12 @@
   "tmdb_id": "10337",
   "year": "1991"
  },
+ "Burn!|1969": {
+  "imdb_id": "tt0064866",
+  "label": "Queimada",
+  "tmdb_id": "42617",
+  "year": "1969"
+ },
  "By the Bluest of Seas|1935": {
   "imdb_id": "tt0028436",
   "label": "By the Bluest of Seas",
@@ -424,6 +568,18 @@
   "label": "Chungking Express",
   "tmdb_id": "11104",
   "year": "1994"
+ },
+ "Café Flesh|1982": {
+  "imdb_id": "tt0083707",
+  "label": "Café Flesh",
+  "tmdb_id": "30824",
+  "year": "1982"
+ },
+ "Caged Heat|1974": {
+  "imdb_id": "tt0071266",
+  "label": "Caged Heat",
+  "tmdb_id": "39775",
+  "year": "1974"
  },
  "Call Me by Your Name|2017": {
   "imdb_id": "tt5726616",
@@ -455,6 +611,12 @@
   "tmdb_id": "22937",
   "year": "1968"
  },
+ "Casablanca|1941": {
+  "imdb_id": "tt0034583",
+  "label": "Casablanca",
+  "tmdb_id": "289",
+  "year": "1942"
+ },
  "Casablanca|1942": {
   "imdb_id": "tt0034583",
   "label": "Casablanca",
@@ -473,11 +635,29 @@
   "tmdb_id": "35790",
   "year": "1964"
  },
+ "Children of Paradise|1945": {
+  "imdb_id": "tt0037674",
+  "label": "Les Enfants du paradis",
+  "tmdb_id": "2457",
+  "year": "1945"
+ },
+ "Chilly Scenes of Winter|1979": {
+  "imdb_id": "tt0079278",
+  "label": "Chilly Scenes of Winter",
+  "tmdb_id": "42173",
+  "year": "1979"
+ },
  "Chinatown|1974": {
   "imdb_id": "tt0071315",
   "label": "Chinatown",
   "tmdb_id": "829",
   "year": "1974"
+ },
+ "Choose Me|1984": {
+  "imdb_id": "tt0087054",
+  "label": "Choose Me",
+  "tmdb_id": "42086",
+  "year": "1984"
  },
  "Citizen Kane|1941": {
   "imdb_id": "tt0033467",
@@ -537,6 +717,12 @@
   "tmdb_id": "146",
   "year": "2000"
  },
+ "Cutter's Way|1981": {
+  "imdb_id": "tt0082220",
+  "label": "Cutter's Way",
+  "tmdb_id": "31593",
+  "year": "1981"
+ },
  "Céline and Julie Go Boating|1974": {
   "imdb_id": "tt0071381",
   "label": "Celine and Julie Go Boating",
@@ -548,11 +734,29 @@
   "label": "Daisies",
   "tmdb_id": "46919"
  },
+ "Dance, Girl, Dance|1940": {
+  "imdb_id": "tt0032376",
+  "label": "Dance, Girl, Dance",
+  "tmdb_id": "32196",
+  "year": "1940"
+ },
+ "Dark Star|1974": {
+  "imdb_id": "tt0069945",
+  "label": "Dark Star",
+  "tmdb_id": "1410",
+  "year": "1974"
+ },
  "Darling|1965": {
   "imdb_id": "tt0059084",
   "label": "Darling",
   "tmdb_id": "24134",
   "year": "1965"
+ },
+ "Daughters of Darkness|1971": {
+  "imdb_id": "tt0067690",
+  "label": "Daughters of Darkness",
+  "tmdb_id": "46175",
+  "year": "1971"
  },
  "Daughters of the Dust|1991": {
   "imdb_id": "tt0104057",
@@ -572,11 +776,29 @@
   "tmdb_id": "16642",
   "year": "1978"
  },
+ "Deep End|1971": {
+  "imdb_id": "tt0066122",
+  "label": "Deep End",
+  "tmdb_id": "59408",
+  "year": "1970"
+ },
+ "Detour|1946": {
+  "imdb_id": "tt0037638",
+  "label": "Detour",
+  "tmdb_id": "20367",
+  "year": "1945"
+ },
  "Distant Voices, Still Lives|1988": {
   "imdb_id": "tt0095037",
   "label": "Distant Voices, Still Lives",
   "tmdb_id": "41799",
   "year": "1988"
+ },
+ "Diva|1981": {
+  "imdb_id": "tt0082269",
+  "label": "Diva",
+  "tmdb_id": "4485",
+  "year": "1981"
  },
  "Do the Right Thing|1989": {
   "imdb_id": "tt0097216",
@@ -620,6 +842,12 @@
   "tmdb_id": "935",
   "year": "1964"
  },
+ "Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb|1964": {
+  "imdb_id": "tt0057012",
+  "label": "Dr. Strangelove",
+  "tmdb_id": "935",
+  "year": "1964"
+ },
  "Drive My Car|2021": {
   "imdb_id": "tt14039582",
   "label": "Drive My Car",
@@ -650,11 +878,23 @@
   "tmdb_id": "46594",
   "year": "1930"
  },
+ "Easy Rider|1969": {
+  "imdb_id": "tt0064276",
+  "label": "Easy Rider",
+  "tmdb_id": "624",
+  "year": "1969"
+ },
  "Educating Rita|1983": {
   "imdb_id": "tt0085478",
   "label": "Educating Rita",
   "tmdb_id": "38291",
   "year": "1983"
+ },
+ "El Topo|1971": {
+  "imdb_id": "tt0067866",
+  "label": "El topo",
+  "tmdb_id": "13041",
+  "year": "1970"
  },
  "Elizabeth|1998": {
   "imdb_id": "tt0127536",
@@ -662,7 +902,25 @@
   "tmdb_id": "4518",
   "year": "1998"
  },
+ "Emmanuelle|1974": {
+  "imdb_id": "tt0071464",
+  "label": "Emmanuelle",
+  "tmdb_id": "24402",
+  "year": "1974"
+ },
+ "Enter the Dragon|1973": {
+  "imdb_id": "tt0070034",
+  "label": "Enter the Dragon",
+  "tmdb_id": "9461",
+  "year": "1973"
+ },
  "Eraserhead|1976": {
+  "imdb_id": "tt0074486",
+  "label": "Eraserhead",
+  "tmdb_id": "985",
+  "year": "1977"
+ },
+ "Eraserhead|1977": {
   "imdb_id": "tt0074486",
   "label": "Eraserhead",
   "tmdb_id": "985",
@@ -692,6 +950,12 @@
   "tmdb_id": "5961",
   "year": "1982"
  },
+ "Fantasia|1940": {
+  "imdb_id": "tt0032455",
+  "label": "Fantasia",
+  "tmdb_id": "756",
+  "year": "1940"
+ },
  "Far from Heaven|2002": {
   "imdb_id": "tt0297884",
   "label": "Far from Heaven",
@@ -709,6 +973,12 @@
   "label": "Fargo",
   "tmdb_id": "275",
   "year": "1996"
+ },
+ "Faster, Pussycat! Kill! Kill!|1965": {
+  "imdb_id": "tt0059170",
+  "label": "Faster, Pussycat! Kill! Kill!",
+  "tmdb_id": "315",
+  "year": "1965"
  },
  "Fear Eats the Soul|1974": {
   "imdb_id": "tt0071141",
@@ -734,17 +1004,41 @@
   "tmdb_id": "26617",
   "year": "1970"
  },
+ "Five Million Years to Earth|1967": {
+  "imdb_id": "tt0062168",
+  "label": "Quatermass and the Pit",
+  "tmdb_id": "26912",
+  "year": "1967"
+ },
  "Flowers of Shanghai|1998": {
   "imdb_id": "tt0156587",
   "label": "Flowers of Shanghai",
   "tmdb_id": "45935",
   "year": "1998"
  },
+ "Forbidden Planet|1956": {
+  "imdb_id": "tt0049223",
+  "label": "Forbidden Planet",
+  "tmdb_id": "830",
+  "year": "1956"
+ },
+ "Force of Evil|1948": {
+  "imdb_id": "tt0040366",
+  "label": "Force of Evil",
+  "tmdb_id": "26744",
+  "year": "1948"
+ },
  "Four Weddings and a Funeral|1994": {
   "imdb_id": "tt0109831",
   "label": "Four Weddings and a Funeral",
   "tmdb_id": "712",
   "year": "1994"
+ },
+ "Freaks|1932": {
+  "imdb_id": "tt0022913",
+  "label": "Freaks",
+  "tmdb_id": "136",
+  "year": "1932"
  },
  "From Here to Eternity|1953": {
   "imdb_id": "tt0045793",
@@ -770,6 +1064,12 @@
   "tmdb_id": "33667",
   "year": "1947"
  },
+ "Gentlemen Prefer Blondes|1953": {
+  "imdb_id": "tt0045810",
+  "label": "Gentlemen Prefer Blondes",
+  "tmdb_id": "759",
+  "year": "1953"
+ },
  "Gertrud|1964": {
   "imdb_id": "tt0058138",
   "label": "Gertrud",
@@ -793,6 +1093,18 @@
   "label": "Get Out",
   "tmdb_id": "419430",
   "year": "2017"
+ },
+ "Glen or Glenda|1953": {
+  "imdb_id": "tt0045826",
+  "label": "I Changed My Sex",
+  "tmdb_id": "24018",
+  "year": "1953"
+ },
+ "Godzilla|1954": {
+  "imdb_id": "tt0047034",
+  "label": "ゴジラ",
+  "tmdb_id": "1678",
+  "year": "1954"
  },
  "Going My Way|1944": {
   "imdb_id": "tt0036872",
@@ -860,11 +1172,29 @@
   "tmdb_id": "1405",
   "year": "1924"
  },
+ "Greetings|1968": {
+  "imdb_id": "tt0063036",
+  "label": "Greetings",
+  "tmdb_id": "73604",
+  "year": "1968"
+ },
  "Gregory's Girl|1980": {
   "imdb_id": "tt0082477",
   "label": "Gregory's Girl",
   "tmdb_id": "21764",
   "year": "1981"
+ },
+ "Gun Crazy|1949": {
+  "imdb_id": "tt0042530",
+  "label": "Gun Crazy",
+  "tmdb_id": "18671",
+  "year": "1950"
+ },
+ "Halloween|1978": {
+  "imdb_id": "tt0077651",
+  "label": "Halloween",
+  "tmdb_id": "948",
+  "year": "1978"
  },
  "Hamlet|1948": {
   "imdb_id": "tt0040416",
@@ -889,6 +1219,12 @@
   "label": "Harlan County, USA",
   "tmdb_id": "33324",
   "year": "1976"
+ },
+ "Harold and Maude|1971": {
+  "imdb_id": "tt0067185",
+  "label": "Harold and Maude",
+  "tmdb_id": "343",
+  "year": "1971"
  },
  "Heat|1995": {
   "imdb_id": "tt0166282",
@@ -920,6 +1256,12 @@
   "tmdb_id": "288",
   "year": "1952"
  },
+ "High School Confidential|1958": {
+  "imdb_id": "tt0051724",
+  "label": "High School Confidential",
+  "tmdb_id": "43116",
+  "year": "1958"
+ },
  "Hiroshima mon amour|1959": {
   "imdb_id": "tt0052893",
   "label": "Hiroshima mon amour",
@@ -932,6 +1274,12 @@
   "tmdb_id": "3085",
   "year": "1940"
  },
+ "His Girl Friday|1940": {
+  "imdb_id": "tt0032599",
+  "label": "His Girl Friday",
+  "tmdb_id": "3085",
+  "year": "1940"
+ },
  "Histoire(s) du Cinéma|1988": {},
  "Hope and Glory|1987": {
   "imdb_id": "tt0093209",
@@ -939,11 +1287,29 @@
   "tmdb_id": "32054",
   "year": "1987"
  },
+ "House of Wax|1953": {
+  "imdb_id": "tt0045888",
+  "label": "House of Wax",
+  "tmdb_id": "18573",
+  "year": "1953"
+ },
  "I Know Where I’m Going!|1945": {
   "imdb_id": "tt0037800",
   "label": "I Know Where I'm Going!",
   "tmdb_id": "56137",
   "year": "1945"
+ },
+ "I Married a Monster from Outer Space|1958": {
+  "imdb_id": "tt0051756",
+  "label": "I Married a Monster from Outer Space",
+  "tmdb_id": "43117",
+  "year": "1958"
+ },
+ "I Walked With a Zombie|1943": {
+  "imdb_id": "tt0036027",
+  "label": "I Walked with a Zombie",
+  "tmdb_id": "27130",
+  "year": "1943"
  },
  "I'm All Right Jack|1959": {
   "imdb_id": "tt0052911",
@@ -1016,11 +1382,41 @@
   "tmdb_id": "3059",
   "year": "1916"
  },
+ "Invasion of the Body Snatchers|1956": {
+  "imdb_id": "tt0049366",
+  "label": "Invasion of the Body Snatchers",
+  "tmdb_id": "11549",
+  "year": "1956"
+ },
+ "It's a Gift|1934": {
+  "imdb_id": "tt0025318",
+  "label": "It's a Gift",
+  "tmdb_id": "28001",
+  "year": "1934"
+ },
+ "It's a Mad, Mad, Mad, Mad World|1963": {
+  "imdb_id": "tt0057193",
+  "label": "It's a Mad, Mad, Mad, Mad World",
+  "tmdb_id": "11576",
+  "year": "1963"
+ },
+ "It's a Wonderful Life|1946": {
+  "imdb_id": "tt0038650",
+  "label": "It's a Wonderful Life",
+  "tmdb_id": "1585",
+  "year": "1946"
+ },
  "It's a Wonderful Life|1947": {
   "imdb_id": "tt0038650",
   "label": "It's a Wonderful Life",
   "tmdb_id": "1585",
   "year": "1946"
+ },
+ "Jason and the Argonauts|1963": {
+  "imdb_id": "tt0057197",
+  "label": "Jason and the Argonauts",
+  "tmdb_id": "11533",
+  "year": "1963"
  },
  "Jaws|1975": {
   "imdb_id": "tt0073195",
@@ -1076,6 +1472,24 @@
   "tmdb_id": "11898",
   "year": "1949"
  },
+ "King Kong|1933": {
+  "imdb_id": "tt0024216",
+  "label": "King Kong",
+  "tmdb_id": "244",
+  "year": "1933"
+ },
+ "King of Hearts|1967": {
+  "imdb_id": "tt0060908",
+  "label": "Le Roi de cœur",
+  "tmdb_id": "17685",
+  "year": "1966"
+ },
+ "Kiss Me Deadly|1955": {
+  "imdb_id": "tt0048261",
+  "label": "Kiss Me Deadly",
+  "tmdb_id": "18030",
+  "year": "1955"
+ },
  "Kramer vs. Kramer|1979": {
   "imdb_id": "tt0079417",
   "label": "Kramer vs. Kramer",
@@ -1110,6 +1524,12 @@
   "label": "L.A. Confidential",
   "tmdb_id": "2118",
   "year": "1997"
+ },
+ "La Cage aux Folles|1979": {
+  "imdb_id": "tt0077288",
+  "label": "La Cage aux folles",
+  "tmdb_id": "4484",
+  "year": "1978"
  },
  "La Grande Illusion|1937": {
   "imdb_id": "tt0028950",
@@ -1171,6 +1591,18 @@
   "tmdb_id": "391713",
   "year": "2017"
  },
+ "Land of the Pharaohs|1955": {
+  "imdb_id": "tt0048283",
+  "label": "Land of the Pharaohs",
+  "tmdb_id": "42564",
+  "year": "1955"
+ },
+ "Last Tango in Paris|1972": {
+  "imdb_id": "tt0070849",
+  "label": "Ultimo tango a Parigi",
+  "tmdb_id": "1643",
+  "year": "1972"
+ },
  "Last Year at Marienbad|1961": {
   "imdb_id": "tt0054632",
   "label": "Last Year at Marienbad",
@@ -1181,6 +1613,12 @@
   "imdb_id": "tt0041154",
   "label": "Late Spring",
   "tmdb_id": "20530"
+ },
+ "Laura|1944": {
+  "imdb_id": "tt0037008",
+  "label": "Laura",
+  "tmdb_id": "1939",
+  "year": "1944"
  },
  "Lawrence of Arabia|1962": {
   "imdb_id": "tt0056172",
@@ -1248,6 +1686,12 @@
   "tmdb_id": "8353",
   "year": "1931"
  },
+ "Liquid Sky|1982": {
+  "imdb_id": "tt0085852",
+  "label": "Liquid Sky",
+  "tmdb_id": "20980",
+  "year": "1982"
+ },
  "Little Dorrit|1988": {
   "imdb_id": "tt0095530",
   "label": "Little Dorrit",
@@ -1259,6 +1703,18 @@
   "label": "Local Hero",
   "tmdb_id": "11235",
   "year": "1983"
+ },
+ "Lola Montès|1955": {
+  "imdb_id": "tt0048308",
+  "label": "Lola Montès",
+  "tmdb_id": "35987",
+  "year": "1955"
+ },
+ "Los Olvidados|1950": {
+  "imdb_id": "tt0042804",
+  "label": "Los olvidados",
+  "tmdb_id": "800",
+  "year": "1950"
  },
  "Los olvidados|1950": {
   "imdb_id": "tt0042804",
@@ -1284,6 +1740,12 @@
   "tmdb_id": "76341",
   "year": "2015"
  },
+ "Mad Max|1979": {
+  "imdb_id": "tt0079501",
+  "label": "Mad Max",
+  "tmdb_id": "9659",
+  "year": "1979"
+ },
  "Madame de...|1953": {
   "imdb_id": "tt0046022",
   "label": "Madame de...",
@@ -1296,16 +1758,40 @@
   "tmdb_id": "334",
   "year": "1999"
  },
+ "Man of the West|1958": {
+  "imdb_id": "tt0051899",
+  "label": "Man of the West",
+  "tmdb_id": "14674",
+  "year": "1958"
+ },
  "Man with a Movie Camera|1929": {
   "imdb_id": "tt0019760",
   "label": "Man with a Movie Camera",
   "tmdb_id": "26317"
+ },
+ "Marnie|1964": {
+  "imdb_id": "tt0058329",
+  "label": "Marnie",
+  "tmdb_id": "506",
+  "year": "1964"
+ },
+ "Martin|1978": {
+  "imdb_id": "tt0077914",
+  "label": "Martin",
+  "tmdb_id": "26517",
+  "year": "1978"
  },
  "Marty|1955": {
   "imdb_id": "tt0048356",
   "label": "Marty",
   "tmdb_id": "15919",
   "year": "1955"
+ },
+ "Massacre at Central High|1976": {
+  "imdb_id": "tt0074875",
+  "label": "Massacre at Central High",
+  "tmdb_id": "16271",
+  "year": "1976"
  },
  "Meghe Dhaka Tara|1960": {
   "imdb_id": "tt0054073",
@@ -1354,6 +1840,12 @@
   "tmdb_id": "70",
   "year": "2004"
  },
+ "Miracle on 34th Street|1947": {
+  "imdb_id": "tt0039628",
+  "label": "Miracle on 34th Street",
+  "tmdb_id": "11881",
+  "year": "1947"
+ },
  "Mirror|1975": {
   "imdb_id": "tt0072443",
   "label": "The Mirror",
@@ -1365,11 +1857,29 @@
   "tmdb_id": "3082",
   "year": "1936"
  },
+ "Mommie Dearest|1981": {
+  "imdb_id": "tt0082766",
+  "label": "Mommie Dearest",
+  "tmdb_id": "15660",
+  "year": "1981"
+ },
  "Mona Lisa|1986": {
   "imdb_id": "tt0091538",
   "label": "Mona Lisa",
   "tmdb_id": "10002",
   "year": "1986"
+ },
+ "Monsieur Verdoux|1947": {
+  "imdb_id": "tt0039631",
+  "label": "Monsieur Verdoux",
+  "tmdb_id": "30588",
+  "year": "1947"
+ },
+ "Monty Python and the Holy Grail|1975": {
+  "imdb_id": "tt0071853",
+  "label": "Monty Python and the Holy Grail",
+  "tmdb_id": "762",
+  "year": "1975"
  },
  "Monty Python's Life of Brian|1979": {
   "imdb_id": "tt0079470",
@@ -1382,6 +1892,12 @@
   "label": "Moonlight",
   "tmdb_id": "376867",
   "year": "2016"
+ },
+ "Morgan: A Suitable Case for Treatment|1966": {
+  "imdb_id": "tt0060714",
+  "label": "Morgan - A Suitable Case for Treatment",
+  "tmdb_id": "42724",
+  "year": "1966"
  },
  "Morvern Callar|2001": {
   "imdb_id": "tt0300214",
@@ -1400,6 +1916,12 @@
   "label": "Mr. Deeds Goes to Town",
   "tmdb_id": "24807",
   "year": "1936"
+ },
+ "Ms. 45|1981": {
+  "imdb_id": "tt0082776",
+  "label": "Ms. 45",
+  "tmdb_id": "22171",
+  "year": "1981"
  },
  "Mulholland Dr.|2001": {
   "imdb_id": "tt0166924",
@@ -1463,6 +1985,12 @@
   "tmdb_id": "10774",
   "year": "1976"
  },
+ "New York, New York|1977": {
+  "imdb_id": "tt0076451",
+  "label": "New York, New York",
+  "tmdb_id": "12637",
+  "year": "1977"
+ },
  "News from Home|1976": {
   "imdb_id": "tt0076452",
   "label": "News from Home",
@@ -1474,6 +2002,24 @@
   "label": "Nickel Boys",
   "tmdb_id": "1028196",
   "year": "2024"
+ },
+ "Night of the Demon|1957": {
+  "imdb_id": "tt0050766",
+  "label": "Night of the Demon",
+  "tmdb_id": "25103",
+  "year": "1957"
+ },
+ "Night of the Living Dead|1968": {
+  "imdb_id": "tt0063350",
+  "label": "Night of the Living Dead",
+  "tmdb_id": "10331",
+  "year": "1968"
+ },
+ "Nightmare Alley|1947": {
+  "imdb_id": "tt0039661",
+  "label": "Nightmare Alley",
+  "tmdb_id": "19169",
+  "year": "1947"
  },
  "Nil by Mouth|1997": {
   "imdb_id": "tt0119792",
@@ -1517,6 +2063,12 @@
   "tmdb_id": "303",
   "year": "1946"
  },
+ "Now, Voyager|1942": {
+  "imdb_id": "tt0035140",
+  "label": "Now, Voyager",
+  "tmdb_id": "32847",
+  "year": "1942"
+ },
  "Oliver Twist|1948": {
   "imdb_id": "tt0040662",
   "label": "Oliver Twist",
@@ -1529,11 +2081,23 @@
   "tmdb_id": "17917",
   "year": "1968"
  },
+ "On Her Majesty's Secret Service|1969": {
+  "imdb_id": "tt0064757",
+  "label": "On Her Majesty's Secret Service",
+  "tmdb_id": "668",
+  "year": "1969"
+ },
  "On the Waterfront|1954": {
   "imdb_id": "tt0047296",
   "label": "On the Waterfront",
   "tmdb_id": "654",
   "year": "1954"
+ },
+ "Once Upon a Time in the West|1968": {
+  "imdb_id": "tt0064116",
+  "label": "Once Upon a Time in the West",
+  "tmdb_id": "335",
+  "year": "1968"
  },
  "Once upon a Time in America|1983": {
   "imdb_id": "tt0087843",
@@ -1560,6 +2124,12 @@
   "year": "1975"
  },
  "One Way or Another|1977": {},
+ "One-Eyed Jacks|1961": {
+  "imdb_id": "tt0055257",
+  "label": "One-Eyed Jacks",
+  "tmdb_id": "18647",
+  "year": "1961"
+ },
  "Only Angels Have Wings|1939": {
   "imdb_id": "tt0031762",
   "label": "Only Angels Have Wings",
@@ -1597,6 +2167,18 @@
   "tmdb_id": "678",
   "year": "1947"
  },
+ "Outrageous!|1977": {
+  "imdb_id": "tt0076513",
+  "label": "Outrageous!",
+  "tmdb_id": "41923",
+  "year": "1977"
+ },
+ "Over the Edge|1979": {
+  "imdb_id": "tt0079688",
+  "label": "Over the Edge",
+  "tmdb_id": "23957",
+  "year": "1979"
+ },
  "Paisan|1946": {
   "imdb_id": "tt0038823",
   "label": "Paisà",
@@ -1612,6 +2194,12 @@
  "Pandora's Box|1928": {
   "imdb_id": "tt0018737",
   "label": "Pandora's Box",
+  "tmdb_id": "905",
+  "year": "1929"
+ },
+ "Pandora's Box|1929": {
+  "imdb_id": "tt0018737",
+  "label": "Die Büchse der Pandora",
   "tmdb_id": "905",
   "year": "1929"
  },
@@ -1680,11 +2268,29 @@
   "tmdb_id": "749004",
   "year": "2021"
  },
+ "Petulia|1968": {
+  "imdb_id": "tt0063426",
+  "label": "Petulia",
+  "tmdb_id": "42634",
+  "year": "1968"
+ },
+ "Phantom of the Paradise|1974": {
+  "imdb_id": "tt0071994",
+  "label": "Phantom of the Paradise",
+  "tmdb_id": "27327",
+  "year": "1974"
+ },
  "Pickpocket|1959": {
   "imdb_id": "tt0053168",
   "label": "Pickpocket",
   "tmdb_id": "690",
   "year": "1959"
+ },
+ "Picnic at Hanging Rock|1975": {
+  "imdb_id": "tt0073540",
+  "label": "Picnic at Hanging Rock",
+  "tmdb_id": "11020",
+  "year": "1975"
  },
  "Pierrot le fou|1965": {
   "imdb_id": "tt0059592",
@@ -1698,6 +2304,13 @@
   "tmdb_id": "692",
   "year": "1972"
  },
+ "Pink Flamingos|1973": {
+  "imdb_id": "tt0069089",
+  "label": "Pink Flamingos",
+  "tmdb_id": "692",
+  "year": "1972"
+ },
+ "Plan 9 from Outer Space|1956": {},
  "Playtime|1967": {
   "imdb_id": "tt0062136",
   "label": "Playtime",
@@ -1713,6 +2326,18 @@
   "label": "Possession",
   "tmdb_id": "21484",
   "year": "1981"
+ },
+ "Pretty Baby|1978": {
+  "imdb_id": "tt0078111",
+  "label": "Pretty Baby",
+  "tmdb_id": "26973",
+  "year": "1978"
+ },
+ "Pretty Poison|1968": {
+  "imdb_id": "tt0063456",
+  "label": "Pretty Poison",
+  "tmdb_id": "32969",
+  "year": "1968"
  },
  "Prizzi's Honor|1985": {
   "imdb_id": "tt0089841",
@@ -1736,6 +2361,12 @@
   "label": "Pyaasa",
   "tmdb_id": "41053",
   "year": "1957"
+ },
+ "Quadrophenia|1979": {
+  "imdb_id": "tt0079766",
+  "label": "Quadrophenia",
+  "tmdb_id": "10373",
+  "year": "1979"
  },
  "Quiz Show|1994": {
   "imdb_id": "tt0110932",
@@ -1773,6 +2404,12 @@
   "tmdb_id": "567",
   "year": "1954"
  },
+ "Rebel Without a Cause|1955": {
+  "imdb_id": "tt0048545",
+  "label": "Rebel Without a Cause",
+  "tmdb_id": "221",
+  "year": "1955"
+ },
  "Red Desert|1964": {
   "imdb_id": "tt0058003",
   "label": "Red Desert",
@@ -1785,11 +2422,35 @@
   "tmdb_id": "18254",
   "year": "1981"
  },
+ "Reefer Madness|1936": {
+  "imdb_id": "tt0028346",
+  "label": "Reefer Madness",
+  "tmdb_id": "37833",
+  "year": "1936"
+ },
+ "Ride the High Country|1962": {
+  "imdb_id": "tt0056412",
+  "label": "Ride the High Country",
+  "tmdb_id": "36206",
+  "year": "1962"
+ },
  "Rio Bravo|1958": {
   "imdb_id": "tt0053221",
   "label": "Rio Bravo",
   "tmdb_id": "301",
   "year": "1959"
+ },
+ "Rio Bravo|1959": {
+  "imdb_id": "tt0053221",
+  "label": "Rio Bravo",
+  "tmdb_id": "301",
+  "year": "1959"
+ },
+ "Rock 'n' Roll High School|1979": {
+  "imdb_id": "tt0079813",
+  "label": "Rock 'n' Roll High School",
+  "tmdb_id": "26326",
+  "year": "1978"
  },
  "Rocky|1976": {
   "imdb_id": "tt9430578",
@@ -1808,6 +2469,12 @@
   "label": "Room at the Top",
   "tmdb_id": "43103",
   "year": "1959"
+ },
+ "Salt of the Earth|1954": {
+  "imdb_id": "tt0047443",
+  "label": "Salt of the Earth",
+  "tmdb_id": "23620",
+  "year": "1954"
  },
  "Salò, or the 120 Days of Sodom|1975": {
   "imdb_id": "tt0073650",
@@ -1857,6 +2524,12 @@
   "tmdb_id": "424",
   "year": "1993"
  },
+ "Seconds|1966": {
+  "imdb_id": "tt0060955",
+  "label": "Seconds",
+  "tmdb_id": "20620",
+  "year": "1966"
+ },
  "Secrets & Lies|1996": {
   "imdb_id": "tt0117589",
   "label": "Secrets & Lies",
@@ -1897,6 +2570,12 @@
   "label": "Shoah",
   "tmdb_id": "42044"
  },
+ "Shock Corridor|1963": {
+  "imdb_id": "tt0057495",
+  "label": "Shock Corridor",
+  "tmdb_id": "25504",
+  "year": "1963"
+ },
  "Sideways|2004": {
   "imdb_id": "tt0375063",
   "label": "Sideways",
@@ -1904,6 +2583,12 @@
   "year": "2004"
  },
  "Singin' in the Rain|1951": {
+  "imdb_id": "tt0045152",
+  "label": "Singin' in the Rain",
+  "tmdb_id": "872",
+  "year": "1952"
+ },
+ "Singin' in the Rain|1952": {
   "imdb_id": "tt0045152",
   "label": "Singin' in the Rain",
   "tmdb_id": "872",
@@ -1928,6 +2613,12 @@
   "label": "Sons and Lovers",
   "tmdb_id": "53939",
   "year": "1960"
+ },
+ "Sons of the Desert|1933": {
+  "imdb_id": "tt0024601",
+  "label": "Sons of the Desert",
+  "tmdb_id": "43128",
+  "year": "1933"
  },
  "Spirited Away|2001": {
   "imdb_id": "tt0245429",
@@ -1965,6 +2656,12 @@
   "tmdb_id": "16305",
   "year": "1942"
  },
+ "Sullivan's Travels|1942": {
+  "imdb_id": "tt0034240",
+  "label": "Sullivan's Travels",
+  "tmdb_id": "16305",
+  "year": "1942"
+ },
  "Sunday Bloody Sunday|1971": {
   "imdb_id": "tt0067805",
   "label": "Sunday, Bloody Sunday",
@@ -1982,11 +2679,23 @@
   "tmdb_id": "599",
   "year": "1950"
  },
+ "Sunset Boulevard|1950": {
+  "imdb_id": "tt0043014",
+  "label": "Sunset Boulevard",
+  "tmdb_id": "599",
+  "year": "1950"
+ },
  "Suspiria|1977": {
   "imdb_id": "tt0076786",
   "label": "Suspiria",
   "tmdb_id": "11906",
   "year": "1977"
+ },
+ "Sylvia Scarlett|1936": {
+  "imdb_id": "tt0027067",
+  "label": "Sylvia Scarlett",
+  "tmdb_id": "31866",
+  "year": "1935"
  },
  "Symbiopsychotaxiplasm: Take One|1967": {
   "imdb_id": "tt0296881",
@@ -2006,6 +2715,18 @@
   "tmdb_id": "31414",
   "year": "1994"
  },
+ "Targets|1968": {
+  "imdb_id": "tt0063671",
+  "label": "Targets",
+  "tmdb_id": "19383",
+  "year": "1968"
+ },
+ "Tarzan and His Mate|1934": {
+  "imdb_id": "tt0025862",
+  "label": "Tarzan and His Mate",
+  "tmdb_id": "18994",
+  "year": "1934"
+ },
  "Taste of Cherry|1997": {
   "imdb_id": "tt0120265",
   "label": "Taste of Cherry",
@@ -2022,6 +2743,12 @@
   "label": "Terms of Endearment",
   "tmdb_id": "11050",
   "year": "1983"
+ },
+ "That Hamilton Woman|1941": {
+  "imdb_id": "tt0034272",
+  "label": "That Hamilton Woman",
+  "tmdb_id": "43798",
+  "year": "1941"
  },
  "The 39 Steps|1935": {
   "imdb_id": "tt0026029",
@@ -2040,6 +2767,12 @@
   "label": "The Accidental Tourist",
   "tmdb_id": "31052",
   "year": "1988"
+ },
+ "The American Friend|1977": {
+  "imdb_id": "tt0075675",
+  "label": "Der amerikanische Freund",
+  "tmdb_id": "11222",
+  "year": "1977"
  },
  "The Apartment|1960": {
   "imdb_id": "tt0053604",
@@ -2077,11 +2810,23 @@
   "tmdb_id": "887",
   "year": "1946"
  },
+ "The Big Heat|1953": {
+  "imdb_id": "tt0045555",
+  "label": "The Big Heat",
+  "tmdb_id": "14580",
+  "year": "1953"
+ },
  "The Birds|1963": {
   "imdb_id": "tt0056869",
   "label": "The Birds",
   "tmdb_id": "571",
   "year": "1963"
+ },
+ "The Black Cat|1934": {
+  "imdb_id": "tt0024894",
+  "label": "The Black Cat",
+  "tmdb_id": "24106",
+  "year": "1934"
  },
  "The Bridge on the River Kwai|1957": {
   "imdb_id": "tt0050212",
@@ -2089,11 +2834,23 @@
   "tmdb_id": "826",
   "year": "1957"
  },
+ "The Brood|1979": {
+  "imdb_id": "tt0078908",
+  "label": "The Brood",
+  "tmdb_id": "28942",
+  "year": "1979"
+ },
  "The Brutalist|2024": {
   "imdb_id": "tt8999762",
   "label": "The Brutalist",
   "tmdb_id": "549509",
   "year": "2024"
+ },
+ "The Cabinet of Dr. Caligari|1919": {
+  "imdb_id": "tt0010323",
+  "label": "Das Cabinet des Dr. Caligari",
+  "tmdb_id": "234",
+  "year": "1920"
  },
  "The Citadel|1938": {
   "imdb_id": "tt0029995",
@@ -2118,6 +2875,12 @@
   "label": "The Conformist",
   "tmdb_id": "8416",
   "year": "1970"
+ },
+ "The Conqueror Worm|1968": {
+  "imdb_id": "tt0063285",
+  "label": "Witchfinder General",
+  "tmdb_id": "31965",
+  "year": "1968"
  },
  "The Conversation|1974": {
   "imdb_id": "tt0071360",
@@ -2203,6 +2966,12 @@
   "tmdb_id": "29264",
   "year": "1962"
  },
+ "The First Nudie Musical|1976": {
+  "imdb_id": "tt0074533",
+  "label": "The First Nudie Musical",
+  "tmdb_id": "42244",
+  "year": "1976"
+ },
  "The Full Monty|1997": {
   "imdb_id": "tt0119164",
   "label": "The Full Monty",
@@ -2214,6 +2983,12 @@
   "label": "The General",
   "tmdb_id": "961",
   "year": "1926"
+ },
+ "The Girl Can't Help It|1956": {
+  "imdb_id": "tt0049263",
+  "label": "The Girl Can't Help It",
+  "tmdb_id": "42839",
+  "year": "1956"
  },
  "The Gleaners and I|2000": {
   "imdb_id": "tt0247380",
@@ -2239,6 +3014,12 @@
   "tmdb_id": "238",
   "year": "1972"
  },
+ "The Gods Must Be Crazy|1980": {
+  "imdb_id": "tt0080801",
+  "label": "The Gods Must Be Crazy",
+  "tmdb_id": "8393",
+  "year": "1980"
+ },
  "The Good, the Bad and the Ugly|1966": {
   "imdb_id": "tt0060196",
   "label": "The Good, the Bad and the Ugly",
@@ -2257,17 +3038,35 @@
   "tmdb_id": "596",
   "year": "1940"
  },
+ "The Great Texas Dynamite Chase|1976": {
+  "imdb_id": "tt0076109",
+  "label": "The Great Texas Dynamite Chase",
+  "tmdb_id": "44005",
+  "year": "1976"
+ },
  "The Green Ray|1986": {
   "imdb_id": "tt0091830",
   "label": "The Green Ray",
   "tmdb_id": "54898",
   "year": "1986"
  },
+ "The Harder They Come|1973": {
+  "imdb_id": "tt0070155",
+  "label": "The Harder They Come",
+  "tmdb_id": "7514",
+  "year": "1972"
+ },
  "The Headless Woman|2008": {
   "imdb_id": "tt1221141",
   "label": "The Headless Woman",
   "tmdb_id": "8898",
   "year": "2008"
+ },
+ "The Honeymoon Killers|1970": {
+  "imdb_id": "tt0064437",
+  "label": "The Honeymoon Killers",
+  "tmdb_id": "10237",
+  "year": "1970"
  },
  "The Hour of the Furnaces|1968": {
   "imdb_id": "tt0063084",
@@ -2329,6 +3128,12 @@
   "tmdb_id": "625",
   "year": "1984"
  },
+ "The Killing|1956": {
+  "imdb_id": "tt0049406",
+  "label": "Killing",
+  "tmdb_id": "247",
+  "year": "1956"
+ },
  "The Lady Vanishes|1938": {
   "imdb_id": "tt0030341",
   "label": "The Lady Vanishes",
@@ -2377,6 +3182,12 @@
   "tmdb_id": "18988",
   "year": "1968"
  },
+ "The Little Shop of Horrors|1960": {
+  "imdb_id": "tt0054033",
+  "label": "The Little Shop of Horrors",
+  "tmdb_id": "24452",
+  "year": "1960"
+ },
  "The Loneliness of the Long Distance Runner|1962": {
   "imdb_id": "tt0056194",
   "label": "The Loneliness of the Long Distance Runner",
@@ -2388,6 +3199,12 @@
   "label": "The Long Good Friday",
   "tmdb_id": "14807",
   "year": "1980"
+ },
+ "The Long Goodbye|1973": {
+  "imdb_id": "tt0070334",
+  "label": "The Long Goodbye",
+  "tmdb_id": "1847",
+  "year": "1973"
  },
  "The Lord of the Rings: The Return of the King|2003": {
   "imdb_id": "tt0167260",
@@ -2413,6 +3230,18 @@
   "tmdb_id": "965",
   "year": "1942"
  },
+ "The Maltese Falcon|1941": {
+  "imdb_id": "tt0033870",
+  "label": "The Maltese Falcon",
+  "tmdb_id": "963",
+  "year": "1941"
+ },
+ "The Man Who Fell to Earth|1976": {
+  "imdb_id": "tt0074851",
+  "label": "The Man Who Fell to Earth",
+  "tmdb_id": "991",
+  "year": "1976"
+ },
  "The Man Who Shot Liberty Valance|1962": {
   "imdb_id": "tt0056217",
   "label": "The Man Who Shot Liberty Valance",
@@ -2431,6 +3260,12 @@
   "tmdb_id": "603",
   "year": "1999"
  },
+ "The Naked Kiss|1964": {
+  "imdb_id": "tt0058390",
+  "label": "The Naked Kiss",
+  "tmdb_id": "26031",
+  "year": "1964"
+ },
  "The Night of the Hunter|1955": {
   "imdb_id": "tt0048424",
   "label": "The Night of the Hunter",
@@ -2441,6 +3276,18 @@
   "label": "The Night of the Shooting Stars",
   "tmdb_id": "42130",
   "year": "1982"
+ },
+ "The Nutty Professor|1963": {
+  "imdb_id": "tt0057372",
+  "label": "The Nutty Professor",
+  "tmdb_id": "18331",
+  "year": "1963"
+ },
+ "The Parallax View|1974": {
+  "imdb_id": "tt0071970",
+  "label": "The Parallax View",
+  "tmdb_id": "17365",
+  "year": "1974"
  },
  "The Passion of Joan of Arc|1927": {
   "imdb_id": "tt0019254",
@@ -2465,6 +3312,18 @@
   "tmdb_id": "10403",
   "year": "1992"
  },
+ "The Producers|1968": {
+  "imdb_id": "tt0063462",
+  "label": "The Producers",
+  "tmdb_id": "30197",
+  "year": "1967"
+ },
+ "The Quiet Man|1952": {
+  "imdb_id": "tt0045061",
+  "label": "The Quiet Man",
+  "tmdb_id": "3109",
+  "year": "1952"
+ },
  "The Quince Tree Sun|1992": {
   "imdb_id": "tt0105438",
   "label": "El sol del membrillo",
@@ -2476,6 +3335,12 @@
   "label": "The Railway Children",
   "tmdb_id": "37662",
   "year": "1970"
+ },
+ "The Rain People|1969": {
+  "imdb_id": "tt0064873",
+  "label": "The Rain People",
+  "tmdb_id": "59231",
+  "year": "1969"
  },
  "The Red Shoes|1948": {
   "imdb_id": "tt0040725",
@@ -2501,6 +3366,24 @@
   "tmdb_id": "45218",
   "year": "1951"
  },
+ "The Road Warrior|1981": {
+  "imdb_id": "tt0082694",
+  "label": "Mad Max 2",
+  "tmdb_id": "8810",
+  "year": "1981"
+ },
+ "The Rocky Horror Picture Show|1975": {
+  "imdb_id": "tt0073629",
+  "label": "The Rocky Horror Picture Show",
+  "tmdb_id": "36685",
+  "year": "1975"
+ },
+ "The Scarlet Empress|1934": {
+  "imdb_id": "tt0025746",
+  "label": "The Scarlet Empress",
+  "tmdb_id": "31527",
+  "year": "1934"
+ },
  "The Searchers|1956": {
   "imdb_id": "tt0049730",
   "label": "The Searchers",
@@ -2524,6 +3407,12 @@
   "tmdb_id": "694",
   "year": "1980"
  },
+ "The Shooting|1967": {
+  "imdb_id": "tt0062262",
+  "label": "The Shooting",
+  "tmdb_id": "42701",
+  "year": "1966"
+ },
  "The Silence of the Lambs|1991": {
   "imdb_id": "tt0102926",
   "label": "The Silence of the Lambs",
@@ -2542,11 +3431,41 @@
   "tmdb_id": "4495",
   "year": "1973"
  },
+ "The Stunt Man|1980": {
+  "imdb_id": "tt0081568",
+  "label": "The Stunt Man",
+  "tmdb_id": "42160",
+  "year": "1980"
+ },
+ "The Tall T|1957": {
+  "imdb_id": "tt0051047",
+  "label": "The Tall T",
+  "tmdb_id": "43253",
+  "year": "1957"
+ },
+ "The Terminator|1984": {
+  "imdb_id": "tt0088247",
+  "label": "The Terminator",
+  "tmdb_id": "218",
+  "year": "1984"
+ },
  "The Texas Chain Saw Massacre|1974": {
   "imdb_id": "tt0072271",
   "label": "The Texas Chain Saw Massacre",
   "tmdb_id": "30497",
   "year": "1974"
+ },
+ "The Thief of Bagdad|1940": {
+  "imdb_id": "tt0033152",
+  "label": "The Thief of Bagdad",
+  "tmdb_id": "12232",
+  "year": "1940"
+ },
+ "The Thing from Another World|1951": {
+  "imdb_id": "tt0044121",
+  "label": "The Thing from Another World",
+  "tmdb_id": "10785",
+  "year": "1951"
  },
  "The Thing|1982": {
   "imdb_id": "tt0084787",
@@ -2583,6 +3502,18 @@
   "label": "The Unbearable Lightness of Being",
   "tmdb_id": "10644",
   "year": "1988"
+ },
+ "The Wanderers|1979": {
+  "imdb_id": "tt0080117",
+  "label": "The Wanderers",
+  "tmdb_id": "233",
+  "year": "1979"
+ },
+ "The Warriors|1979": {
+  "imdb_id": "tt0080120",
+  "label": "The Warriors",
+  "tmdb_id": "11474",
+  "year": "1979"
  },
  "The Watermelon Woman|1997": {
   "imdb_id": "tt0118125",
@@ -2655,6 +3586,12 @@
   "tmdb_id": "9576",
   "year": "1982"
  },
+ "Top Hat|1935": {
+  "imdb_id": "tt0027125",
+  "label": "Top Hat",
+  "tmdb_id": "3080",
+  "year": "1935"
+ },
  "Topsy-Turvy|1999": {
   "imdb_id": "tt0151568",
   "label": "Topsy-Turvy",
@@ -2685,6 +3622,12 @@
   "tmdb_id": "627",
   "year": "1996"
  },
+ "Trash|1970": {
+  "imdb_id": "tt0066482",
+  "label": "Trash",
+  "tmdb_id": "89199",
+  "year": "1970"
+ },
  "Tropical Malady|2004": {
   "imdb_id": "tt0381668",
   "label": "Tropical Malady",
@@ -2710,6 +3653,18 @@
   "year": "1992"
  },
  "Twin Peaks: The Return|2017": {},
+ "Two for the Road|1967": {
+  "imdb_id": "tt0062407",
+  "label": "Two for the Road",
+  "tmdb_id": "5767",
+  "year": "1967"
+ },
+ "Two-Lane Blacktop|1971": {
+  "imdb_id": "tt0067893",
+  "label": "Two-Lane Blacktop",
+  "tmdb_id": "27236",
+  "year": "1971"
+ },
  "TÁR|2022": {
   "imdb_id": "tt14444726",
   "label": "Tár",
@@ -2758,6 +3713,12 @@
   "tmdb_id": "9829",
   "year": "2006"
  },
+ "Up in Smoke|1978": {
+  "imdb_id": "tt0078446",
+  "label": "Up in Smoke",
+  "tmdb_id": "11455",
+  "year": "1978"
+ },
  "Vagabond|1985": {
   "imdb_id": "tt0089960",
   "label": "Vagabond",
@@ -2769,6 +3730,12 @@
   "label": "Vampyr",
   "tmdb_id": "779",
   "year": "1932"
+ },
+ "Vanishing Point|1971": {
+  "imdb_id": "tt0067927",
+  "label": "Vanishing Point",
+  "tmdb_id": "11951",
+  "year": "1971"
  },
  "Vertigo|1958": {
   "imdb_id": "tt0052357",
@@ -2798,6 +3765,12 @@
   "label": "WALL•E",
   "tmdb_id": "10681",
   "year": "2008"
+ },
+ "Walkabout|1971": {
+  "imdb_id": "tt0067959",
+  "label": "Walkabout",
+  "tmdb_id": "36040",
+  "year": "1971"
  },
  "Waltz with Bashir|2008": {
   "imdb_id": "tt1185616",
@@ -2853,10 +3826,28 @@
   "tmdb_id": "49964",
   "year": "1987"
  },
+ "Where the Boys Are|1960": {
+  "imdb_id": "tt0054469",
+  "label": "Where the Boys Are",
+  "tmdb_id": "43049",
+  "year": "1960"
+ },
+ "Where's Poppa?|1970": {
+  "imdb_id": "tt0066563",
+  "label": "Where's Poppa?",
+  "tmdb_id": "42569",
+  "year": "1970"
+ },
  "Whisky Galore!|1949": {
   "imdb_id": "tt0042040",
   "label": "Whisky Galore!",
   "tmdb_id": "16665",
+  "year": "1949"
+ },
+ "White Heat|1949": {
+  "imdb_id": "tt0042041",
+  "label": "White Heat",
+  "tmdb_id": "15794",
   "year": "1949"
  },
  "Wild Strawberries|1957": {
@@ -2864,6 +3855,12 @@
   "label": "Wild Strawberries",
   "tmdb_id": "614",
   "year": "1957"
+ },
+ "Willy Wonka & the Chocolate Factory|1971": {
+  "imdb_id": "tt0067992",
+  "label": "Willy Wonka & the Chocolate Factory",
+  "tmdb_id": "252",
+  "year": "1971"
  },
  "Wings of Desire|1987": {
   "imdb_id": "tt0093191",
@@ -2906,6 +3903,12 @@
   "label": "Zama",
   "tmdb_id": "326382",
   "year": "2016"
+ },
+ "Zardoz|1974": {
+  "imdb_id": "tt0070948",
+  "label": "Zardoz",
+  "tmdb_id": "4923",
+  "year": "1974"
  },
  "Zero Dark Thirty|2012": {
   "imdb_id": "tt1790885",
