@@ -1525,9 +1525,10 @@ async def _poster_paths(session, tmdb_ids: list[int]) -> dict[int, str]:
 @app.get("/discover", summary="Reference-library recommendations")
 async def discover(tab: str = "blind", source: Optional[str] = None, limit: int = Query(60, le=300)):
     """tab=blind: films you haven't seen and don't own. tab=shelf: films you've
-    watched but don't own. Every pick cites the reference entries behind it."""
-    if tab not in ("blind", "shelf"):
-        raise HTTPException(400, "tab must be 'blind' or 'shelf'")
+    watched but don't own. tab=hidden: films marked "Not interested".
+    Every pick cites the reference entries behind it."""
+    if tab not in ("blind", "shelf", "hidden"):
+        raise HTTPException(400, "tab must be 'blind', 'shelf' or 'hidden'")
     from medialibrary.database import LetterboxdFilm
     engine = await get_engine()
     async with await get_session(engine) as session:
@@ -1536,9 +1537,11 @@ async def discover(tab: str = "blind", source: Optional[str] = None, limit: int 
         lb_count = len((await session.execute(select(LetterboxdFilm.id))).all())
 
         def in_tab(p, t):
-            return (not p.owned) and (p.watched if t == "shelf" else not p.watched)
+            if t == "hidden":
+                return p.hidden
+            return not p.hidden and not p.owned and (p.watched if t == "shelf" else not p.watched)
 
-        counts = {t: sum(in_tab(p, t) for p in picks) for t in ("blind", "shelf")}
+        counts = {t: sum(in_tab(p, t) for p in picks) for t in ("blind", "shelf", "hidden")}
         chosen = [p for p in picks if in_tab(p, tab)
                   and (not source or any(e.source == source for e in p.film.entries))]
         chosen.sort(key=lambda p: (-p.score, p.film.title))
