@@ -47,6 +47,8 @@ SOURCES: dict[str, Source] = {s.key: s for s in [
     Source("sight_and_sound_directors_2022", "Sight and Sound Greatest Films poll 2022 (directors)",
            "S&S directors 2022", 2.5,
            "https://www.bfi.org.uk/sight-and-sound/directors-100-greatest-films-all-time", ranked=True),
+    Source("tspdt_1000", "They Shoot Pictures, Don't They? 1,000 Greatest Films", "TSPDT 1000", 2.0,
+           "https://theyshootpictures.com/gf1000.htm", ranked=True),
     Source("bfi_100", "BFI 100 greatest British films (1999)", "BFI 100", 1.25,
            "https://www.bfi.org.uk/", ranked=True),
     Source("palme_dor", "Palme d'Or, Cannes Film Festival", "Palme d'Or", 1.5,

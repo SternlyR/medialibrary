@@ -285,8 +285,8 @@ def _wikidata_source(name: str, qid: str, prop: str = "P166"):
 
 
 def tspdt_1000():
-    """They Shoot Pictures, Don't They? 1,000 Greatest Films (optional source:
-    the app ignores this CSV until "tspdt_1000" is added to reference.SOURCES)."""
+    """They Shoot Pictures, Don't They? 1,000 Greatest Films, an annual ranking
+    aggregated from critics' and filmmakers' published lists."""
     soup = BeautifulSoup(fetch("https://theyshootpictures.com/gf1000_all1000films_table.php"), "html.parser")
     rows = []
     for tr in soup.select("table tr")[1:]:
@@ -294,7 +294,8 @@ def tspdt_1000():
         if len(cells) < 6 or not cells[0].isdigit():
             continue
         title = re.sub(r"\s*\[\d{4}\]$", "", cells[2])
-        title = re.sub(r"^(.*), (The|A|An|L'|Le|La|Les)$", r"\2 \1", title).replace("L' ", "L'")
+        title = re.sub(r"^(.*), (The|A|An|L'|Le|La|Les|El|Los|Las|Il|I|Lo|Un|Une|Der|Die|Das)$",
+                       r"\2 \1", title).replace("L' ", "L'")
         director = " ".join(reversed(cells[3].split(", ", 1))) if ", " in cells[3] and "&" not in cells[3] else cells[3]
         rows.append({"rank": cells[0], "title": title, "year": cells[4], "director": director,
                      "country": cells[5], "url": "https://theyshootpictures.com/gf1000.htm"})
@@ -323,7 +324,7 @@ SOURCES = {
 
 
 if __name__ == "__main__":
-    names = sys.argv[1:] or [n for n in SOURCES if n != "tspdt_1000"]
+    names = sys.argv[1:] or list(SOURCES)
     for n in names:
         SOURCES[n]()
         time.sleep(2)
