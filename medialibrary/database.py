@@ -147,6 +147,18 @@ class DiscoverHidden(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class ChatConversation(Base):
+    """An "Ask" conversation: the API message history and what the UI shows."""
+    __tablename__ = "chat_conversations"
+
+    id = Column(String(40), primary_key=True)
+    title = Column(String(200))
+    messages = Column(Text, nullable=False, default="[]")     # Claude API messages, unedited
+    transcript = Column(Text, nullable=False, default="[]")   # rendered turns: text, cards, cost
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+
 class AppMeta(Base):
     __tablename__ = "app_meta"
 

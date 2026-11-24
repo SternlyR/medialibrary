@@ -31,5 +31,8 @@ class Settings(BaseSettings):
     # Letterboxd (no API key required — public profile scraping)
     letterboxd_username: str = ""
 
+    # Anthropic API key for the "Ask" chat (console.anthropic.com -> API Keys)
+    anthropic_api_key: str = ""
+
 
 settings = Settings()

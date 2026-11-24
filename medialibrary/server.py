@@ -1583,6 +1583,68 @@ async def discover_unhide(req: DiscoverKeyRequest):
     return {"restored": req.key}
 
 
+# ── Ask the Library (Claude chat over the reference library) ──────────────────
+
+class AskRequest(BaseModel):
+    message: str
+    conversation_id: Optional[str] = None
+
+
+@app.get("/ask/status", summary="Whether the Ask chat has an API key")
+async def ask_status():
+    from medialibrary import assistant
+    return {"configured": assistant.is_configured(), "model": assistant.MODEL}
+
+
+@app.get("/ask", summary="Recent Ask conversations")
+async def ask_list():
+    from medialibrary.database import ChatConversation
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        rows = (await session.execute(
+            select(ChatConversation).order_by(ChatConversation.updated_at.desc()).limit(20)
+        )).scalars().all()
+        return [{"id": c.id, "title": c.title, "updated_at": c.updated_at} for c in rows]
+
+
+@app.get("/ask/{conversation_id}", summary="One Ask conversation's transcript")
+async def ask_get(conversation_id: str):
+    from medialibrary.database import ChatConversation
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        convo = await session.get(ChatConversation, conversation_id)
+        if not convo:
+            raise HTTPException(404, "Conversation not found")
+        return {"id": convo.id, "title": convo.title, "turns": json.loads(convo.transcript)}
+
+
+@app.post("/ask", summary="Ask a question; Claude answers from the library and reference sources")
+async def ask_post(req: AskRequest):
+    import anthropic
+    from medialibrary import assistant
+    if not assistant.is_configured():
+        raise HTTPException(400, "Add ANTHROPIC_API_KEY to the .env file on the server, then restart it.")
+    message = req.message.strip()
+    if not message:
+        raise HTTPException(400, "Empty question")
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        try:
+            return await assistant.ask(session, req.conversation_id, message[:4000])
+        except anthropic.AuthenticationError:
+            raise HTTPException(401, "The Anthropic API key was rejected - check ANTHROPIC_API_KEY in .env.")
+        except anthropic.PermissionDeniedError as e:
+            raise HTTPException(403, f"The API key can't use this model: {e.message}")
+        except anthropic.RateLimitError:
+            raise HTTPException(429, "Rate limited by the Anthropic API - wait a minute and try again.")
+        except anthropic.BadRequestError as e:
+            raise HTTPException(400, f"Request rejected: {e.message}")
+        except anthropic.APIStatusError as e:
+            raise HTTPException(502, f"Anthropic API error ({e.status_code}): {e.message}")
+        except anthropic.APIConnectionError:
+            raise HTTPException(502, "Couldn't reach the Anthropic API - check the server's internet connection.")
+
+
 # ── Frontend (must be last) ───────────────────────────────────────────────────
 _FRONTEND = Path(__file__).parent.parent / "frontend"
 

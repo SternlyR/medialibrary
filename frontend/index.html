@@ -29,6 +29,7 @@
     .wl-ghost { opacity: 0.35; }
     .wl-chosen { background: #1f1f1f; }
     .drag-handle { touch-action: none; }
+    .ask-md p + p, .ask-md p + ul, .ask-md p + ol, .ask-md ul + p, .ask-md ol + p { margin-top: 0.6rem; }
   </style>
 </head>
 <body>
@@ -44,10 +45,11 @@
 
     <!-- View switcher -->
     <div class="flex bg-[#1c1c1c] border border-[#2a2a2a] rounded-lg overflow-hidden shrink-0">
-      <button @click="appView='library'" :class="['px-3 py-1.5 text-xs font-medium transition-colors', appView==='library' ? 'bg-accent text-white' : 'text-[#666] hover:text-white']">Library</button>
-      <button @click="appView='watchlist'" :class="['px-3 py-1.5 text-xs font-medium transition-colors', appView==='watchlist' ? 'bg-accent text-white' : 'text-[#666] hover:text-white']">Watchlist</button>
-      <button @click="appView='discover'" :class="['px-3 py-1.5 text-xs font-medium transition-colors', appView==='discover' ? 'bg-accent text-white' : 'text-[#666] hover:text-white']">Discover</button>
-      <button @click="appView='acquire'" :class="['px-3 py-1.5 text-xs font-medium transition-colors', appView==='acquire' ? 'bg-accent text-white' : 'text-[#666] hover:text-white']">Acquire</button>
+      <button @click="appView='library'" :class="['px-2 sm:px-3 py-1.5 text-xs font-medium transition-colors', appView==='library' ? 'bg-accent text-white' : 'text-[#666] hover:text-white']">Library</button>
+      <button @click="appView='watchlist'" :class="['px-2 sm:px-3 py-1.5 text-xs font-medium transition-colors', appView==='watchlist' ? 'bg-accent text-white' : 'text-[#666] hover:text-white']">Watchlist</button>
+      <button @click="appView='discover'" :class="['px-2 sm:px-3 py-1.5 text-xs font-medium transition-colors', appView==='discover' ? 'bg-accent text-white' : 'text-[#666] hover:text-white']">Discover</button>
+      <button @click="appView='acquire'" :class="['px-2 sm:px-3 py-1.5 text-xs font-medium transition-colors', appView==='acquire' ? 'bg-accent text-white' : 'text-[#666] hover:text-white']">Acquire</button>
+      <button @click="appView='ask'" :class="['px-2 sm:px-3 py-1.5 text-xs font-medium transition-colors', appView==='ask' ? 'bg-accent text-white' : 'text-[#666] hover:text-white']">Ask</button>
     </div>
 
     <!-- Search — pushed to its own row on mobile via order, inline on desktop -->
@@ -439,6 +441,97 @@
         <button @click="undoDiscoverHide" class="text-accent font-semibold shrink-0">Undo</button>
       </div>
     </transition>
+  </main>
+
+  <!-- ═══════════════════ ASK VIEW ═══════════════════ -->
+  <main v-if="appView==='ask'" class="px-3 sm:px-5 pt-5 max-w-3xl mx-auto flex flex-col min-h-[calc(100vh-120px)]">
+    <div class="px-1 mb-3 flex items-start justify-between gap-3">
+      <div>
+        <h2 class="text-base font-semibold text-white">Ask the Library</h2>
+        <p class="text-xs text-[#666] mt-0.5 leading-relaxed">
+          Answers come only from your discs, your watch history and the reference sources — no web, no review scores.
+        </p>
+      </div>
+      <div class="flex gap-2 shrink-0">
+        <button v-if="askHistory.length" @click="showAskHistory = !showAskHistory"
+          class="px-2.5 py-1.5 text-xs rounded-lg border border-[#2a2a2a] text-[#888] hover:text-white">History</button>
+        <button @click="newAskChat" :disabled="askLoading"
+          class="px-2.5 py-1.5 text-xs rounded-lg border border-[#2a2a2a] text-[#ccc] hover:text-white disabled:opacity-40">New chat</button>
+      </div>
+    </div>
+
+    <div v-if="showAskHistory" class="mb-3 rounded-xl border border-[#222] divide-y divide-[#1e1e1e]">
+      <button v-for="h in askHistory" :key="h.id" @click="loadAskChat(h.id)"
+        :class="['w-full text-left px-3 py-2.5 text-sm truncate hover:bg-[#181818]', h.id === askConvoId ? 'text-accent' : 'text-[#ccc]']">{{ h.title }}</button>
+    </div>
+
+    <div v-if="askStatus && !askStatus.configured" class="rounded-xl border border-[#3a3320] bg-[#221f14] text-[#d8c07a] text-sm px-4 py-3 leading-relaxed">
+      The Ask chat needs an Anthropic API key. On the server, add a line <code class="text-white">ANTHROPIC_API_KEY=…</code>
+      to <code class="text-white">~/medialibrary/.env</code>, then restart the service.
+    </div>
+
+    <div v-else class="flex-1 flex flex-col">
+      <div v-if="!askTurns.length && !askLoading" class="flex-1 flex flex-col justify-center gap-2 py-6">
+        <p class="text-xs text-[#555] px-1 mb-1">Try asking:</p>
+        <button v-for="q in askSuggestions" :key="q" @click="sendAsk(q)"
+          class="text-left text-sm text-[#ccc] px-3 py-2.5 rounded-xl border border-[#222] bg-[#141414] hover:border-accent hover:text-white">{{ q }}</button>
+      </div>
+
+      <div class="space-y-4 pb-4">
+        <template v-for="(t, ti) in askTurns" :key="ti">
+          <div v-if="t.role === 'user'" class="flex justify-end">
+            <div class="max-w-[85%] bg-accent/90 text-white text-sm rounded-2xl rounded-br-md px-3.5 py-2 whitespace-pre-wrap">{{ t.text }}</div>
+          </div>
+          <div v-else class="space-y-2.5">
+            <div v-if="t.text" class="ask-md text-sm text-[#ddd] leading-relaxed" v-html="renderMd(t.text)"></div>
+            <div v-if="t.notice" class="text-xs rounded-lg border border-[#4a2a2a] bg-[#2a1a1a] text-red-300 px-3 py-2">{{ t.notice }}</div>
+            <div v-for="p in (t.cards || [])" :key="p.key" class="rounded-xl border border-[#222] bg-[#141414] p-3 flex gap-3">
+              <img v-if="p.poster_url" :src="p.poster_url" :alt="p.title" loading="lazy" class="w-14 h-20 object-cover rounded shadow shrink-0">
+              <div v-else class="w-14 h-20 bg-[#1c1c1c] rounded flex items-center justify-center shrink-0">🎬</div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-white font-medium leading-snug">{{ p.title }}</p>
+                <p class="text-xs text-[#666] truncate">{{ [p.year, p.director].filter(Boolean).join(' · ') }}</p>
+                <p v-if="p.note" class="text-xs text-[#bbb] mt-1 leading-snug">{{ p.note }}</p>
+                <p v-if="p.owned" class="text-[11px] text-lb mt-0.5">In your library</p>
+                <p v-else-if="p.rating" class="text-[11px] text-lb mt-0.5">You rated it {{ stars(p.rating) }}</p>
+                <p v-else-if="p.watched" class="text-[11px] text-lb mt-0.5">You’ve seen it</p>
+                <div class="flex flex-wrap gap-1 mt-1.5">
+                  <a v-for="c in p.citations" :key="c.label" :href="c.url" target="_blank" rel="noopener" :title="c.source"
+                    class="text-[10.5px] px-1.5 py-0.5 rounded bg-[#222] text-[#bbb] hover:bg-[#2c2c2c] hover:text-white">{{ c.label }}</a>
+                </div>
+                <div v-if="!p.owned" class="flex flex-wrap gap-2 mt-2">
+                  <button @click="discoverToAcquire(p)" :disabled="p.on_acquire || discoverAdded[p.key] || discoverAdding[p.key]"
+                    :class="['text-xs px-2.5 py-1 rounded-lg border transition-colors',
+                      (p.on_acquire || discoverAdded[p.key]) ? 'border-lb/40 text-lb' : 'border-[#333] text-[#ccc] hover:border-accent hover:text-white']">
+                    {{ (p.on_acquire || discoverAdded[p.key]) ? 'On Acquire list ✓' : discoverAdding[p.key] ? 'Finding the disc…' : '+ Acquire list' }}
+                  </button>
+                  <a :href="'https://www.blu-ray.com/search/?quicksearch=1&quicksearch_country=all&section=bluraymovies&quicksearch_keyword=' + encodeURIComponent(p.title)"
+                    target="_blank" rel="noopener" class="text-xs px-2.5 py-1 rounded-lg border border-[#333] text-[#999] hover:text-white">Find on disc</a>
+                </div>
+              </div>
+            </div>
+            <p v-if="t.sources_used && t.sources_used.length" class="text-[11px] text-[#555]">
+              Checked {{ t.sources_used.join(', ') }}<span v-if="t.cost != null"> · ≈ ${{ t.cost.toFixed(2) }}</span>
+            </p>
+          </div>
+        </template>
+        <div v-if="askLoading" class="flex items-center gap-2.5 text-sm text-[#777]">
+          <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+          Looking through your library and the reference sources…
+        </div>
+        <div ref="askEnd"></div>
+      </div>
+
+      <form @submit.prevent="sendAsk()" class="sticky bottom-0 -mx-3 sm:mx-0 px-3 sm:px-0 pt-2 pb-3 bg-[#101010]/95 backdrop-blur-sm" style="padding-bottom: max(0.75rem, env(safe-area-inset-bottom))">
+        <div class="flex items-end gap-2">
+          <textarea v-model="askInput" rows="1" placeholder="Ask about your library…" :disabled="askLoading"
+            @keydown.enter.exact.prevent="sendAsk()"
+            class="flex-1 px-3 py-2.5 text-base sm:text-sm rounded-xl resize-none max-h-32 disabled:opacity-60"></textarea>
+          <button type="submit" :disabled="askLoading || !askInput.trim()"
+            class="shrink-0 bg-accent hover:bg-[#0090c8] text-white rounded-xl px-4 py-2.5 text-sm font-medium disabled:opacity-40">Send</button>
+        </div>
+      </form>
+    </div>
   </main>
 
   <!-- ═══════════════════ TO ACQUIRE VIEW ═══════════════════ -->
@@ -1715,6 +1808,116 @@ createApp({
 
     watch(appView, v => { if (v === 'discover') fetchDiscover(); });
 
+    // ── Ask the Library ────────────────────────────────────────
+    const askStatus      = ref(null);
+    const askTurns       = ref([]);
+    const askInput       = ref('');
+    const askLoading     = ref(false);
+    const askConvoId     = ref(null);
+    const askHistory     = ref([]);
+    const showAskHistory = ref(false);
+    const askEnd         = ref(null);
+    const askSuggestions = [
+      'What should I blind buy next?',
+      'Which Sight and Sound top-100 films haven’t I seen?',
+      'I loved Blood Simple. What canonical noir am I missing?',
+      'Which festival winners from the 1970s should I see?',
+    ];
+
+    function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+    function lsSet(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    }
+    // Minimal Markdown for chat replies; input is HTML-escaped first, so only these tags can appear.
+    function renderMd(text) {
+      const inline = s => s
+        .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>')
+        .replace(/(^|[^*])\*(?!\s)(.+?)\*/g, '$1<em>$2</em>');
+      const out = [];
+      let list = null;
+      for (const raw of escapeHtml(text).split('\n')) {
+        const line = raw.trim();
+        const m = line.match(/^([-*•]|\d+\.)\s+(.*)$/);
+        if (m) {
+          const tag = /\d/.test(m[1]) ? 'ol' : 'ul';
+          if (!list || list.tag !== tag) { if (list) out.push(`</${list.tag}>`); list = { tag }; out.push(`<${tag} class="${tag === 'ol' ? 'list-decimal' : 'list-disc'} pl-5 space-y-1">`); }
+          out.push(`<li>${inline(m[2])}</li>`);
+          continue;
+        }
+        if (list) { out.push(`</${list.tag}>`); list = null; }
+        if (line) out.push(`<p>${inline(line)}</p>`);
+      }
+      if (list) out.push(`</${list.tag}>`);
+      return out.join('');
+    }
+
+    async function scrollAskToEnd() {
+      await nextTick();
+      askEnd.value?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+
+    async function refreshAskHistory() {
+      const res = await fetch('/ask');
+      if (res.ok) askHistory.value = await res.json();
+    }
+
+    async function loadAskChat(id) {
+      showAskHistory.value = false;
+      const res = await fetch(`/ask/${id}`);
+      if (!res.ok) { lsSet('askConversation', null); return; }
+      const data = await res.json();
+      askConvoId.value = data.id;
+      askTurns.value = data.turns;
+      lsSet('askConversation', data.id);
+      scrollAskToEnd();
+    }
+
+    function newAskChat() {
+      askConvoId.value = null;
+      askTurns.value = [];
+      showAskHistory.value = false;
+      lsSet('askConversation', null);
+    }
+
+    async function sendAsk(text) {
+      const q = (text ?? askInput.value).trim();
+      if (!q || askLoading.value) return;
+      askInput.value = '';
+      askTurns.value = [...askTurns.value, { role: 'user', text: q }];
+      askLoading.value = true;
+      scrollAskToEnd();
+      try {
+        const res = await fetch('/ask', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: q, conversation_id: askConvoId.value }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || res.statusText);
+        askConvoId.value = data.conversation_id;
+        lsSet('askConversation', data.conversation_id);
+        askTurns.value = [...askTurns.value, data.turn];
+        refreshAskHistory();
+      } catch (e) {
+        askTurns.value = [...askTurns.value, { role: 'assistant', text: '', notice: 'Couldn’t get an answer: ' + e.message }];
+      } finally {
+        askLoading.value = false;
+        scrollAskToEnd();
+      }
+    }
+
+    watch(appView, async v => {
+      if (v !== 'ask') return;
+      if (!askStatus.value) {
+        const res = await fetch('/ask/status');
+        askStatus.value = res.ok ? await res.json() : { configured: false };
+      }
+      refreshAskHistory();
+      const saved = lsGet('askConversation');
+      if (saved && !askTurns.value.length) loadAskChat(saved);
+    });
+
     // ── To Acquire ─────────────────────────────────────────────
     async function fetchAcquire() {
       acquireLoading.value = true;
@@ -1864,6 +2067,8 @@ createApp({
       lbFileInput, lbImporting, importLetterboxd, watchedSaving, toggleWatched,
       discover, discoverTab, discoverTabs, discoverSource, discoverLoading, discoverAdded, discoverUndo, showCoverage,
       fetchDiscover, setDiscoverTab, hideDiscover, undoDiscoverHide, restoreDiscover, discoverToAcquire,
+      askStatus, askTurns, askInput, askLoading, askConvoId, askHistory, showAskHistory, askEnd, askSuggestions,
+      renderMd, loadAskChat, newAskChat, sendAsk,
       detail, editing, saving, coverView, form,
       showAdd, addMode, addUpc, addTitle, addYear, addBlurayUrl, addLoading, addError, addPreview, parseBlurayId,
       addSearchTitle, addSearchYear, searchResults, searchLoading, selectedSearchId, searchBluray, selectSearchResult,
