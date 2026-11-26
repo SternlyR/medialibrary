@@ -228,6 +228,7 @@ class Pick:
     rating: Optional[float] = None
     on_acquire: bool = False
     hidden: bool = False   # user marked "Not interested"
+    streaming: list[str] = field(default_factory=list)   # services it's on now (US)
     reasons: list[str] = field(default_factory=list)
     citations: list[dict] = field(default_factory=list)
 
@@ -320,6 +321,8 @@ async def build_picks(session) -> tuple[list[Pick], dict]:
     }
 
     hidden = {h.key for h in (await session.execute(select(DiscoverHidden))).scalars().all()}
+    from medialibrary.streaming import streaming_index
+    streaming = await streaming_index(session)
 
     # Films already on the To Acquire list stay listed but are flagged as such.
     acquire_tmdb: set[int] = set()
@@ -353,6 +356,7 @@ async def build_picks(session) -> tuple[list[Pick], dict]:
 
         canon = sum(_entry_weight(SOURCES[e.source], e, list_sizes[e.source]) for e in entries)
         pick = Pick(film=f, canon=canon, owned=owned, watched=is_watched, rating=rating,
+                    streaming=list(streaming.get(f.tmdb_id, [])) if f.tmdb_id else [],
                     hidden=f.key in hidden, on_acquire=bool((f.tmdb_id and f.tmdb_id in acquire_tmdb) or acquire_titles.get(f.title, f.year)))
         for e in sorted(entries, key=lambda e: -SOURCES[e.source].weight):
             src = SOURCES[e.source]
@@ -382,6 +386,12 @@ async def build_picks(session) -> tuple[list[Pick], dict]:
     return picks, coverage
 
 
+def _stream_url(service: str, title: str) -> str:
+    from urllib.parse import quote
+    from medialibrary.streaming import SEARCH_URLS
+    return SEARCH_URLS.get(service, "").format(q=quote(title))
+
+
 def serialize(p: Pick, poster_base: str, posters: dict[int, str]) -> dict:
     f = p.film
     poster = posters.get(f.tmdb_id or 0)
@@ -391,5 +401,6 @@ def serialize(p: Pick, poster_base: str, posters: dict[int, str]) -> dict:
         "poster_url": f"{poster_base}{poster}" if poster else "",
         "score": p.score, "owned": p.owned, "watched": p.watched, "rating": p.rating,
         "on_acquire": p.on_acquire, "hidden": p.hidden,
+        "streaming": [{"service": svc, "url": _stream_url(svc, f.title)} for svc in p.streaming],
         "reasons": p.reasons, "citations": p.citations,
     }

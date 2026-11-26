@@ -56,12 +56,19 @@ app.add_middleware(
 )
 
 _engine = None
+_engine_lock = None
 
 
 async def get_engine():
-    global _engine
+    # A lock so concurrent first callers (a request plus the streaming refresh)
+    # don't both run init_db's CREATE TABLEs / migrations.
+    global _engine, _engine_lock
     if _engine is None:
-        _engine = await init_db()
+        import asyncio
+        _engine_lock = _engine_lock or asyncio.Lock()
+        async with _engine_lock:
+            if _engine is None:
+                _engine = await init_db()
     return _engine
 
 
@@ -1523,7 +1530,8 @@ async def _poster_paths(session, tmdb_ids: list[int]) -> dict[int, str]:
 
 
 @app.get("/discover", summary="Reference-library recommendations")
-async def discover(tab: str = "blind", source: Optional[str] = None, limit: int = Query(60, le=300)):
+async def discover(tab: str = "blind", source: Optional[str] = None, limit: int = Query(60, le=300),
+                   streaming: Optional[str] = Query(None, description="Only films on this service, e.g. Criterion Channel")):
     """tab=blind: films you haven't seen and don't own. tab=shelf: films you've
     watched but don't own. tab=hidden: films marked "Not interested".
     Every pick cites the reference entries behind it."""
@@ -1543,7 +1551,10 @@ async def discover(tab: str = "blind", source: Optional[str] = None, limit: int 
 
         counts = {t: sum(in_tab(p, t) for p in picks) for t in ("blind", "shelf", "hidden")}
         chosen = [p for p in picks if in_tab(p, tab)
-                  and (not source or any(e.source == source for e in p.film.entries))]
+                  and (not source or any(e.source == source for e in p.film.entries))
+                  and (not streaming or streaming in p.streaming)]
+        from medialibrary.streaming import STREAMING_SERVICES, last_sync
+        stream_info = await last_sync(session)
         chosen.sort(key=lambda p: (-p.score, p.film.title))
         chosen = chosen[:limit]
         posters = await _poster_paths(session, [p.film.tmdb_id for p in chosen])
@@ -1553,6 +1564,8 @@ async def discover(tab: str = "blind", source: Optional[str] = None, limit: int 
         "items": [serialize_pick(p, settings.tmdb_image_base, posters) for p in chosen],
         "counts": counts,
         "letterboxd_films": lb_count,
+        "streaming_services": STREAMING_SERVICES,
+        "streaming_synced_at": (stream_info or {}).get("at"),
         "sources": [
             {"key": k, "name": s.name, "short": s.short, "url": s.url, **coverage.get(k, {})}
             for k, s in REF_SOURCES.items() if coverage.get(k, {}).get("total")
@@ -1581,6 +1594,36 @@ async def discover_unhide(req: DiscoverKeyRequest):
             await session.delete(item)
             await session.commit()
     return {"restored": req.key}
+
+
+# ── Streaming availability (TMDB / JustWatch, US) ────────────────────────────
+
+@app.on_event("startup")
+async def _start_streaming_refresh():
+    import asyncio
+    from medialibrary.streaming import refresh_loop
+    asyncio.get_running_loop().create_task(refresh_loop(get_engine, get_session))
+
+
+@app.get("/streaming/status", summary="When streaming catalogs were last refreshed")
+async def streaming_status():
+    from sqlalchemy import func
+    from medialibrary.database import StreamingTitle
+    from medialibrary.streaming import STREAMING_SERVICES, last_sync
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        counts = dict((await session.execute(
+            select(StreamingTitle.service, func.count()).group_by(StreamingTitle.service)
+        )).all())
+        return {"services": STREAMING_SERVICES, "films": counts, "last_sync": await last_sync(session)}
+
+
+@app.post("/streaming/sync", summary="Refresh streaming catalogs now")
+async def streaming_sync():
+    from medialibrary.streaming import sync_streaming
+    engine = await get_engine()
+    async with await get_session(engine) as session:
+        return await sync_streaming(session)
 
 
 # ── Ask the Library (Claude chat over the reference library) ──────────────────

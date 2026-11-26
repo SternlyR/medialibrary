@@ -23,6 +23,7 @@ from medialibrary.config import settings
 from medialibrary.database import (
     AcquisitionItem, ChatConversation, LetterboxdFilm, PhysicalRelease, WatchlistItem,
 )
+from medialibrary.streaming import STREAMING_SERVICES
 from medialibrary.reference import (
     SOURCES, TitleYearIndex, build_picks, ensure_reference_loaded, norm_person,
     serialize, split_directors,
@@ -47,6 +48,7 @@ Your only sources of fact about films' critical standing are the tools, which re
 {_source_lines()}
 2. The owner's disc library (what they own, by format and label, including films inside box sets).
 3. The owner's Letterboxd watch history - used only to know what they have seen and how they rated it. Letterboxd is not a critical source; never present its community ratings or anyone else's opinion from it.
+4. Streaming availability in the US for: {", ".join(STREAMING_SERVICES)} (from TMDB / JustWatch, refreshed daily). It says only where a film can be watched today - never treat it as a sign of quality, and say "currently streaming" since catalogs change.
 
 Rules:
 - Every claim about a film's critical standing, ranking, award or canonical status must come from a reference entry returned by a tool in this conversation. Name the source when you make the claim (for example "Sight and Sound critics' poll 2022, #41").
@@ -67,7 +69,7 @@ TOOLS = [
         "description": (
             "Search the reference library of canonical films (polls, juries, critics' awards, Film Registry, "
             "Peary's Cult Movies). Each result has its citations plus the owner's status: owned, watched, their "
-            "Letterboxd rating, and whether it is on their Acquire list. Results are sorted by reference strength "
+            "Letterboxd rating, whether it is on their Acquire list, and where it is streaming now. Results are sorted by reference strength "
             "(how many sources back a film and how highly) blended with the owner's affinity for its director."
         ),
         "input_schema": {
@@ -81,6 +83,8 @@ TOOLS = [
                 "country": {"type": "string", "description": "Production country (only polls record it; matches partially)."},
                 "status": {"type": "string", "enum": STATUS_ENUM,
                            "description": "unseen = not watched and not owned; seen_not_owned = watched but not on the shelf."},
+                "streaming_on": {"type": "string", "enum": STREAMING_SERVICES,
+                                 "description": "Only films currently streaming on this service (US)."},
                 "limit": {"type": "integer", "description": "Max results, default 15, at most 40."},
             },
             "required": [],
@@ -90,8 +94,8 @@ TOOLS = [
         "name": "get_film",
         "description": (
             "Everything the app knows about one film: its reference citations, whether the owner owns it (which "
-            "disc, format, label), whether and how they rated it on Letterboxd, and whether it is on their "
-            "Watchlist or Acquire list."
+            "disc, format, label), whether and how they rated it on Letterboxd, whether it is on their "
+            "Watchlist or Acquire list, and where it is streaming now."
         ),
         "input_schema": {
             "type": "object",
@@ -221,6 +225,7 @@ def _pick_summary(p) -> dict:
         "citations": [c["source"] + (f" — {c['label']}" if c["label"] else "") for c in p.citations],
         "owned": p.owned, "watched": p.watched, "owner_rating": p.rating,
         "on_acquire_list": p.on_acquire, "hidden_by_owner": p.hidden,
+        "streaming_now": p.streaming or None,
         "reference_score": p.score,
     }
 
@@ -257,6 +262,8 @@ async def tool_search_reference(ctx: TurnContext, a: dict) -> dict:
         if country and country not in (f.country or "").lower():
             continue
         if not _status_ok(p, a.get("status")):
+            continue
+        if a.get("streaming_on") and a["streaming_on"] not in p.streaming:
             continue
         out.append(p)
     out.sort(key=lambda p: -p.score)

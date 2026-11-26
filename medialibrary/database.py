@@ -159,6 +159,17 @@ class ChatConversation(Base):
     updated_at = Column(DateTime, default=datetime.utcnow)
 
 
+class StreamingTitle(Base):
+    """A film currently on a subscription streaming service (US), per TMDB/JustWatch."""
+    __tablename__ = "streaming_titles"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    service = Column(String(100), nullable=False, index=True)   # e.g. "Criterion Channel"
+    tmdb_id = Column(Integer, nullable=False, index=True)
+    title = Column(String(500))
+    year = Column(Integer)
+
+
 class AppMeta(Base):
     __tablename__ = "app_meta"
 

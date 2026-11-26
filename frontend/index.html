@@ -372,6 +372,14 @@
           {{ showCoverage ? 'Hide' : 'Progress' }}
         </button>
       </div>
+      <div v-if="discover.streaming_services && discover.streaming_services.length" class="flex flex-wrap items-center gap-2 mt-2">
+        <button v-for="svc in discover.streaming_services" :key="svc" @click="toggleDiscoverStreaming(svc)"
+          :class="['text-xs px-2.5 py-1.5 rounded-lg border transition-colors',
+            discoverStreaming === svc ? 'bg-[#10302a] border-[#2b6b5b] text-[#5fd3b4]' : 'border-[#2a2a2a] text-[#888] hover:text-white']">
+          ▶ Streaming on {{ svc }}{{ discoverStreaming === svc ? ' ✓' : '' }}
+        </button>
+        <span v-if="!discover.streaming_synced_at" class="text-[11px] text-[#666]">Streaming list loads within a few minutes of a restart.</span>
+      </div>
 
       <div v-if="showCoverage" class="mt-3 rounded-xl border border-[#222] divide-y divide-[#1e1e1e]">
         <div v-for="s in discover.sources" :key="s.key" class="px-3 py-2.5">
@@ -412,6 +420,8 @@
           <p class="text-xs text-[#666] truncate">{{ [p.year, p.director].filter(Boolean).join(' · ') }}</p>
           <p v-if="p.rating" class="text-xs text-lb mt-0.5">You rated it {{ stars(p.rating) }}</p>
           <div class="flex flex-wrap gap-1 mt-1.5">
+            <a v-for="st in (p.streaming || [])" :key="st.service" :href="st.url" target="_blank" rel="noopener"
+              class="text-[10.5px] px-1.5 py-0.5 rounded bg-[#10302a] text-[#5fd3b4] border border-[#1d4d42] hover:text-white">▶ {{ st.service }}</a>
             <a v-for="c in p.citations" :key="c.label" :href="c.url" target="_blank" rel="noopener" :title="c.source"
               class="text-[10.5px] px-1.5 py-0.5 rounded bg-[#222] text-[#bbb] hover:bg-[#2c2c2c] hover:text-white">{{ c.label }}</a>
           </div>
@@ -496,6 +506,8 @@
                 <p v-else-if="p.rating" class="text-[11px] text-lb mt-0.5">You rated it {{ stars(p.rating) }}</p>
                 <p v-else-if="p.watched" class="text-[11px] text-lb mt-0.5">You’ve seen it</p>
                 <div class="flex flex-wrap gap-1 mt-1.5">
+                  <a v-for="st in (p.streaming || [])" :key="st.service" :href="st.url" target="_blank" rel="noopener"
+                    class="text-[10.5px] px-1.5 py-0.5 rounded bg-[#10302a] text-[#5fd3b4] border border-[#1d4d42] hover:text-white">▶ {{ st.service }}</a>
                   <a v-for="c in p.citations" :key="c.label" :href="c.url" target="_blank" rel="noopener" :title="c.source"
                     class="text-[10.5px] px-1.5 py-0.5 rounded bg-[#222] text-[#bbb] hover:bg-[#2c2c2c] hover:text-white">{{ c.label }}</a>
                 </div>
@@ -1730,6 +1742,7 @@ createApp({
     const discoverTab     = ref('blind');
     const discoverTabs    = [{ key: 'blind', label: 'Blind Buys' }, { key: 'shelf', label: 'Add to Shelf' }];
     const discoverSource  = ref('');
+    const discoverStreaming = ref('');
     const discoverLoading = ref(false);
     const discoverAdded   = ref({});
     const discoverUndo    = ref(null);
@@ -1741,11 +1754,17 @@ createApp({
       try {
         const qs = new URLSearchParams({ tab: discoverTab.value, limit: '60' });
         if (discoverSource.value) qs.set('source', discoverSource.value);
+        if (discoverStreaming.value) qs.set('streaming', discoverStreaming.value);
         const res = await fetch('/discover?' + qs);
         if (res.ok) discover.value = await res.json();
       } finally {
         discoverLoading.value = false;
       }
+    }
+
+    function toggleDiscoverStreaming(svc) {
+      discoverStreaming.value = discoverStreaming.value === svc ? '' : svc;
+      fetchDiscover();
     }
 
     function setDiscoverTab(t) {
@@ -1822,6 +1841,7 @@ createApp({
       'Which Sight and Sound top-100 films haven’t I seen?',
       'I loved Blood Simple. What canonical noir am I missing?',
       'Which festival winners from the 1970s should I see?',
+      'What can I stream on Criterion Channel tonight that I haven’t seen?',
     ];
 
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -2066,6 +2086,7 @@ createApp({
       moveWatchlistToTop, removeFromWatchlist, undoWatchlistRemove,
       lbFileInput, lbImporting, importLetterboxd, watchedSaving, toggleWatched,
       discover, discoverTab, discoverTabs, discoverSource, discoverLoading, discoverAdded, discoverUndo, showCoverage,
+      discoverStreaming, toggleDiscoverStreaming,
       fetchDiscover, setDiscoverTab, hideDiscover, undoDiscoverHide, restoreDiscover, discoverToAcquire,
       askStatus, askTurns, askInput, askLoading, askConvoId, askHistory, showAskHistory, askEnd, askSuggestions,
       renderMd, loadAskChat, newAskChat, sendAsk,
